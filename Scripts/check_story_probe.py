@@ -940,6 +940,14 @@ def selftest():
                 print("SELFTEST FAILED: annotation drift not detected: " + needle)
                 print(drift_text)
                 return 1
+        # XML和审阅旁注一起写占位串也必须拒绝，不能把“同步”误作翻译完整。
+        cn_file = os.path.join(tmp, "ModuleData", "Languages", "CNs", "std_LivingWorldNpcs_strings.xml")
+        with io.open(cn_file, "w", encoding="utf-8") as f:
+            f.write('<base><strings><string id="LWN_story_x_entry" text="（缺中文）" />'
+                    '<string id="LWN_story_x_intro" text="i" /></strings></base>')
+        placeholder_problems = []
+        check_dialogue_annotations(tmp, placeholder_problems)
+        assert any("CN text missing or placeholder" in p for p in placeholder_problems), placeholder_problems
         for text, lang, needle in (("甲。乙。", "CN", "multiple_sentences"),
                 ("甲\n乙", "CN", "hard_newline"), ("（甲，乙）：好。", "CN", "speaker_prefix"),
                 ("(A, B): Hello.", "EN", "speaker_prefix"), ("One. Two.", "EN", "multiple_sentences")):
@@ -950,6 +958,7 @@ def selftest():
         stage_prop_anchor_selftest(DEFAULT_MODULE)
         point_action_selftest(DEFAULT_MODULE)
         environment_selftest()
+        mechanics_teaching_selftest(DEFAULT_MODULE)
         print("SELFTEST OK: authoritative references, Chinese annotations, sentence/prefix/newline regressions")
         src = os.path.join(DEFAULT_MODULE, "ExampleModVS", "ExampleMod", "ExampleMod")
         negative_cases = [
@@ -1244,7 +1253,7 @@ BEAT_KEYS = {
     "player_release": ("At", "Cmd", "Note"),
     "camera_return": ("At", "Cmd", "Note"),
     "camera_cut": ("At", "Cmd", "Case", "Anchor", "Fwd", "Right", "Up", "Note"),
-    "prop_spawn": ("At", "Cmd", "Id", "Prefab", "Anchor", "Fwd", "Right", "Up", "Yaw", "Scale", "Note"),
+    "prop_spawn": ("At", "Cmd", "Id", "Prefab", "Anchor", "Fwd", "Right", "Up", "Yaw", "Scale", "Note", "Lock"),
     "actor_place": ("At", "Cmd", "Actor", "Post", "WorkPoint", "Anchor", "Fwd", "Right", "Up", "Facing", "Note"),
     "actor_action": ("At", "Cmd", "Actor", "Action", "Async", "Note"),
     "actor_say": ("At", "Cmd", "Actor", "TextKey", "Listener", "Note"),
@@ -1494,7 +1503,28 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
                 bad(ppath, "wrong_type", "道具必须是对象")
                 continue
             keys(po, ppath, ("Id", "Source", "Prefab", "EntityTag", "Anchor", "Fwd", "Right", "Up",
-                             "Yaw", "Scale", "Support", "Footprint", "Required"))
+                             "Yaw", "Scale", "Support", "Footprint", "Required", "Lock"))
+            if "Lock" in po:
+                lock = po["Lock"]
+                lp = ppath + ".Lock"
+                if not isinstance(lock, dict):
+                    bad(lp, "wrong_type", "Lock must be an object")
+                else:
+                    keys(lock, lp, ("Actor", "Pins", "TitleKey", "Flag", "Requires"))
+                    owner = text(lock, "Actor", lp)
+                    if owner not in cast_ids: bad(lp + ".Actor", "unknown_actor", "Unknown lock owner")
+                    integer(lock, "Pins", lp, 2, 1, 8)
+                    text(lock, "TitleKey", lp)
+                    flag = text(lock, "Flag", lp)
+                    if not re.fullmatch(r"[A-Za-z0-9_.-]+", flag):
+                        bad(lp + ".Flag", "bad_token", "Lock flag must be a nonempty identifier")
+                    for condition in str_list(lock, "Requires", lp, False):
+                        term = condition[1:] if condition.startswith("!") else condition
+                        valid = bool(re.fullmatch(r"(asked|item):[A-Za-z0-9_.-]+", term)) or term == "quest_turned"
+                        if term.startswith("quest_turned@"):
+                            valid = term[len("quest_turned@"): ] in cast_ids
+                        if not valid:
+                            bad(lp + ".Requires", "bad_token", "Lock requirements allow asked:flag, item:id, quest_turned or quest_turned@actor, with optional !")
             pid = text(po, "Id", ppath)
             if not pid:
                 continue
@@ -2238,6 +2268,57 @@ def point_action_issues(data, csv_points, playable):
     return issues
 
 
+def mechanics_teaching_selftest(module):
+    """正式能力与许可锁具的发布负例；坏数据须拒绝，而非等玩家操作才失效。"""
+    from copy import deepcopy
+    design = os.path.join(module, "ModuleData", "DesignData")
+    stage = load_data_json(os.path.join(design, "StoryScenePlan.json"))
+    cast_ids = stage_v2_cast_ids(module)
+    csv_points, csv_issues = load_story_points_csv(module)
+    assert not csv_issues
+    assert not stage_v2_issues(stage, cast_ids, formal=True, csv_points=csv_points)
+    target = next((lid, i) for lid, layout in stage["Layouts"].items()
+                  for i, prop in enumerate(layout.get("Props", [])) if prop.get("Lock"))
+    variants = [
+        ("Actor", "missing_owner", "unknown_actor"),
+        ("Pins", 1.5, "wrong_type"), ("Pins", True, "wrong_type"),
+        ("Pins", "2", "wrong_type"), ("Pins", 0, "bad_range"), ("Pins", 9, "bad_range"),
+        ("Flag", "", "missing_field"), ("Flag", "opened:wrong", "bad_token"),
+        ("Requires", "asked:permit", "wrong_type"), ("Requires", [None], "wrong_type"),
+        ("Requires", ["asked"], "bad_token"), ("Requires", ["asked:"], "bad_token"),
+        ("Requires", ["!!asked:permit"], "bad_token"), ("Requires", ["item:"], "bad_token"),
+        ("Requires", ["item:x:y"], "bad_token"), ("Requires", ["gold>=0"], "bad_token"),
+        ("Requires", ["quest_turned:son"], "bad_token"),
+        ("Requires", ["quest_turned@missing_owner"], "bad_token"),
+        ("Requires", ["quest_turned@"], "bad_token"),
+    ]
+    for field, value, code in variants:
+        data = deepcopy(stage)
+        data["Layouts"][target[0]]["Props"][target[1]]["Lock"][field] = value
+        issues = stage_v2_issues(data, cast_ids, formal=True, csv_points=csv_points)
+        assert any(".Lock." + field in i["path"] and i["code"] == code for i in issues), (field, value, issues)
+    for conditions in (["quest_turned"], ["!quest_turned@son"], ["!asked:permit", "item:lwn_lockpick_kit"]):
+        data = deepcopy(stage)
+        data["Layouts"][target[0]]["Props"][target[1]]["Lock"]["Requires"] = conditions
+        assert not stage_v2_issues(data, cast_ids, formal=True, csv_points=csv_points)
+
+    dialogue = load_data_json(os.path.join(design, "Dialogues", "gate_interrogation.dialog.json"))
+    assert not story_dialogue_issues(dialogue, formal=True)
+    node_index, option_index = next((i, j) for i, n in enumerate(dialogue["Nodes"])
+                                   for j, o in enumerate(n.get("Options", [])) if o.get("Check"))
+    for capability in (None, "", "Steal", "Unknown", 12):
+        data = deepcopy(dialogue)
+        check = data["Nodes"][node_index]["Options"][option_index]["Check"]
+        if capability is None: del check["Capability"]
+        else: check["Capability"] = capability
+        assert any("Capability" in i["path"] for i in story_dialogue_issues(data, formal=True)), capability
+    for capability in ("Intimidate", "Persuade", "Mediate", "Bargain", "Impersonate", "Deceive", "Reason"):
+        data = deepcopy(dialogue)
+        data["Nodes"][node_index]["Options"][option_index]["Check"]["Capability"] = capability
+        assert not story_dialogue_issues(data, formal=True), capability
+    print("SELFTEST OK: 19 lock negatives, 3 lock positives, 5 capability negatives, 7 capability positives")
+
+
 def point_action_selftest(module):
     playable = human_playable(_game_root(module), module)
     assert playable
@@ -2324,6 +2405,8 @@ def check_dialogue_annotations(module, problems):
                     if key in fields and isinstance(value, str):
                         checked += 1
                         want = cn.get(value, "（缺中文）")
+                        if not want.strip() or want == "（缺中文）":
+                            problems.append("%s: CN text missing or placeholder for '%s'" % (name, value))
                         got = obj.get(key + "Zh")
                         if got is None:
                             problems.append("%s: %s '%s' has no %sZh annotation" % (name, key, value, key))
@@ -2664,10 +2747,13 @@ def story_dialogue_issues(data, formal=False):
                 if not isinstance(check, dict):
                     bad(opath + ".Check", "wrong_type", "Check 必须是对象")
                 else:
-                    keys(check, opath + ".Check", ("Tactic", "Target", "Success", "Fail"))
+                    keys(check, opath + ".Check", ("Tactic", "Capability", "Target", "Success", "Fail"))
                     tactic = text(check, opath + ".Check", "Tactic")
                     if tactic and tactic.lower() not in DLG_TACTICS:
                         bad(opath + ".Check.Tactic", "bad_token", "检定手段必须是已注册NegotiationTactic：%s" % tactic)
+                    capability = text(check, opath + ".Check", "Capability", formal)
+                    if capability and capability not in ("Intimidate", "Persuade", "Mediate", "Bargain", "Impersonate", "Deceive", "Reason"):
+                        bad(opath + ".Check.Capability", "bad_token", "Unknown player capability: " + capability)
                     target = text(check, opath + ".Check", "Target", False)
                     if target and target not in participants and target not in actors:
                         bad(opath + ".Check.Target", "unknown_speaker",

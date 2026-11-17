@@ -1,7 +1,7 @@
 {
   "_comment": "P3/P4 正式数据（2026-11-15）：首遇双岗的布局、岗位、候选规则与质问流程。改这里 = 改谁站哪、谁有资格问、先问谁、开窗后等多久，不需要改 C#。几何坐标仍待实机快照复核（V06），当前锚点来自场景 tag。",
   "Schema": "story_stage/2",
-  "ContentVersion": 12,
+  "ContentVersion": 13,
   "Scene": "empire_town_m",
   "WallLevel": "2",
   "Layouts": {
@@ -161,6 +161,33 @@
           "Required": true
         },
         {
+          "Id": "son_lock_box",
+          "Source": "prefab",
+          "Prefab": "bd_chest_c",
+          "Anchor": "player",
+          "Fwd": 2.6,
+          "Right": -9.6,
+          "Up": 0,
+          "Yaw": 0,
+          "Scale": 0.5,
+          "Support": "ground",
+          "Footprint": [
+            1.2,
+            0.8
+          ],
+          "Required": true,
+          "Lock": {
+            "Actor": "son",
+            "Pins": 2,
+            "TitleKey": "LWN_story_lock_title",
+            "Flag": "lesson_lock_done",
+            "Requires": [
+              "asked:lock_permission",
+              "item:lwn_lockpick_kit"
+            ]
+          }
+        },
+        {
           "Id": "widow_carpet",
           "Source": "prefab",
           "Prefab": "carpet_empire_a",
@@ -272,6 +299,7 @@
         "butcher_barrel",
         "butcher_block",
         "pawnbroker_desk",
+        "son_lock_box",
         "widow_carpet",
         "widow_stage"
       ],

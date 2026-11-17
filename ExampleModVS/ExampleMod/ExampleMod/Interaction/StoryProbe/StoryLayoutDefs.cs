@@ -205,9 +205,20 @@ namespace LivingWorldNpcs
         public float OutsideMeters = 3f;
     }
 
+    /// <summary>可获得许可的场景锁具；不绑定城镇金库，不隐式生成/领取物品。</summary>
+    public sealed class StoryPropLockDef
+    {
+        public string Actor;
+        public int Pins = 2;
+        public string TitleKey;
+        public string Flag;
+        public List<string> Requires = new List<string>();
+    }
+
     public sealed class StoryPropDef
     {
         public string Id;
+        public StoryPropLockDef Lock;
         public string Source = "prefab";        // prefab / existing
         public string Prefab;
         public string[] EntityTag = new string[0];
@@ -519,7 +530,7 @@ namespace LivingWorldNpcs
 
             // ── 点位改由 CSV 维护（2026-11-16 用户裁定）：JSON 里的内联 Points 仍接受（夹具用）──
             var csvPoints = LoadPointsCsv(errors, data.Scene);
-            ParseLayouts(root, data, errors, csvPoints);
+            ParseLayouts(root, data, errors, csvPoints, cast);
             ParseStages(root, data, errors, cast);
             ParseFlows(root, data, errors, mode, cast);
             ParseBehaviors(root, data, errors);
@@ -563,7 +574,7 @@ namespace LivingWorldNpcs
 
         // ── 布局 ──
         private static void ParseLayouts(JObject root, StoryLayoutFile data, List<StoryValidationIssue> errors,
-            Dictionary<string, List<StoryPointDef>> csvPoints)
+            Dictionary<string, List<StoryPointDef>> csvPoints, HashSet<string> cast)
         {
             var layouts = Obj(root, "Layouts", "$", errors, true);
             if (layouts == null) return;
@@ -630,7 +641,7 @@ namespace LivingWorldNpcs
                     {
                         string ppath = path + ".Props[" + i + "]";
                         if (!(props[i] is JObject po)) { errors.Add(new StoryValidationIssue(ppath, "wrong_type", "道具必须是对象")); continue; }
-                        Keys(po, ppath, new[] { "Id", "Source", "Prefab", "EntityTag", "Anchor", "Fwd", "Right", "Up", "Yaw", "Scale", "Support", "Footprint", "Required" }, errors);
+                        Keys(po, ppath, new[] { "Id", "Source", "Prefab", "EntityTag", "Anchor", "Fwd", "Right", "Up", "Yaw", "Scale", "Support", "Footprint", "Required", "Lock" }, errors);
                         var p = new StoryPropDef { Id = Str(po, "Id", ppath, errors, true) };
                         if (string.IsNullOrEmpty(p.Id)) continue;
                         if (!seen.Add(p.Id)) errors.Add(new StoryValidationIssue(ppath + ".Id", "duplicate_id", "道具 ID 重复 '" + p.Id + "'"));
@@ -663,6 +674,40 @@ namespace LivingWorldNpcs
                         if (p.Footprint.Length == 2 && (p.Footprint[0] <= 0f || p.Footprint[1] <= 0f))
                             errors.Add(new StoryValidationIssue(ppath + ".Footprint", "bad_range", "占地两个分量都必须 > 0"));
                         p.Required = Bool(po, "Required", ppath, errors, true);
+                        if (po.Property("Lock") != null)
+                        {
+                            var lockObj = Obj(po, "Lock", ppath, errors, true);
+                            if (lockObj != null)
+                            {
+                                string lockPath = ppath + ".Lock";
+                                Keys(lockObj, lockPath, new[] { "Actor", "Pins", "TitleKey", "Flag", "Requires" }, errors);
+                                if (lockObj.Property("Pins") != null && lockObj["Pins"].Type != JTokenType.Integer)
+                                    errors.Add(new StoryValidationIssue(lockPath + ".Pins", "wrong_type", "Lock pins must be an integer"));
+                                p.Lock = new StoryPropLockDef
+                                {
+                                    Actor = Str(lockObj, "Actor", lockPath, errors, true),
+                                    Pins = Int(lockObj, "Pins", lockPath, errors, 2, 1, 8),
+                                    TitleKey = Str(lockObj, "TitleKey", lockPath, errors, true),
+                                    Flag = Str(lockObj, "Flag", lockPath, errors, true),
+                                    Requires = StrList(lockObj, "Requires", lockPath, errors, false)
+                                };
+                                if (!cast.Contains(p.Lock.Actor))
+                                    errors.Add(new StoryValidationIssue(lockPath + ".Actor", "unknown_actor", "Unknown lock owner"));
+                                if (!System.Text.RegularExpressions.Regex.IsMatch(p.Lock.Flag ?? "", @"^[A-Za-z0-9_.-]+$"))
+                                    errors.Add(new StoryValidationIssue(lockPath + ".Flag", "bad_token", "Lock flag must be a nonempty identifier"));
+                                foreach (string condition in p.Lock.Requires)
+                                {
+                                    string term = condition ?? "";
+                                    if (term.StartsWith("!", StringComparison.Ordinal)) term = term.Substring(1);
+                                    bool valid = System.Text.RegularExpressions.Regex.IsMatch(term, @"^(asked|item):[A-Za-z0-9_.-]+$")
+                                        || term == "quest_turned";
+                                    if (term.StartsWith("quest_turned@", StringComparison.Ordinal))
+                                        valid = cast.Contains(term.Substring("quest_turned@".Length));
+                                    if (!valid)
+                                        errors.Add(new StoryValidationIssue(lockPath + ".Requires", "bad_token", "Lock requirements allow asked:flag, item:id, quest_turned or quest_turned@actor, with optional !"));
+                                }
+                            }
+                        }
                         layout.Props.Add(p);
                     }
                 }

@@ -119,6 +119,19 @@ namespace LivingWorldNpcs
 
         // 箱子实体 + 生成标记
         private GameEntity _chestEntity = null;
+        private StoryPrepRunner _activeLockPrep;
+        private string _activeLockProp;
+        private StoryPropLockDef _activeLockDef;
+        private int _activeLockRuntimeToken;
+
+        private bool TryGetSceneLock(out string propId, out StoryPropLockDef definition)
+        {
+            propId = null;
+            definition = null;
+            var host = StoryProbeMissionBehavior.Current;
+            return Agent.Main != null && host?.Active == true
+                && host.Prep?.TryGetLockTarget(Agent.Main.Position, out propId, out definition) == true;
+        }
         private bool _chestSpawned = false;
 
         /// <summary>本场 Mission 是否因「公共保管箱黑名单」跳过了箱子生成（诊断命令 custom.stealth_chest 用）。</summary>
@@ -562,8 +575,8 @@ namespace LivingWorldNpcs
             Agent currentAgent = GetFocusdAgent();
 
             // A2. 箱子接近度检测（每 3 帧更新，用于上下文判定 + 首次接近提示）
-            bool nearChest = _chestEntity != null && Agent.Main != null
-                && Agent.Main.Position.Distance(_chestEntity.GetGlobalFrame().origin) < 3f;
+            bool nearChest = TryGetSceneLock(out _, out _) || (_chestEntity != null && Agent.Main != null
+                && Agent.Main.Position.Distance(_chestEntity.GetGlobalFrame().origin) < 3f);
 
             // 🔴 2026-10-23：玩家正被 NPC 的绳绑着 ⇒ 不给任何交互入口（控制器已被收走，面板也该收）。
             if (GrappleLogic.IsPlayerBoundByOtherRope())
@@ -592,6 +605,8 @@ namespace LivingWorldNpcs
                         _chestHintShown = true;
                         var chestCtx = StealManager.GetCurrentChestContext();
                         var (hint, _, _) = GetChestTexts(chestCtx);
+                        if (TryGetSceneLock(out _, out _))
+                            hint = LWNTextHelper.ResolveText("LWN_story_lock_near", "The small box's lock is within reach.");
                         InformationManager.DisplayMessage(new InformationMessage(hint, Colors.Yellow));
                     }
                     BuildNoTargetContext(nearChest: true);
@@ -1140,7 +1155,8 @@ namespace LivingWorldNpcs
             {
                 var chestCtx = StealManager.GetCurrentChestContext();
                 var (_, title, _) = GetChestTexts(chestCtx);
-                _uiTargetName = title;
+                _uiTargetName = TryGetSceneLock(out _, out var rule)
+                    ? LWNTextHelper.ResolveText(rule.TitleKey, null) : title;
                 // 本地化：撬锁交互按钮
                 // 🔴 牵着绳 ⇒ F 长按归【松绳】（见 BuildAgentContext 里 ropeHeld 的说明）
                 if (!IsRopeHeld())
@@ -1916,6 +1932,10 @@ namespace LivingWorldNpcs
         // 关闭偷窃界面（所有路径统一收口：收手Tab/强制/质问接管/Finalize；ESC 让给游戏菜单，不再收条）
         private void CloseStealInterface()
         {
+            _activeLockPrep = null;
+            _activeLockProp = null;
+            _activeLockDef = null;
+            _activeLockRuntimeToken = 0;
             // 子弹时间先收（幂等）
             StopStealSlowmo();
             // 玩家控制同步恢复（幂等）
@@ -1944,6 +1964,15 @@ namespace LivingWorldNpcs
         {
             var vm = _stealBarVM;
             if (vm == null || _stealLayer == null) return;
+
+            if (_activeLockPrep != null && (!StoryProbeState.IsRuntimeCurrent(_activeLockRuntimeToken)
+                || StoryProbeMissionBehavior.Current?.Prep != _activeLockPrep
+                || !_activeLockPrep.TryGetLockTarget(Agent.Main?.Position ?? Vec3.Zero, out var lockProp, out var lockDef)
+                || lockProp != _activeLockProp || !ReferenceEquals(lockDef, _activeLockDef)))
+            {
+                CloseStealInterface();
+                return;
+            }
 
             vm.UpdateFrame(dt);
 
@@ -1976,11 +2005,25 @@ namespace LivingWorldNpcs
             // AnimalFled：VM 内已完成惊叫/逃跑/围堵广播，此处只收口
 
             bool lockpickDone = reason == StealBarCloseReason.Completed;
+            var sceneLockPrep = _activeLockPrep;
+            string sceneLockProp = _activeLockProp;
+            var sceneLockDef = _activeLockDef;
+            int sceneLockToken = _activeLockRuntimeToken;
             CloseStealInterface();
 
             // 撬锁全部 pin 解开 → 进入开箱 Inquiry（IsUIOpen 在 Inquiry 内重新拉起，贯穿 loot 全程）
             if (lockpickDone)
-                ShowChestInquiry();
+            {
+                if (sceneLockPrep != null)
+                {
+                    if (StoryProbeState.IsRuntimeCurrent(sceneLockToken)
+                        && StoryProbeMissionBehavior.Current?.Prep == sceneLockPrep
+                        && sceneLockPrep.TryCommitLock(sceneLockProp, sceneLockDef))
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            LWNTextHelper.ResolveText("LWN_story_lock_opened", "You release the lock's last pin."), Colors.Green));
+                }
+                else ShowChestInquiry();
+            }
             // 抓动物命中 → 继续实际偷窃流程（动画→物品→消除）
             if (caughtAnimal != null)
                 CompleteAnimalSteal(caughtAnimal);
@@ -3208,10 +3251,11 @@ namespace LivingWorldNpcs
         /// <summary>玩家按 F 互动箱子时调用：空箱早退，否则先撬锁（StealBar Lockpick 模式）。</summary>
         private void OpenChest()
         {
+            bool sceneLock = TryGetSceneLock(out string sceneProp, out var sceneDef);
             int gold = StealManager.StashGold;
             var roster = StealManager.ChestItemRoster;
 
-            if (gold == 0 && (roster == null || roster.IsEmpty()))
+            if (!sceneLock && gold == 0 && (roster == null || roster.IsEmpty()))
             {
                 // 本地化：空箱子提示
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_chest_empty", "The chest is empty."), Colors.Gray));
@@ -3224,8 +3268,16 @@ namespace LivingWorldNpcs
             ModInput.Reset(InteractionIds.StealLeave);
 
             var chestCtx = StealManager.GetCurrentChestContext();
-            int pins = StealManager.GetLockpickPinCount(chestCtx);
+            int pins = sceneLock ? sceneDef.Pins : StealManager.GetLockpickPinCount(chestCtx);
             var (_, title, _) = GetChestTexts(chestCtx);
+            if (sceneLock)
+            {
+                title = LWNTextHelper.ResolveText(sceneDef.TitleKey, null);
+                _activeLockPrep = StoryProbeMissionBehavior.Current.Prep;
+                _activeLockProp = sceneProp;
+                _activeLockDef = sceneDef;
+                _activeLockRuntimeToken = StoryProbeState.RuntimeToken;
+            }
 
             // 撬锁条：pin 全开后由 TickStealBar 接 ShowChestInquiry
             // 本地化：撬锁条标题

@@ -4948,8 +4948,8 @@
     <string id="LWN_story_event3_opt_ask" text="[插话] 两位因何事当街争执？" />
     <string id="LWN_story_event3_opt_walk" text="[走开] 戏班子的事我不掺和。" />
     <string id="LWN_story_son_entry" text="[说两句] 这墙头是你的地盘？" />
-    <string id="LWN_story_son_intro" text="看你这步子，刚从城门那儿碰了一鼻子灰吧？" />
-    <string id="LWN_story_son_hub" text="还有什么事，快说。" />
+    <string id="LWN_story_son_intro" text="要问路就蹲过来，站那儿跟替人望风似的。" />
+    <string id="LWN_story_son_hub" text="声音压低些，门口的人还听着呢。" />
     <string id="LWN_story_son_ask_wall" text="我娘在那边戏台唱戏，我在这儿替夜行会盯梢。" />
     <string id="LWN_story_son_ask_climb" text="可惜我那副好钩子，昨天让一伙野贼给抢了。" />
     <string id="LWN_story_son_ask_climb_2" text="我要不是手伤了，早去把场子找回来了。" />
@@ -4961,7 +4961,7 @@
     <string id="LWN_story_son_quest_accept" text="拆穿他的底细也好，打一顿也好，让他收手，回来拿钩子。" />
     <string id="LWN_story_son_turnin" text="墙根那个野贼，还会来抢我的东西吗？" />
     <string id="LWN_story_son_turnin_ok" text="趁守门那家伙转头时往梁上勾，千万别当着他的面飞。" />
-    <string id="LWN_story_son_chat" text="我说我认了个一拳能打趴野贼的大哥，她还不信。" />
+    <string id="LWN_story_son_chat" text="我说你替我把工具的事办妥了，她才没再追着问。" />
     <string id="LWN_story_son_chat_2" text="要是手底下利索，蹲着贴墙根也能趁他转头溜进去。" />
     <string id="LWN_story_son_opt_climb" text="[打听] 正门被堵死了，怎么才能翻进去？" />
     <string id="LWN_story_son_opt_climb2" text="[追问] 谁敢抢夜行会的东西？" />
@@ -5054,11 +5054,11 @@
     <string id="LWN_story_event6_join_line1" text="这群杂碎，又把我的肉案给掀了。" />
     <string id="LWN_story_event6_helped_line1" text="我没事，多谢你问这一声。" />
     <string id="LWN_story_event6_helped_line2" text="你不是来买肉的吧？" />
-    <string id="LWN_story_son_intro_line1" text="嘘——小点声！" />
-    <string id="LWN_story_son_intro_line2" text="这墙根我蹲了三年，风大看得远。" />
+    <string id="LWN_story_son_intro_line1" text="别踩那块碎瓦，我耳朵还没聋。" />
+    <string id="LWN_story_son_intro_line2" text="你盯了半天城门，怎么，守门的也不肯给你让路？" />
     <string id="LWN_story_son_ask_wall_line1" text="看谁身上带了沉钱袋，看谁走的是背光巷子。" />
     <string id="LWN_story_son_ask_climb_line1" text="瞧见城门上方那根横梁没有？" />
-    <string id="LWN_story_son_ask_climb_line2" text="有飞钩，三丈高的墙跟平地一样。" />
+    <string id="LWN_story_son_ask_climb_line2" text="钩住能承重的地方再上去，手一滑，三丈高的墙可不会接住你。" />
     <string id="LWN_story_son_ask_climb_2_line1" text="那帮野贼不守夜行会的规矩，硬抢东西还掰伤了我一根手指。" />
     <string id="LWN_story_son_ask_sister_line1" text="上个月半夜，我见码头帮两个人架着个穿青布的女子走后巷。" />
     <string id="LWN_story_son_ask_sister_2_line1" text="那天我正摸进绸缎庄顺东西，出声我自己也得折进去。" />
@@ -5226,7 +5226,7 @@
     <string id="LWN_story_pawnbroker_money_covert" text="你要是花八十第纳尔「买」条老旧消息——那我卖。" />
     <string id="LWN_story_pawnbroker_money_dealt" text="他怕丢这趟看门肥差，比怕挨刀子还甚。" />
     <string id="LWN_story_son_money_open" text="四十第纳尔拿来，你想知道哪条暗道？" />
-    <string id="LWN_story_son_money_taken" text="守门那家伙从不抬头，你勾中间保准稳当。" />
+    <string id="LWN_story_son_money_taken" text="挑他转头的时候动手，梁结实，可保不了你不被看见。" />
     <string id="LWN_story_widow_money_open" text="六十第纳尔放在盘里，你想问什么？" />
     <string id="LWN_story_widow_money_taken" text="她两手空空，是被那穿水靠的男人押着往前走的。" />
     <string id="LWN_story_ability_money" text="金钱" />
@@ -5235,7 +5235,7 @@
     <string id="LWN_story_rival_opt_settle" text="[说服] 两家留出各自的台口，谁的戏好谁留客，何必堵着她做生意？" />
     <string id="LWN_story_rival_settled" text="告诉她，我不再堵她的台口。" />
     <string id="LWN_story_rival_settle_refused" text="她要争，自己来！" />
-    <string id="LWN_story_outlaw_opt_settle" text="[对质] 欺负个伤了手的孩子算什么本事？你的这些手段，我一眼就看穿了。" />
+    <string id="LWN_story_outlaw_opt_settle" text="[劝说] 孩子靠那飞钩吃饭，你留着也没用，放他一条活路。" />
     <string id="LWN_story_outlaw_settled" text="告诉那小子，这事到此为止，我不再找他麻烦。" />
     <string id="LWN_story_outlaw_settle_refused" text="别在这儿碍眼。" />
     <string id="LWN_story_thug_opt_settle" text="[说服] 摊子砸垮了，明天谁给你交钱？少来捣乱，两边才能留条活路。" />
@@ -5254,7 +5254,7 @@
     <string id="LWN_story_outlaw_talk_line1" text="那个蹲墙头的小毛贼让你来讨飞钩的？" />
     <string id="LWN_story_outlaw_fight_line1" text="敢找老子的麻烦？" />
     <string id="LWN_story_outlaw_settled_line1" text="算我认栽。" />
-    <string id="LWN_story_outlaw_settle_refused_line1" text="嘴上逞能，吓得住谁？" />
+    <string id="LWN_story_outlaw_settle_refused_line1" text="你替他说情，我就得答应？" />
     <string id="LWN_story_pawnbroker_errand_line1" text="这趟零活算你应下了，先付你五十第纳尔。" />
     <string id="LWN_story_pawnbroker_money_covert_line1" text="客官，我这铺子做的是明面买卖，塞私钱我不能接。" />
     <string id="LWN_story_pawnbroker_money_dealt_line1" text="守门那个铁头，欠了地下赌坊三个月的印子钱。" />
@@ -5415,7 +5415,7 @@
     <string id="LWN_story_persona_outlaw_specialty" text="我熟悉城外偏路，擅长伏击落单的人。" />
     <string id="LWN_story_blocker_opt_insist" text="[说明来意] 我妹妹在城里做工，我进去找她。" />
     <string id="LWN_story_blocker_opt_draw" text="[动手] 今天这门我非进不可。" />
-    <string id="LWN_story_blocker_opt_disguise" text="[施压] 睁开眼看看，这也是你能拦的？" />
+    <string id="LWN_story_blocker_opt_disguise" text="[冒充贵客] 贵客入城还要等你点头，谁给你的规矩？" />
     <string id="LWN_story_event1_opt_stop" text="[喝止] 松手！再碰他，就别怪我动手。" />
     <string id="LWN_story_option_skill" text="{LINE}（{SKILL}）" />
     <string id="LWN_story_opt_face_fight" text="[迎战] 那就来吧。" />
@@ -5515,7 +5515,7 @@
     <string id="LWN_story_hint_disguise_gate" text="借贵族行头施压争取通行；被识破可能遭到武力拘捕。" />
     <string id="LWN_story_hint_event2_opt_help" text="喝止打手，试着替屠户解围；可能激怒对方。" />
     <string id="LWN_story_hint_debtor_opt_collect" text="向收数人追讨120第纳尔债款。" />
-    <string id="LWN_story_hint_outlaw_opt_settle" text="试着逼野贼停止找小贼的麻烦。" />
+    <string id="LWN_story_hint_outlaw_opt_settle" text="劝杜野归还工具，给伤了手的孩子留条生路。" />
     <string id="LWN_story_hint_event1_opt_stop" text="喝止打手，试着替老周解围；可能激怒对方。" />
     <string id="LWN_story_hint_rival_opt_settle" text="试着劝领班停止堵台口。" />
     <string id="LWN_story_hint_event4_opt_defend" text="试着替小贼澄清偷窃指控；也可能惹上嫌疑。" />
@@ -5545,5 +5545,106 @@
     <string id="LWN_story_journal_warehouse_risk" text="屠户说，码头帮曾在半夜押人往西码头暗仓去。他警告我，去那里救人得有趁手的家伙。" />
     <string id="LWN_story_journal_gate" text="守卫这次已经放行。我可以继续往门内走。" />
     <string id="LWN_story_journal_finish" text="我已经进了城，城外这一段事情告一段落。妹妹仍未找到；已经听到的线索留在这里，接下来还要继续打听。" />
+    <string id="LWN_story_son_learn_opt_methods" text="[请教] 正门堵着，教我几样绕过去的本事。" />
+    <string id="LWN_story_hint_son_learn_methods" text="请教潜行、扒窃和工具的用途。" />
+    <string id="LWN_story_son_learn_opt_business" text="[帮忙] 你手伤着，有什么活能交给我。" />
+    <string id="LWN_story_hint_son_learn_business" text="了解他的处境与工具差事。" />
+    <string id="LWN_story_son_methods_hub" text="门口有眼睛，身上有刀，墙上有横梁，你想先对付哪一样？" />
+    <string id="LWN_story_son_learn_opt_sneak" text="[潜行] 先教我从他眼皮底下绕过去。" />
+    <string id="LWN_story_hint_son_learn_sneak" text="请教蹲行、声音与守卫视线；真正通过仍需现场行动。" />
+    <string id="LWN_story_son_learn_opt_steal" text="[扒窃] 那把刀，我想让它换个主人。" />
+    <string id="LWN_story_hint_son_learn_steal" text="请教扒窃装备与钱袋的区别，有被发现的风险。" />
+    <string id="LWN_story_son_learn_opt_tools" text="[工具] 说说你那些钩子和开锁的家伙。" />
+    <string id="LWN_story_hint_son_learn_tools" text="了解钩索和撬锁工具的不同用途。" />
+    <string id="LWN_story_son_learn_opt_back_top" text="[收住] 我还有别的事。" />
+    <string id="LWN_story_hint_son_learn_back_top" text="回到眼前的其他事情。" />
+    <string id="LWN_story_son_learn_sneak_1" text="站在人背后只能躲眼睛，脚下踩得跟打鼓似的，谁还不知道你来了。" />
+    <string id="LWN_story_son_learn_sneak_2" text="贴墙蹲着走，等他的脸转开再穿过去，别把一声咳嗽当成他睡着了。" />
+    <string id="LWN_story_son_learn_opt_back_methods" text="[收住] 说说别的进城办法。" />
+    <string id="LWN_story_hint_son_learn_back_methods" text="回到进城办法的话题。" />
+    <string id="LWN_story_son_learn_steal_1" text="绕到他背后再摸，刀是刀，钱袋是钱袋，摸走一样可不会替你把另一样也装进袖子。" />
+    <string id="LWN_story_son_learn_steal_2" text="手不稳就收回来，被他抓个现行，才该想拿什么话收场。" />
+    <string id="LWN_story_son_learn_opt_disarm" text="[追问] 摸走他的刀，就能大摇大摆进门？" />
+    <string id="LWN_story_hint_son_learn_disarm" text="打听卸走武器能给交涉带来什么筹码。" />
+    <string id="LWN_story_son_learn_disarm" text="刀没了也不等于他答应放你，先看他还藏没藏别的家伙，再当面谈。" />
+    <string id="LWN_story_son_tools_hub" text="飞钩帮你上去，细铁片帮你进去，拿错了家伙可别怪墙和锁不讲理。" />
+    <string id="LWN_story_son_learn_opt_locks" text="[撬锁] 我还没摆弄过锁，先教我门道。" />
+    <string id="LWN_story_hint_son_learn_locks" text="请教锁芯与撬锁工具的使用，有被发现的风险。" />
+    <string id="LWN_story_son_learn_opt_beam_price" text="[买消息] 梁上哪截能承重，你给我指个准处。" />
+    <string id="LWN_story_son_learn_lock_1" text="先看锁芯有几层，再下细铁片，手快不等于开得稳。" />
+    <string id="LWN_story_son_learn_lock_2" text="锁开了还得看里头有什么，主人的眼睛又不是锁住了。" />
+    <string id="LWN_story_son_business_hub" text="手指让人掰伤了，连旧钩子也落在别人手里，倒真有件事想托人。" />
+    <string id="LWN_story_butcher_lesson_opt_methods" text="[请教] 我想从门口过去，教我两手。" />
+    <string id="LWN_story_hint_butcher_lesson_methods" text="请教大山应战、威吓与制服对手的办法。" />
+    <string id="LWN_story_butcher_lesson_opt_business" text="[生意] 说说你这肉摊。" />
+    <string id="LWN_story_hint_butcher_lesson_business" text="打听肉摊的近况、旧事与借刀的条件。" />
+    <string id="LWN_story_butcher_methods_hub" text="你是要他不敢拦，还是拦不住，先想好。" />
+    <string id="LWN_story_butcher_lesson_opt_fight" text="[应战] 要是他拔刀呢？" />
+    <string id="LWN_story_hint_butcher_lesson_fight" text="请教如何应战，以及战败后的处境。" />
+    <string id="LWN_story_butcher_lesson_opt_control" text="[制服] 我想制住他，少挨几刀。" />
+    <string id="LWN_story_hint_butcher_lesson_control" text="请教击晕、捆缚、扛走与释放。" />
+    <string id="LWN_story_butcher_lesson_opt_threat" text="[威吓] 不拔刀，能不能让他自己退？" />
+    <string id="LWN_story_hint_butcher_lesson_threat" text="请教凭武力威吓对手的办法，有引发对峙的风险。" />
+    <string id="LWN_story_butcher_lesson_opt_back_top" text="[收住] 我还有别的事。" />
+    <string id="LWN_story_hint_butcher_lesson_back_top" text="回到大山的其他话题。" />
+    <string id="LWN_story_butcher_learn_fight" text="刀出了鞘就得真接招，输了该认就认，嘴上赢两句可挡不住刀。" />
+    <string id="LWN_story_butcher_lesson_opt_back_methods" text="[收住] 再说说别的办法。" />
+    <string id="LWN_story_hint_butcher_lesson_back_methods" text="回到应付门岗的办法。" />
+    <string id="LWN_story_butcher_learn_threat" text="狠话得有力气撑着，自己膝盖先打颤，喊破喉咙也是壮自己的胆。" />
+    <string id="LWN_story_butcher_learn_control_1" text="从背后下手也可能失手，等人倒了或动弹不得，再伸手绑、扛，别当他是袋面。" />
+    <string id="LWN_story_butcher_learn_control_2" text="把人放稳在一旁才好松绳，绳子攥着不算完事，放开了他还可能回去守门。" />
+    <string id="LWN_story_butcher_business_hub" text="我就想安生卖肉，摊上的事比闲话要紧。" />
+    <string id="LWN_story_butcher_lesson_opt_work" text="[帮忙] 摊上有难处就说。" />
+    <string id="LWN_story_hint_butcher_lesson_work" text="询问肉摊有什么需要帮忙的事。" />
+    <string id="LWN_story_butcher_work_hub" text="生意归生意，钱和人情各有各的账。" />
+    <string id="LWN_story_butcher_lesson_opt_back_business" text="[收住] 再说说你这肉摊。" />
+    <string id="LWN_story_hint_butcher_lesson_back_business" text="回到肉摊的其他话题。" />
+    <string id="LWN_story_son_practice_opt_try" text="[试手] 找把旧锁，让我试试？" />
+    <string id="LWN_story_hint_son_practice_try" text="请小六借一把旧锁练手。" />
+    <string id="LWN_story_son_practice_opt_done" text="[回话] 你那把旧锁，我打开了。" />
+    <string id="LWN_story_hint_son_practice_done" text="向小六说说开锁练习的结果。" />
+    <string id="LWN_story_son_practice_offer" text="旁边那口旧箱是我的，拿回工具就借你试锁，里头的东西可别动。" />
+    <string id="LWN_story_son_practice_opt_start" text="[试锁] 细铁片有了，我就试这把锁。" />
+    <string id="LWN_story_hint_son_practice_start" text="经小六许可，用撬锁包练开旧箱的锁，可以中途收手。" />
+    <string id="LWN_story_son_practice_opt_back" text="[收住] 再说说这些工具。" />
+    <string id="LWN_story_hint_son_practice_back" text="回到钩索和锁具的话题。" />
+    <string id="LWN_story_son_practice_start" text="先稳住第一层，再拨第二层，弄坏了可别指望我这只伤手给你收拾。" />
+    <string id="LWN_story_son_practice_done" text="两层都拨开了，下回碰别人的锁，先想想主人肯不肯借你这双手。" />
+    <string id="LWN_story_widow_lesson_opt_gate" text="[请教] 我想试试靠说话让门卫放行。" />
+    <string id="LWN_story_hint_widow_lesson_gate" text="请教玉娘交涉与扮演身份的办法。" />
+    <string id="LWN_story_widow_lesson_opt_business" text="[戏班] 说说你们这戏班。" />
+    <string id="LWN_story_hint_widow_lesson_business" text="打听戏班的近况、场地纠纷与戏服。" />
+    <string id="LWN_story_widow_methods_hub" text="门卫认钱，也认身份，你得给他一个敢开门的理由。" />
+    <string id="LWN_story_widow_lesson_opt_talk" text="[交涉] 怎么才说得到他心坎上？" />
+    <string id="LWN_story_hint_widow_lesson_talk" text="请教劝说、调解与议价的区别。" />
+    <string id="LWN_story_widow_lesson_opt_identity" text="[乔装] 换上戏服，就能装成贵人？" />
+    <string id="LWN_story_hint_widow_lesson_identity" text="请教行头、身份说辞与被识破的风险。" />
+    <string id="LWN_story_widow_lesson_opt_back_top" text="[收住] 我还有别的事。" />
+    <string id="LWN_story_hint_widow_lesson_back_top" text="回到玉娘的其他话题。" />
+    <string id="LWN_story_widow_learn_talk" text="劝人先找他的顾虑，调解得给两头留台阶，讲价时可别拿别人的钱做人情。" />
+    <string id="LWN_story_widow_lesson_opt_back_methods" text="[收住] 再说说进城的办法。" />
+    <string id="LWN_story_hint_widow_lesson_back_methods" text="回到交涉与身份的话题。" />
+    <string id="LWN_story_widow_learn_identity_1" text="衣裳只管第一眼，开口的腔调、来意和底气，都得你自己撑住。" />
+    <string id="LWN_story_widow_learn_identity_2" text="这出戏要是演砸了，他可不会客客气气地请你下台，你得想好怎么收场。" />
+    <string id="LWN_story_widow_business_hub" text="戏班不大，麻烦不少，你挑一件说。" />
+    <string id="LWN_story_widow_lesson_opt_work" text="[帮忙] 有用得着我的地方，尽管说。" />
+    <string id="LWN_story_hint_widow_lesson_work" text="询问戏班有什么需要帮忙的事。" />
+    <string id="LWN_story_widow_work_hub" text="替戏班办的事我记着，消息值多少钱，咱们当面说清。" />
+    <string id="LWN_story_widow_lesson_opt_back_business" text="[收住] 再说说戏班的事。" />
+    <string id="LWN_story_hint_widow_lesson_back_business" text="回到戏班的其他话题。" />
+    <string id="LWN_story_capability_Intimidate" text="威吓" />
+    <string id="LWN_story_capability_Persuade" text="劝说" />
+    <string id="LWN_story_capability_Mediate" text="调解" />
+    <string id="LWN_story_capability_Bargain" text="议价" />
+    <string id="LWN_story_capability_Impersonate" text="冒充身份" />
+    <string id="LWN_story_capability_Deceive" text="欺骗" />
+    <string id="LWN_story_capability_Reason" text="说理" />
+    <string id="LWN_story_hint_capability_check" text="{CAPABILITY}取决于{ATTRIBUTE}。&#10;{SOURCE}&#10;你：{PLAYER}／对方：{NPC}&#10;成功率：{CHANCE}%&#10;{NOTE}" />
+    <string id="LWN_story_check_source_force" text="你的武力由（活力＋控制）×5换算，限定在5～100；对方使用其武力值。" />
+    <string id="LWN_story_check_source_guile" text="你的技巧取流氓习气，限定在5～100；对方使用其技巧值。" />
+    <string id="LWN_story_check_source_charm" text="你的魅力取魅力技能，限定在5～100；对方使用其魅力值。" />
+    <string id="LWN_story_lock_title" text="小六的旧锁箱" />
+    <string id="LWN_story_lock_near" text="小木箱的锁就在手边。" />
+    <string id="LWN_story_lock_opened" text="最后一层锁芯挑开了。" />
 </strings>
 </base>

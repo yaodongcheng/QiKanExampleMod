@@ -85,6 +85,28 @@
       "Note": "肉案边的桶"
     },
     {
+      "At": 0.3,
+      "Cmd": "prop_spawn",
+      "Id": "son_lock_box",
+      "Prefab": "bd_chest_c",
+      "Anchor": "player",
+      "Fwd": 2.6,
+      "Right": -9.6,
+      "Yaw": 0,
+      "Scale": 0.5,
+      "Note": "小六许可的旧锁箱；只练锁，不分配城镇库存",
+      "Lock": {
+        "Actor": "son",
+        "Pins": 2,
+        "TitleKey": "LWN_story_lock_title",
+        "Flag": "lesson_lock_done",
+        "Requires": [
+          "asked:lock_permission",
+          "item:lwn_lockpick_kit"
+        ]
+      }
+    },
+    {
       "At": 0.5,
       "Cmd": "actor_place",
       "Actor": "pawnbroker",

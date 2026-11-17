@@ -226,6 +226,24 @@ namespace LivingWorldNpcs
             }
         }
 
+        private static readonly Dictionary<string, StoryAbility> DialogueCapabilities =
+            new Dictionary<string, StoryAbility>(StringComparer.Ordinal)
+            {
+                { "Intimidate", StoryAbility.Force },
+                { "Persuade", StoryAbility.Charm }, { "Mediate", StoryAbility.Charm },
+                { "Bargain", StoryAbility.Charm }, { "Impersonate", StoryAbility.Charm },
+                { "Deceive", StoryAbility.Charm }, { "Reason", StoryAbility.Charm },
+            };
+
+        public static bool TryGetCapability(string id, out StoryAbility ability)
+        {
+            ability = default;
+            return id != null && DialogueCapabilities.TryGetValue(id, out ability);
+        }
+
+        public static string CapabilityName(string capability)
+            => LWNTextHelper.ResolveText("LWN_story_capability_" + capability, capability);
+
         public static bool TryParseDialogueTactic(string text, out NegotiationTactic tactic)
         {
             tactic = default;
@@ -234,13 +252,25 @@ namespace LivingWorldNpcs
                 && Enum.TryParse(text, true, out tactic);
         }
 
-        /// <summary>纯查询：与普通对话共用技能映射及SimpleCompute；不掷骰、不消费测试覆盖。</summary>
-        public static StoryRoll PreviewDialogueCheck(string npcId, NegotiationTactic tactic)
+        /// <summary>纯查询：正式能力取三属性，旧定义保持技能口径；共用SimpleChance，不掷骰。</summary>
+        public static StoryRoll PreviewDialogueCheck(string npcId, NegotiationTactic tactic, string capability = null)
         {
             var host = StoryProbeMissionBehavior.Current;
             var agent = host?.GetAgent(npcId);
             var hero = host?.GetHero(npcId);
             if (Hero.MainHero == null || (agent == null && hero == null)) return null;
+            if (!string.IsNullOrEmpty(capability))
+            {
+                if (!TryGetCapability(capability, out var ability)) return null;
+                float pa = PlayerAttr(ability);
+                float na = NpcAttr(npcId, ability);
+                float chance = SingleRollResolver.SimpleChance(pa, na);
+                return new StoryRoll
+                {
+                    Ability = ability, Capability = capability, NpcId = npcId, Tactic = tactic.ToString(),
+                    PlayerAttr = pa, NpcAttr = na, Chance = chance, Threshold = 1f - chance
+                };
+            }
             var context = new IntentContext(agent, speaker: hero);
             var skill = SkillCheckSystem.MapTacticToSkill(tactic);
             var computed = SingleRollResolver.SimpleCompute(context, tactic);
@@ -256,14 +286,14 @@ namespace LivingWorldNpcs
             };
         }
 
-        public static StoryRoll RollDialogueCheck(string npcId, NegotiationTactic tactic)
+        public static StoryRoll RollDialogueCheck(string npcId, NegotiationTactic tactic, string capability = null)
         {
-            var result = PreviewDialogueCheck(npcId, tactic);
+            var result = PreviewDialogueCheck(npcId, tactic, capability);
             if (result == null) return null;
             // 沿用原有三类覆盖命令，但实际概率和技能完全取共享对话轮子。
-            string legacy = result.Skill == DefaultSkills.Charm ? "charm"
+            string legacy = result.Capability != null ? AbilityId(result.Ability) : result.Skill == DefaultSkills.Charm ? "charm"
                 : result.Skill == DefaultSkills.Roguery ? "guile" : null;
-            result.Roll = TakeCheckRoll(tactic.ToString(), legacy);
+            result.Roll = TakeCheckRoll(result.Capability ?? tactic.ToString(), legacy);
             result.Success = SingleRollResolver.Roll(result.Chance, result.Roll);
             DebugLogger.Log("[StoryDialogueCheck] resolver=SimpleCompute " + result.Describe());
             return result;
@@ -453,6 +483,7 @@ namespace LivingWorldNpcs
     {
         public StoryAbility Ability;
         public string Tactic;
+        public string Capability;
         public SkillObject Skill;
         public string NpcId;
         public float PlayerAttr;
@@ -463,7 +494,7 @@ namespace LivingWorldNpcs
         public bool Success;
 
         public string Describe()
-            => $"{NpcId}/{Tactic ?? Ability.ToString()} skill={Skill?.StringId ?? "attribute"} player={PlayerAttr:F0} npc={NpcAttr:F0} chance={Chance:P0} " +
+            => $"{NpcId}/{Tactic ?? Ability.ToString()} capability={Capability ?? "legacy"} attribute={Ability} skill={Skill?.StringId ?? "attribute"} player={PlayerAttr:F0} npc={NpcAttr:F0} chance={Chance:P0} " +
                $"roll={Roll:P0} threshold={Threshold:P0} → {(Success ? "success" : "fail")}";
 
         /// <summary>玩家可见播报（铁律 17：只写「掷点 X% vs 门槛 Y%」，不写难度措辞）。</summary>

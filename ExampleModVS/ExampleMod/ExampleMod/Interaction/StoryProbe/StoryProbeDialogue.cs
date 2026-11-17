@@ -704,7 +704,7 @@ namespace LivingWorldNpcs
                             || opt.Check.Target == "npc" ? npcId : opt.Check.Target;
                         if (!def.Actors.Contains(target) && !def.Participants.Contains(target)) target = npcId;
                         t.CheckType = DialogueInjector.TransitionCheckType.SkillCheck;
-                        t.CheckTag = target + "|" + opt.Check.Tactic;
+                        t.CheckTag = target + "|" + opt.Check.Tactic + "|" + (opt.Check.Capability ?? "");
                         t.NextNodeOnSuccess = opt.Check.Success ?? "";
                         t.NextNodeOnFail = opt.Check.Fail ?? "";
                     }
@@ -845,7 +845,9 @@ namespace LivingWorldNpcs
             string text = LWNTextHelper.ResolveText(option.PlayerKey, null);
             if (option.Check == null || !StoryProbeDefs.TryParseDialogueTactic(option.Check.Tactic, out var tactic)) return text;
             return LWNTextHelper.ResolveCompound("LWN_story_option_skill", "{LINE} ({SKILL})",
-                ("LINE", text), ("SKILL", SkillCheckSystem.MapTacticToSkill(tactic).Name.ToString()));
+                ("LINE", text), ("SKILL", string.IsNullOrEmpty(option.Check.Capability)
+                    ? SkillCheckSystem.MapTacticToSkill(tactic).Name.ToString()
+                    : StoryProbeDefs.CapabilityName(option.Check.Capability)));
         }
 
         public static string DescribeOptionHint(StoryDialogueOption option, string actorId)
@@ -857,8 +859,16 @@ namespace LivingWorldNpcs
             if (!StoryProbeDefs.TryParseDialogueTactic(option.Check.Tactic, out var tactic)) return note;
             string target = string.IsNullOrEmpty(option.Check.Target) || option.Check.Target == "npc"
                 || option.Check.Target == "questioner" ? actorId : option.Check.Target;
-            var preview = StoryProbeDefs.PreviewDialogueCheck(target, tactic);
+            var preview = StoryProbeDefs.PreviewDialogueCheck(target, tactic, option.Check.Capability);
             if (preview == null) return LWNTextHelper.ResolveText("LWN_story_hint_check_unavailable", "The check target is unavailable.");
+            if (preview.Capability != null)
+                return LWNTextHelper.ResolveCompound("LWN_story_hint_capability_check",
+                    "{CAPABILITY} uses {ATTRIBUTE}.\n{SOURCE}\nYou: {PLAYER} / opponent: {NPC}\nSuccess chance: {CHANCE}%\n{NOTE}",
+                    ("CAPABILITY", StoryProbeDefs.CapabilityName(preview.Capability)),
+                    ("ATTRIBUTE", LWNTextHelper.ResolveText(StoryProbeDefs.AbilityDisplayKey(preview.Ability), preview.Ability.ToString())),
+                    ("SOURCE", LWNTextHelper.ResolveText("LWN_story_check_source_" + StoryProbeDefs.AbilityId(preview.Ability), null)),
+                    ("PLAYER", preview.PlayerAttr.ToString("F0")), ("NPC", preview.NpcAttr.ToString("F0")),
+                    ("CHANCE", (preview.Chance * 100f).ToString("F1")), ("NOTE", note));
             return LWNTextHelper.ResolveCompound("LWN_story_hint_skill_check",
                 "Your chance depends on both sides' {SKILL} skill.\nYou: {PLAYER} / opponent: {NPC}\nSuccess chance: {CHANCE}%\n{NOTE}",
                 ("SKILL", preview.Skill.Name.ToString()), ("PLAYER", preview.PlayerAttr.ToString("F0")),
@@ -876,7 +886,7 @@ namespace LivingWorldNpcs
             string npcId = parts[0].Trim();
             if (_actionFailed || !StoryProbeDefs.TryParseDialogueTactic(parts[1], out var tactic)) return false;
 
-            StoryRoll roll = StoryProbeDefs.RollDialogueCheck(npcId, tactic);
+            StoryRoll roll = StoryProbeDefs.RollDialogueCheck(npcId, tactic, parts.Length > 2 ? parts[2] : null);
             if (roll == null) return false;
             try
             {

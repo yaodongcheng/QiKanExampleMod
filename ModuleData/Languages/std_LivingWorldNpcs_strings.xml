@@ -4843,8 +4843,8 @@
     <string id="LWN_story_event3_opt_ask" text="[Ask] What&#x27;s this quarrel about?" />
     <string id="LWN_story_event3_opt_walk" text="[Walk away] Troupe business is none of mine." />
     <string id="LWN_story_son_entry" text="[Say a word] This wall yours?" />
-    <string id="LWN_story_son_intro" text="By that step of yours, the gate guard just turned you back." />
-    <string id="LWN_story_son_hub" text="Say whatever else you want, quickly." />
+    <string id="LWN_story_son_intro" text="Crouch over here if you want directions; standing there makes you look like my lookout." />
+    <string id="LWN_story_son_hub" text="Keep your voice down; the man at the gate still has ears." />
     <string id="LWN_story_son_ask_wall" text="My mother sings by the stage; I keep lookout here for the Nightwalkers." />
     <string id="LWN_story_son_ask_climb" text="Shame a pack of wild thieves took my hook yesterday." />
     <string id="LWN_story_son_ask_climb_2" text="If my hand worked, I&#x27;d have taken it back myself." />
@@ -4856,7 +4856,7 @@
     <string id="LWN_story_son_quest_accept" text="Call his bluff or beat him until he stops, then come back for the hook." />
     <string id="LWN_story_son_turnin" text="Will that robber at the wall steal from me again?" />
     <string id="LWN_story_son_turnin_ok" text="Hook the beam when the guard looks away, and never fly while he&#x27;s watching." />
-    <string id="LWN_story_son_chat" text="She didn&#x27;t believe me when I said I knew a brother who flattens robbers." />
+    <string id="LWN_story_son_chat" text="I told her you had settled the matter of my tools, and she finally stopped asking." />
     <string id="LWN_story_son_chat_2" text="Or crouch low by the wall and slip past when he turns his head." />
     <string id="LWN_story_son_opt_climb" text="[Ask] The front gate is blocked. How do I get over the wall?" />
     <string id="LWN_story_son_opt_climb2" text="[Press] Who dared rob a Nightwalker?" />
@@ -4949,11 +4949,11 @@
     <string id="LWN_story_event6_join_line1" text="Filthy curs overturned my meat block again." />
     <string id="LWN_story_event6_helped_line1" text="I am all right, thanks for asking." />
     <string id="LWN_story_event6_helped_line2" text="You are not here for meat, are you?" />
-    <string id="LWN_story_son_intro_line1" text="Shh — keep it down!" />
-    <string id="LWN_story_son_intro_line2" text="Three years I&#x27;ve watched from this wall." />
+    <string id="LWN_story_son_intro_line1" text="Mind that broken tile; my hearing is still good." />
+    <string id="LWN_story_son_intro_line2" text="You have been watching the gate; will the guard not let you through either?" />
     <string id="LWN_story_son_ask_wall_line1" text="Watching who carries a heavy purse and who takes the dark alleys." />
     <string id="LWN_story_son_ask_climb_line1" text="See that beam over the gate?" />
-    <string id="LWN_story_son_ask_climb_line2" text="With a hook, a three-fathom wall is flat ground." />
+    <string id="LWN_story_son_ask_climb_line2" text="Hook something that will bear your weight before you climb; a three-fathom wall will not catch you if your hand slips." />
     <string id="LWN_story_son_ask_climb_2_line1" text="Those outlaws broke Nightwalker rules by taking my gear and twisting my finger." />
     <string id="LWN_story_son_ask_sister_line1" text="Last month at midnight, two dockhands dragged a girl in blue down the back alley." />
     <string id="LWN_story_son_ask_sister_2_line1" text="I was lifting silk from the draper&#x27;s roof, and one shout would have killed me too." />
@@ -5121,7 +5121,7 @@
     <string id="LWN_story_pawnbroker_money_covert" text="If you pay eighty denars to buy a piece of old news — that I will sell." />
     <string id="LWN_story_pawnbroker_money_dealt" text="He fears losing his post more than he fears a knife." />
     <string id="LWN_story_son_money_open" text="Forty denars in hand — what secret passage do you want?" />
-    <string id="LWN_story_son_money_taken" text="Hook the middle and you&#x27;re through, because the guard never looks up." />
+    <string id="LWN_story_son_money_taken" text="Move when he turns away; a sound beam will not keep you out of his sight." />
     <string id="LWN_story_widow_money_open" text="Put sixty denars on the tray and ask." />
     <string id="LWN_story_widow_money_taken" text="Her hands were empty; that man in oilskins was marching her along." />
     <string id="LWN_story_ability_money" text="Money" />
@@ -5130,7 +5130,7 @@
     <string id="LWN_story_rival_opt_settle" text="[Persuade] Give each troupe room to perform. Let the audience choose. Why block her trade?" />
     <string id="LWN_story_rival_settled" text="Tell her I will leave her stage clear." />
     <string id="LWN_story_rival_settle_refused" text="Let her come and argue herself!" />
-    <string id="LWN_story_outlaw_opt_settle" text="[Call his bluff] Robbing an injured boy is no skill. I can see straight through your tricks." />
+    <string id="LWN_story_outlaw_opt_settle" text="[Persuade] The boy earns his bread with that hook; it is no use to you, so let him have his living." />
     <string id="LWN_story_outlaw_settled" text="Tell the boy it ends here and I will leave him alone." />
     <string id="LWN_story_outlaw_settle_refused" text="Get out of my sight." />
     <string id="LWN_story_thug_opt_settle" text="[Persuade] If the stall closes, who pays you tomorrow? Leave it standing and both sides keep a living." />
@@ -5149,7 +5149,7 @@
     <string id="LWN_story_outlaw_talk_line1" text="That little wall-rat sent you for his grappling hook?" />
     <string id="LWN_story_outlaw_fight_line1" text="Picking a fight with me?" />
     <string id="LWN_story_outlaw_settled_line1" text="You have me." />
-    <string id="LWN_story_outlaw_settle_refused_line1" text="Big words scare nobody." />
+    <string id="LWN_story_outlaw_settle_refused_line1" text="Am I meant to agree just because you ask for him?" />
     <string id="LWN_story_pawnbroker_errand_line1" text="Consider the odd job yours, with fifty denars up front." />
     <string id="LWN_story_pawnbroker_money_covert_line1" text="I do open business here and cannot take a raw bribe." />
     <string id="LWN_story_pawnbroker_money_dealt_line1" text="Ironhead at the gate owes the gambling den three months." />
@@ -5310,7 +5310,7 @@
     <string id="LWN_story_persona_outlaw_specialty" text="I know the side roads and ambush lone travellers." />
     <string id="LWN_story_blocker_opt_insist" text="[Explain] My sister works in there. I am going to find her." />
     <string id="LWN_story_blocker_opt_draw" text="[Fight] I am walking through this gate today." />
-    <string id="LWN_story_blocker_opt_disguise" text="[Pressure] Look at me properly. Is this how you treat someone of standing?" />
+    <string id="LWN_story_blocker_opt_disguise" text="[Impersonate] Since when does a guest of standing need your permission to enter?" />
     <string id="LWN_story_event1_opt_stop" text="[Threaten] Let go! Touch him again and you will answer to me." />
     <string id="LWN_story_option_skill" text="{LINE} ({SKILL})" />
     <string id="LWN_story_opt_face_fight" text="[Fight] Come on, then." />
@@ -5410,7 +5410,7 @@
     <string id="LWN_story_hint_disguise_gate" text="Use your noble costume to press for passage; being exposed may lead to arrest by force." />
     <string id="LWN_story_hint_event2_opt_help" text="Warn the thug off and try to help the butcher; you may anger him." />
     <string id="LWN_story_hint_debtor_opt_collect" text="Press the debt collector to repay the 120-denar debt." />
-    <string id="LWN_story_hint_outlaw_opt_settle" text="Try to pressure the outlaw into leaving the young thief alone." />
+    <string id="LWN_story_hint_outlaw_opt_settle" text="Try to persuade Du Ye to return the tools and let the injured boy earn his living." />
     <string id="LWN_story_hint_event1_opt_stop" text="Warn the thug off and try to help Zhou; you may anger him." />
     <string id="LWN_story_hint_rival_opt_settle" text="Try to persuade the troupe leader to stop blocking the stage." />
     <string id="LWN_story_hint_event4_opt_defend" text="Try to clear the young thief of theft; you may attract suspicion yourself." />
@@ -5440,5 +5440,106 @@
     <string id="LWN_story_journal_warehouse_risk" text="The butcher says the dock gang took prisoners toward a hidden warehouse at the western docks one night. He warned me to have a proper weapon before trying to rescue anyone there." />
     <string id="LWN_story_journal_gate" text="The guards have let me through this time. I can continue inside." />
     <string id="LWN_story_journal_finish" text="I made it into town, bringing this part of the journey to an end. My sister is still missing. The accounts I have heard remain here for the search ahead." />
+    <string id="LWN_story_son_learn_opt_methods" text="[Ask advice] The gate is barred to me; show me some ways around it." />
+    <string id="LWN_story_hint_son_learn_methods" text="Ask about sneaking, pickpocketing and tools." />
+    <string id="LWN_story_son_learn_opt_business" text="[Offer help] With that injured hand, perhaps there is work I can do." />
+    <string id="LWN_story_hint_son_learn_business" text="Ask about his situation and work involving his tools." />
+    <string id="LWN_story_son_methods_hub" text="The gate has eyes, the guard has a blade, and the wall has a beam; which bothers you first?" />
+    <string id="LWN_story_son_learn_opt_sneak" text="[Sneak] Show me how to slip past his eyes." />
+    <string id="LWN_story_hint_son_learn_sneak" text="Ask about crouching, sound and the guard's sight." />
+    <string id="LWN_story_son_learn_opt_steal" text="[Pickpocket] I would like that blade to change hands." />
+    <string id="LWN_story_hint_son_learn_steal" text="Ask about stealing equipment and purses; discovery is a risk." />
+    <string id="LWN_story_son_learn_opt_tools" text="[Tools] Tell me about your hooks and lockpicks." />
+    <string id="LWN_story_hint_son_learn_tools" text="Ask about the different uses of hooks and lockpicks." />
+    <string id="LWN_story_son_learn_opt_back_top" text="[Return] There is something else." />
+    <string id="LWN_story_hint_son_learn_back_top" text="Return to other matters." />
+    <string id="LWN_story_son_learn_sneak_1" text="A man's back hides you from his eyes, but stamping your feet tells him you are there." />
+    <string id="LWN_story_son_learn_sneak_2" text="Crouch along the wall and pass when his face turns away; a cough does not mean he has fallen asleep." />
+    <string id="LWN_story_son_learn_opt_back_methods" text="[Return] Tell me about another way in." />
+    <string id="LWN_story_hint_son_learn_back_methods" text="Return to ways into the city." />
+    <string id="LWN_story_son_learn_steal_1" text="Get behind him before you reach in; a blade and a purse are separate prizes, and taking one will not take the other." />
+    <string id="LWN_story_son_learn_steal_2" text="Pull your hand back if it is unsteady; if he catches you, you will need words to get out of that." />
+    <string id="LWN_story_son_learn_opt_disarm" text="[Ask] If I take his blade, can I walk straight in?" />
+    <string id="LWN_story_hint_son_learn_disarm" text="Ask what leverage taking his weapons gives you." />
+    <string id="LWN_story_son_learn_disarm" text="Losing a blade is no promise to let you pass; see whether he has another weapon, then face him and talk." />
+    <string id="LWN_story_son_tools_hub" text="A hook gets you up and a pick gets you in; choose the wrong tool and neither wall nor lock will oblige." />
+    <string id="LWN_story_son_learn_opt_locks" text="[Pick locks] I have never worked a lock; teach me the basics." />
+    <string id="LWN_story_hint_son_learn_locks" text="Ask how to use lockpicks on a lock; discovery is a risk." />
+    <string id="LWN_story_son_learn_opt_beam_price" text="[Buy information] Point out the part of that beam that will take my weight." />
+    <string id="LWN_story_son_learn_lock_1" text="Find how many layers the lock has before you use the pick; fast hands are not steady hands." />
+    <string id="LWN_story_son_learn_lock_2" text="Once the lock is open, you still have to see what is inside; its owner's eyes remain open too." />
+    <string id="LWN_story_son_business_hub" text="My finger is injured and my old hook is in another man's hands; there is something I could use help with." />
+    <string id="LWN_story_butcher_lesson_opt_methods" text="[Ask advice] The man at the gate bars my way; teach me a trick or two." />
+    <string id="LWN_story_hint_butcher_lesson_methods" text="Ask Da Shan about combat, intimidation and close restraint." />
+    <string id="LWN_story_butcher_lesson_opt_business" text="[Business] Tell me about your stall." />
+    <string id="LWN_story_hint_butcher_lesson_business" text="Ask about the stall, its past and the terms for borrowing a blade." />
+    <string id="LWN_story_butcher_methods_hub" text="Decide whether you want him afraid to bar your way, or unable to do it." />
+    <string id="LWN_story_butcher_lesson_opt_fight" text="[Fight] What if he draws his blade?" />
+    <string id="LWN_story_hint_butcher_lesson_fight" text="Ask about facing an opponent and what happens after a defeat." />
+    <string id="LWN_story_butcher_lesson_opt_control" text="[Restrain] I would rather subdue him than trade blows." />
+    <string id="LWN_story_hint_butcher_lesson_control" text="Ask about knockout, binding, carrying and release." />
+    <string id="LWN_story_butcher_lesson_opt_threat" text="[Intimidate] Can I make him back off without drawing?" />
+    <string id="LWN_story_hint_butcher_lesson_threat" text="Ask about intimidating with Force; it can provoke a confrontation." />
+    <string id="LWN_story_butcher_lesson_opt_back_top" text="[Return] Let us talk about something else." />
+    <string id="LWN_story_hint_butcher_lesson_back_top" text="Return to the previous topic." />
+    <string id="LWN_story_butcher_learn_fight" text="If blades come out, face him; yield if you lose, and do not mistake a boast for a victory." />
+    <string id="LWN_story_butcher_lesson_opt_back_methods" text="[Return] Let us talk about something else." />
+    <string id="LWN_story_hint_butcher_lesson_back_methods" text="Return to the previous topic." />
+    <string id="LWN_story_butcher_learn_threat" text="A threat needs the strength to carry it; if your knees shake, all that shouting is for your own benefit." />
+    <string id="LWN_story_butcher_learn_control_1" text="A strike from behind can fail too; wait until he is down or unable to resist before you reach for your rope or shoulder." />
+    <string id="LWN_story_butcher_learn_control_2" text="Set him down safely to the side; keeping hold of the rope is not the end, and once freed he can return to his post." />
+    <string id="LWN_story_butcher_business_hub" text="I want to sell meat in peace; the stall matters more than gossip." />
+    <string id="LWN_story_butcher_lesson_opt_work" text="[Help] Tell me if you need a hand." />
+    <string id="LWN_story_hint_butcher_lesson_work" text="Offer to help with the stall's troubles." />
+    <string id="LWN_story_butcher_work_hub" text="Business is business; coin and favours have their own accounts." />
+    <string id="LWN_story_butcher_lesson_opt_back_business" text="[Return] Let us talk about something else." />
+    <string id="LWN_story_hint_butcher_lesson_back_business" text="Return to the previous topic." />
+    <string id="LWN_story_son_practice_opt_try" text="[Practice] Find me an old lock to try." />
+    <string id="LWN_story_hint_son_practice_try" text="Ask Little Six to lend an old lock for practice." />
+    <string id="LWN_story_son_practice_opt_done" text="[Report] I opened that old lock of yours." />
+    <string id="LWN_story_hint_son_practice_done" text="Tell Little Six how the lock practice went." />
+    <string id="LWN_story_son_practice_offer" text="That old box beside me is mine; once you recover the tools, you may try its lock, but leave what is inside alone." />
+    <string id="LWN_story_son_practice_opt_start" text="[Try the lock] I have the picks; I will try this lock." />
+    <string id="LWN_story_hint_son_practice_start" text="Use the lockpick kit on Little Six's box with his permission; you may stop midway." />
+    <string id="LWN_story_son_practice_opt_back" text="[Return] Let us talk about something else." />
+    <string id="LWN_story_hint_son_practice_back" text="Return to the previous topic." />
+    <string id="LWN_story_son_practice_start" text="Steady the first layer before you press the second; my injured hand cannot put right a botched job." />
+    <string id="LWN_story_son_practice_done" text="You picked both layers; before you touch someone else's lock, consider whether its owner would welcome your hand." />
+    <string id="LWN_story_widow_lesson_opt_gate" text="[Ask advice] The guard stops me; can words get me through?" />
+    <string id="LWN_story_hint_widow_lesson_gate" text="Ask Yu Niang about negotiation and playing a role." />
+    <string id="LWN_story_widow_lesson_opt_business" text="[The troupe] Tell me about your troupe." />
+    <string id="LWN_story_hint_widow_lesson_business" text="Ask about the troupe, its disputed space and costumes." />
+    <string id="LWN_story_widow_methods_hub" text="The guard knows coin and status; give him a reason he can live with for opening the gate." />
+    <string id="LWN_story_widow_lesson_opt_talk" text="[Negotiate] How do I find the words he wants to hear?" />
+    <string id="LWN_story_hint_widow_lesson_talk" text="Ask about persuasion, mediation and bargaining." />
+    <string id="LWN_story_widow_lesson_opt_identity" text="[Disguise] Will a costume make me a noble?" />
+    <string id="LWN_story_hint_widow_lesson_identity" text="Ask about dress, an assumed identity and the risk of exposure." />
+    <string id="LWN_story_widow_lesson_opt_back_top" text="[Return] Let us talk about something else." />
+    <string id="LWN_story_hint_widow_lesson_back_top" text="Return to the previous topic." />
+    <string id="LWN_story_widow_learn_talk" text="Find his concern when persuading, give both sides a way out when mediating, and never bargain on someone else's behalf." />
+    <string id="LWN_story_widow_lesson_opt_back_methods" text="[Return] Let us talk about something else." />
+    <string id="LWN_story_hint_widow_lesson_back_methods" text="Return to the previous topic." />
+    <string id="LWN_story_widow_learn_identity_1" text="Clothes decide his first glance; the voice, purpose and confidence must come from you." />
+    <string id="LWN_story_widow_learn_identity_2" text="If this performance fails, he will not politely applaud you off the stage; know how you will handle it." />
+    <string id="LWN_story_widow_business_hub" text="It is a small troupe with plenty of troubles; pick one to discuss." />
+    <string id="LWN_story_widow_lesson_opt_work" text="[Help] I can lend a hand where you need one." />
+    <string id="LWN_story_hint_widow_lesson_work" text="Offer to help the troupe." />
+    <string id="LWN_story_widow_work_hub" text="I remember a favour to the troupe, and the price of information is settled face to face." />
+    <string id="LWN_story_widow_lesson_opt_back_business" text="[Return] Let us talk about something else." />
+    <string id="LWN_story_hint_widow_lesson_back_business" text="Return to the previous topic." />
+    <string id="LWN_story_capability_Intimidate" text="Intimidation" />
+    <string id="LWN_story_capability_Persuade" text="Persuasion" />
+    <string id="LWN_story_capability_Mediate" text="Mediation" />
+    <string id="LWN_story_capability_Bargain" text="Bargaining" />
+    <string id="LWN_story_capability_Impersonate" text="Impersonation" />
+    <string id="LWN_story_capability_Deceive" text="Deception" />
+    <string id="LWN_story_capability_Reason" text="Reasoning" />
+    <string id="LWN_story_hint_capability_check" text="{CAPABILITY} uses {ATTRIBUTE}.&#10;{SOURCE}&#10;You: {PLAYER} / opponent: {NPC}&#10;Success chance: {CHANCE}%&#10;{NOTE}" />
+    <string id="LWN_story_check_source_force" text="Your Force is (Vigor + Control) x 5, clamped to 5-100; the opponent uses their Force rating." />
+    <string id="LWN_story_check_source_guile" text="Your Dexterity uses Roguery, clamped to 5-100; the opponent uses their Dexterity rating." />
+    <string id="LWN_story_check_source_charm" text="Your Charm uses the Charm skill, clamped to 5-100; the opponent uses their Charm rating." />
+    <string id="LWN_story_lock_title" text="Little Six's Old Lockbox" />
+    <string id="LWN_story_lock_near" text="The small box's lock is within reach." />
+    <string id="LWN_story_lock_opened" text="You release the lock's last pin." />
 </strings>
 </base>

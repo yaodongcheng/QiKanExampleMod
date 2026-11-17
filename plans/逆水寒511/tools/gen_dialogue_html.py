@@ -4,7 +4,7 @@
 读取语言XML和唯一维护源 *.dialog.json；不读取旧格式，不修改对白真源。
 用法：python plans/逆水寒511/tools/gen_dialogue_html.py > 片段.html
 直接更新既有页面：python plans/逆水寒511/tools/gen_dialogue_html.py --write
-# 片段插进 plans/逆水寒511/逆水寒511-玩法演示.html 的「他们到底说些什么」一节（替换 h3/details 块）
+# --write统一调用DesignData可视化生成器；默认输出仍保留独立对白片段。
 """
 import io
 import re
@@ -15,6 +15,18 @@ import xml.etree.ElementTree as ET
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 CN = os.path.join(ROOT, "ModuleData", "Languages", "CNs", "std_LivingWorldNpcs_strings.xml")
+
+
+def capability_attributes():
+    """按运行时注册表展示归属，拒绝空徽章或另造技能映射。"""
+    if not hasattr(capability_attributes, "cache"):
+        path = os.path.join(ROOT, "ExampleModVS", "ExampleMod", "ExampleMod", "Interaction", "StoryProbe", "StoryProbeDefs.cs")
+        code = io.open(path, encoding="utf-8-sig").read()
+        section = code.split("DialogueCapabilities =", 1)[1].split("public static bool TryGetCapability", 1)[0]
+        mapping = {"Force": "force", "Guile": "guile", "Charm": "charm"}
+        capability_attributes.cache = {name: mapping[attribute] for name, attribute in
+            re.findall(r'\{\s*"([A-Za-z]+)"\s*,\s*StoryAbility\.(Force|Guile|Charm)\s*\}', section)}
+    return capability_attributes.cache
 
 
 def esc(s):
@@ -141,7 +153,15 @@ def render_flow(lang, data, node, who, rendered, depth=0, emit_lines=True, owner
                 badges += '<span class="jcond">只问一次</span>'
             if tr.get("Check"):
                 check = tr["Check"]
-                badges += '<span class="jcond">检定 %s｜%s</span>' % (esc(check.get("Target", "")), esc(check.get("Skill", "")))
+                capability = check.get("Capability")
+                ability = capability_attributes().get(capability)
+                if not ability:
+                    raise ValueError("Unregistered dialogue capability: %r" % capability)
+                name = lang.get("LWN_story_capability_" + capability, capability)
+                attribute = lang.get("LWN_story_ability_" + ability, ability)
+                source = lang.get("LWN_story_check_source_" + ability, "")
+                badges += '<span class="jcond" title="%s">检定 %s｜%s → %s</span>' % (
+                    esc(source).replace('"', "&quot;"), esc(check.get("Target", "")), esc(name), esc(attribute))
             head = '▸ （玩家，%s）：%s%s<span class="jid">→ %s</span>' % (esc(tr.get("Listener", who)), esc(label), badges, esc(target_id or "（离开）"))
 
             if child is None:
@@ -337,8 +357,10 @@ GROUPS = [
     ("守门人 · 双岗共用对话定义", [
         ("第一次进城 · 质问台词", "首遇双岗已有实机出现；实际质问者按岗位AI请求绑定，共用gate_interrogation。下面逐句展示正式源，questioner绑定实际质问守卫；真实说话者/听话者已接原版机制，换人接手与站位仍待实机；首遇强化与保命设定待裁定",
          ["LWN_story_blocker_first"]),
-        ("第二次进城 · 城门过招", "四条对话路径＋六种现场手段；现场手段不靠点选通关",
+        ("第二次进城 · 城门过招", "钱路、魅力、技巧与武力的主路线和组合变体；现场手段按真实操作判定",
          ["LWN_story_blocker_open"]),
+        ("持牌再访 · 门卫放行", "需实际持有城门通行令牌；支线继续交差的新版流程仍待实施",
+         ["LWN_story_blocker_pass"]),
         ("塞钱：他当面数两遍", "",
          ["LWN_story_blocker_bribe_ok"]),
         ("威吓成功", "",
@@ -376,10 +398,10 @@ GROUPS = [
         ("事件 6 · 关照伤势", "搬案板演出未实现",
          ["LWN_story_event6_join"]),
     ]),
-    ("进城引导与牢内换装", [
+    ("进城引导与历史换装文本", [
         ("进城引导 · 同伴或旁白", "下列为当前旁白原文；已改为只借用已有可用同伴，无人走旁白，身份/查重与全生命周期仍待联验",
          ["LWN_story_intro_line_1", "LWN_story_intro_line_2", "LWN_story_intro_line_3"]),
-        ("牢内换装确认 · 当前弹窗文本", "原文提到老囚交衣，仅为文字叙述；老囚实体交接、黑屏演出未实现",
+        ("历史牢内换装文本 · 当前流程不使用", "现行流程为大地图服刑两天、刑满实际换装，停在城镇菜单，由玩家主动再次入场；下列仅保留历史文本参考",
          ["LWN_story_jail_body_1", "LWN_story_jail_body_2", "LWN_story_jail_body_3"]),
     ]),
 ]
@@ -441,16 +463,8 @@ def render():
 
 
 if __name__ == "__main__":
-    result = render()
     if "--write" in sys.argv[1:]:
-        page_path = os.path.join(ROOT, "plans", "逆水寒511", "逆水寒511-玩法演示.html")
-        with io.open(page_path, encoding="utf-8") as source:
-            page = source.read()
-        section = page.index('<h2>他们到底说些什么</h2>')
-        start = page.index('<h3 class="dlghead">', section)
-        end = page.index('</section>', start)
-        with io.open(page_path, "w", encoding="utf-8", newline="") as target:
-            target.write(page[:start] + result + "\n  " + page[end:])
-        print("dialogue html updated from formal definitions and speech bindings")
+        from gen_story_preview import main
+        main([arg for arg in sys.argv[1:] if arg != "--write"])
     else:
-        print(result)
+        print(render())

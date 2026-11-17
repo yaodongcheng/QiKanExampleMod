@@ -152,6 +152,7 @@ def main():
                 "Footprint": [6.8, 5.3] if b.get("Prefab") == "lwn_market_stage"
                     else [1.6, 3.5] if b.get("Prefab") in ("lwn_market_meat_counter", "lwn_market_pawn_counter") else [1.2, 0.8],
                 "Required": True,
+                **({"Lock": b["Lock"]} if "Lock" in b else {}),
             })
         elif cmd == "actor_place":
             aid = b.get("Actor")

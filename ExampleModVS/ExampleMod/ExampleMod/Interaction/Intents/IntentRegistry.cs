@@ -206,7 +206,17 @@ namespace LivingWorldNpcs
             float playerLevel = Hero.MainHero.GetSkillValue(skill);
             float npcLevel = npc?.GetSkillValue(skill) ?? 50f; // 缺值默认 50
 
-            // 基础胜率：同技能比拼
+            r.Chance = SimpleChance(playerLevel, npcLevel, offerValue);
+            r.State = null;
+            r.Threshold = 0f;
+            r.Log = $"[单次检定] 手段={tactic} 技能={skill.Name} 你的等级={playerLevel:F0} 对方等级={npcLevel:F0} 献礼={offerValue:0.00} → 成功率={r.Chance:0.00}";
+            return r;
+        }
+
+        /// <summary>已解析能力值的共享成功率入口；所有SimpleCompute消费者同一公式。</summary>
+        public static float SimpleChance(float playerLevel, float npcLevel, float offerValue = 0f)
+        {
+            // 基础胜率：同技能或同属性比拼
             float totalLevel = playerLevel + npcLevel;
             float baseChance = totalLevel > 0f ? playerLevel / totalLevel : 0.5f;
 
@@ -214,12 +224,7 @@ namespace LivingWorldNpcs
             float offerBonus = MathF.Clamp(offerValue, 0f, 1f);
             float chance = baseChance * 0.85f + offerBonus * 0.15f;
 
-            r.Chance = MathF.Clamp(chance, 0.05f, 0.95f);
-            r.State = null;   // 不依赖 NegotiationState
-            r.Threshold = 0f;
-            r.Log = $"[单次检定] 手段={tactic} 技能={skill.Name} 你的等级={playerLevel:F0} 对方等级={npcLevel:F0} 献礼={offerBonus:0.00} → 成功率={r.Chance:0.00}"; // lwn-ignore: A (debug log)
-
-            return r;
+            return MathF.Clamp(chance, 0.05f, 0.95f);
         }
     }
 }

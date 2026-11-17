@@ -192,7 +192,8 @@ namespace LivingWorldNpcs
     /// </summary>
     public sealed class StoryDialogueCheck
     {
-        public string Tactic;     // NegotiationTactic；技能取共享MapTacticToSkill
+        public string Tactic;     // 旧手段词供兼容；正式玩法按Capability取属性
+        public string Capability; // 已登记的玩家能力；能力决定三属性归属
         public string Target;     // 参与者角色名或实名演员 id
         public string Success;    // 成功节点（必填）
         public string Fail;       // 失败节点（可空 = 关闭）
@@ -510,10 +511,11 @@ namespace LivingWorldNpcs
             if (token == null || token.Type == JTokenType.Null) return null;
             if (!(token is JObject co)) { errors.Add(new StoryDialogueIssue(path + ".Check", "wrong_type", "Check 必须是对象")); return null; }
             string cpath = path + ".Check";
-            Keys(co, cpath, new[] { "Tactic", "Target", "Success", "Fail" }, errors);
+            Keys(co, cpath, new[] { "Tactic", "Capability", "Target", "Success", "Fail" }, errors);
             var check = new StoryDialogueCheck
             {
                 Tactic = Str(co, "Tactic", cpath, errors, true),
+                Capability = Str(co, "Capability", cpath, errors, false),
                 Target = Str(co, "Target", cpath, errors, false),
                 Success = Str(co, "Success", cpath, errors, true),
                 Fail = Str(co, "Fail", cpath, errors, false)
@@ -521,6 +523,8 @@ namespace LivingWorldNpcs
             if (!string.IsNullOrEmpty(check.Tactic) && !StoryProbeDefs.TryParseDialogueTactic(check.Tactic, out _))
                 errors.Add(new StoryDialogueIssue(cpath + ".Tactic", "bad_token",
                     "检定手段必须是已注册的NegotiationTactic：" + check.Tactic));
+            if (!string.IsNullOrEmpty(check.Capability) && !StoryProbeDefs.TryGetCapability(check.Capability, out _))
+                errors.Add(new StoryDialogueIssue(cpath + ".Capability", "bad_token", "Unknown player capability: " + check.Capability));
             return check;
         }
 
@@ -583,6 +587,8 @@ namespace LivingWorldNpcs
                         errors.Add(new StoryDialogueIssue(opath + ".NextNode", "unknown_node", "节点 '" + opt.NextNode + "' 不存在"));
                     if (opt.Check != null)
                     {
+                        if (formalMode && string.IsNullOrEmpty(opt.Check.Capability))
+                            errors.Add(new StoryDialogueIssue(opath + ".Check.Capability", "missing_field", "Formal checks require a player capability"));
                         // 检定路由与直连二选一：同时写 = 说不清该走哪条。
                         if (!string.IsNullOrEmpty(opt.NextNode))
                             errors.Add(new StoryDialogueIssue(opath, "bad_value", "Check 与 NextNode 只能二选一"));

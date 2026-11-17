@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -57,6 +57,48 @@ namespace LivingWorldNpcs
             entity = null;
             return !string.IsNullOrEmpty(id) && _props.TryGetValue(id, out entity) && entity != null;
         }
+        /// <summary>只查询已准备且获得许可的锁具；无法准备/演员失效不提供入口。</summary>
+        public bool TryGetLockTarget(Vec3 position, out string propId, out StoryPropLockDef definition)
+        {
+            propId = null;
+            definition = null;
+            var player = Agent.Main;
+            if (!Ready || _layout == null || _host == null || !_host.Active
+                || StoryProbeMissionBehavior.Current != _host
+                || !AgentControlHelper.SafeIsActive(player) || player.Health <= 0
+                || GrappleLogic.IsPlayerBoundByOtherRope() || AgentStatus.Current?.IsInStatus(player) == true
+                || CombatManager.IsPlayerInCombat || PairActionLogic.Current?.IsBusy(player) == true
+                || TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.IsConversationInProgress == true)
+                return false;
+            float best = 2f;
+            foreach (var prop in _layout.Props)
+            {
+                var rule = prop.Lock;
+                if (rule == null || !HasProp(prop.Id) || StoryProbeState.HasAsked(rule.Actor, rule.Flag)) continue;
+                var actor = _host.GetAgent(rule.Actor);
+                if (!AgentControlHelper.SafeIsActive(actor) || actor.Health <= 0
+                    || AgentBrain.IsRoped(actor) || AgentBrain.IsKnockedOut(actor) || AgentBrain.IsHeldByStatus(actor)) continue;
+                var ctx = new StoryDialogueContext { ActorId = rule.Actor };
+                if (!StoryDialogueFacts.TryEvaluateAll(rule.Requires, ctx, out bool allowed, out _, out _) || !allowed) continue;
+                float distance = position.Distance(_props[prop.Id].GetGlobalFrame().origin);
+                if (distance >= best) continue;
+                best = distance;
+                propId = prop.Id;
+                definition = rule;
+            }
+            return definition != null;
+        }
+
+        public bool TryCommitLock(string propId, StoryPropLockDef rule)
+        {
+            if (Agent.Main == null || !AgentControlHelper.SafeIsActive(Agent.Main)) return false;
+            if (!TryGetLockTarget(Agent.Main.Position, out var currentId, out var currentRule)
+                || currentId != propId || !ReferenceEquals(currentRule, rule)) return false;
+            StoryProbeState.MarkAsked(rule.Actor, rule.Flag);
+            DebugLogger.Log($"[StoryLock] unlocked prop={propId} owner={rule.Actor} flag={rule.Flag}");
+            return true;
+        }
+
         /// <summary>某演员在本场布局里的站位（岗位/工作点）—— 职责点的数据来源。</summary>
         public bool TryGetStandingPosition(string actorId, out Vec3 position)
             => _standPos.TryGetValue(actorId, out position);

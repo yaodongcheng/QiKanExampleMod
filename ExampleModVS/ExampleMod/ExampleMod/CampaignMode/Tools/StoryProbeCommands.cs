@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -1226,6 +1226,24 @@ namespace LivingWorldNpcs
                         + "\n  " + StoryProbeDialogue.DescribeDialogueFacing();
                 }
 
+                case "locks":
+                {
+                    var prep = StoryProbeMissionBehavior.Current?.Prep;
+                    if (prep?.Layout == null) return "OK: no prepared scene locks.";
+                    var lines = new List<string> { "OK: scene lock state; read-only; no movement, unlock or reward." };
+                    foreach (var prop in prep.Layout.Props.Where(p => p.Lock != null))
+                    {
+                        var rule = prop.Lock;
+                        var ctx = new StoryDialogueContext { ActorId = rule.Actor };
+                        bool valid = StoryDialogueFacts.TryEvaluateAll(rule.Requires, ctx, out bool allowed, out var error, out _);
+                        lines.Add("  " + prop.Id + " prepared=" + prep.HasProp(prop.Id)
+                            + " owner=" + rule.Actor + " pins=" + rule.Pins
+                            + " allowed=" + (valid && allowed) + " opened=" + StoryProbeState.HasAsked(rule.Actor, rule.Flag)
+                            + " flag=" + rule.Flag + (error == null ? "" : " error=" + error));
+                    }
+                    return string.Join("\n", lines);
+                }
+
                 case "options":
                 {
                     var session = StoryDialogueRuntime.Current;
@@ -1240,9 +1258,9 @@ namespace LivingWorldNpcs
                         if (option.Check == null) lines.Add("  " + option.Id + " check=none hintKey=" + (option.HintKey ?? "default"));
                         else if (StoryProbeDefs.TryParseDialogueTactic(option.Check.Tactic, out var tactic))
                         {
-                            var preview = StoryProbeDefs.PreviewDialogueCheck(target, tactic);
+                            var preview = StoryProbeDefs.PreviewDialogueCheck(target, tactic, option.Check.Capability);
                             lines.Add("  " + option.Id + " resolver=SimpleCompute tactic=" + tactic
-                                + " target=" + target + " skill=" + preview?.Skill?.StringId
+                                + " target=" + target + " capability=" + preview?.Capability + " attribute=" + preview?.Ability + " skill=" + preview?.Skill?.StringId
                                 + " player=" + preview?.PlayerAttr + " npc=" + preview?.NpcAttr
                                 + " chance=" + (preview?.Chance * 100f)?.ToString("F1") + "%"
                                 + " success=" + option.Check.Success + " fail=" + option.Check.Fail);
