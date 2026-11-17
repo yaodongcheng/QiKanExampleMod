@@ -172,7 +172,16 @@ namespace LivingWorldNpcs
             {
                 var place = _script.Beats.FirstOrDefault(b => b != null && b.Cmd == "actor_place" && b.Actor == id);
                 var def = StoryProbeDefs.GetNpc(id);
-                Vec3 initial = place != null ? PlaceVec(place) : _host.PlayerAnchor;
+                Vec3 initial;
+                if (_host.Prep == null || !_host.Prep.TryGetStandingPosition(id, out initial))
+                {
+                    try { initial = place != null ? PlaceVec(place) : _host.PlayerAnchor; }
+                    catch (InvalidOperationException ex)
+                    {
+                        DebugLogger.Log("[StoryStage] actor initial placement unavailable: " + id + ": " + ex.Message);
+                        return false;
+                    }
+                }
                 var agent = _host.EnsureStageActor(id, initial, place?.Civilian ?? def?.Civilian ?? true);
                 string session = _actorOwner;
                 var lease = PerformanceAction.TryAcquire(agent, session, reason =>
@@ -239,6 +248,12 @@ namespace LivingWorldNpcs
                     return;
                 }
                 if (!OpeningCameraReady) return;
+            }
+            // 镜头先到位，Prep 才能创建道具；道具/支撑就绪后才能解析演员初始点位。
+            // 等准备期间不占演员身体，也不消耗演员租约的就绪超时。
+            if (HoldWhile != null && HoldWhile()) return;
+            if (!_actorsAcquired)
+            {
                 if (!AcquireActors()) { Stop("actor group unavailable"); return; }
                 _actorsAcquired = true;
             }
@@ -247,12 +262,6 @@ namespace LivingWorldNpcs
                 _readyWait += dt;
                 if (_readyWait > StoryProbeTuning.Current.Performance.ActorReadyTimeoutSec) Stop("actor readiness timeout");
                 return; // 演员尚未 OnStart：不推进台本、不冻结玩家、不写演员身体。
-            }
-            // 准备批次没 Ready 之前不推进时间轴（机位/持有关系保持，但不播下一拍）。
-            if (HoldWhile != null && HoldWhile())
-            {
-                _readyWait += dt;
-                return;
             }
             _time += dt;
 
@@ -453,15 +462,23 @@ namespace LivingWorldNpcs
         {
             if (string.IsNullOrEmpty(b.Actor)) { DebugLogger.Log($"[StoryStage] #{index} actor_place without Actor"); return; }
 
-            Vec3 pos = PlaceVec(b);
-            float facingDeg = b.Facing < -0.5f ? FacePlayerAngle(pos) : b.Facing;
+            Vec3 pos;
+            float facingDeg = b.Facing;
+            string pointId = null;
+            if (_host.Prep != null && _host.Prep.TryGetStandingPosition(b.Actor, out pos))
+            {
+                pointId = _host.Prep.Layout?.Standing.FirstOrDefault(s => s.Actor == b.Actor)?.Point;
+                facingDeg = _host.Prep.Layout?.FindPoint(pointId)?.Facing ?? facingDeg;
+            }
+            else pos = PlaceVec(b);
 
             if (!OwnsActor(b.Actor)) throw new InvalidOperationException("actor_place without active performance: " + b.Actor);
             var agent = _host.GetAgent(b.Actor);
             if (agent == null) throw new InvalidOperationException("actor_place actor unavailable: " + b.Actor);
             agent.TeleportToPosition(pos);
-            agent.LookDirectionAsAngle = facingDeg * (float)Math.PI / 180f;
-            DebugLogger.Log($"[StoryStage] #{index} actor_place '{b.Actor}' at ({pos.x:F1},{pos.y:F1},{pos.z:F1}) facing={facingDeg:F0}");
+            float radians = facingDeg * (float)Math.PI / 180f;
+            AgentControlHelper.SetBodyDirection(agent, new Vec2((float)Math.Cos(radians), (float)Math.Sin(radians)));
+            DebugLogger.Log($"[StoryStage] #{index} actor_place '{b.Actor}' at ({pos.x:F1},{pos.y:F1},{pos.z:F1}) facing={facingDeg:F0} source={(pointId == null ? "timeline" : "layout:" + pointId)}");
         }
 
         private void PlayAction(StageBeat b, int index)
@@ -553,18 +570,26 @@ namespace LivingWorldNpcs
         private Vec3 PlaceVec(StageBeat b)
         {
             Vec3 basePos = ResolveAnchor(b.Anchor);
-            Vec2 f = _host.Forward;
-            Vec3 fwd = new Vec3(f.x, f.y, 0f);
-            Vec3 right = new Vec3(f.y, -f.x, 0f);
-            return basePos + fwd * b.Fwd + right * b.Right + new Vec3(0f, 0f, b.Up);
+            GameEntity prop = null;
+            if (!string.IsNullOrEmpty(b.Anchor))
+            {
+                if (_host.Prep?.TryGetPropEntity(b.Anchor, out var preparedProp) == true) prop = preparedProp;
+                else _props.TryGetValue(b.Anchor, out prop);
+            }
+            var anchors = new Dictionary<string, Vec3>(_anchors);
+            string anchorName = b.Anchor ?? "player";
+            anchors[anchorName] = basePos;
+            return StoryPrepRunner.PointPos(_host, anchors,
+                new StoryPoint { Anchor = anchorName, Fwd = b.Fwd, Right = b.Right, Up = b.Up }, prop);
         }
 
         private Vec3 ResolveAnchor(string name)
         {
             if (string.IsNullOrEmpty(name)) return _host.PlayerAnchor;
+            if (_host.Prep?.TryGetPropEntity(name, out var preparedProp) == true) return preparedProp.GlobalPosition;
+            if (_props.TryGetValue(name, out var prop) && prop != null) return prop.GlobalPosition;
             if (_anchors.TryGetValue(name, out var p)) return p;
-            DebugLogger.Log($"[StoryStage] unknown anchor '{name}' -> player");
-            return _host.PlayerAnchor;
+            throw new InvalidOperationException("unknown or unprepared anchor '" + name + "'");
         }
 
         /// <summary>朝向玩家的水平角度（度）。</summary>

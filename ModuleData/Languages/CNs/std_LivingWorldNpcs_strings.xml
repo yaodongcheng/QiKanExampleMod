@@ -4116,6 +4116,38 @@
     <string id="LWN_plan_loot" text="赃物" />
     <string id="LWN_plan_gold" text="金币" />
     <string id="LWN_hud_plan_executing" text="执行战术中：{STEP}" />
+    <string id="LWN_hud_act_pose" text="在做：{ACT}" />
+    <string id="LWN_hud_act_pose_note" text="在做：{ACT}（{NOTE}）" />
+    <!-- 动作释义（HUD 动作名后面的括号）：玩家看不懂 act_* 的英文名，这里给它一句人话。 -->
+    <string id="LWN_actnote_act_applaud_3" text="鼓掌" />
+    <string id="LWN_actnote_act_argue" text="争吵" />
+    <string id="LWN_actnote_act_argue_2" text="争吵（另一套）" />
+    <string id="LWN_actnote_act_argue_soft_1" text="低声争执" />
+    <string id="LWN_actnote_act_bar_talk_to_2" text="在吧台搭话" />
+    <string id="LWN_actnote_act_bartender_meat" text="剁肉" />
+    <string id="LWN_actnote_act_bartender_wipe" text="擦柜台" />
+    <string id="LWN_actnote_act_beggar_idle" text="讨钱" />
+    <string id="LWN_actnote_act_bullied" text="挨训" />
+    <string id="LWN_actnote_act_bully" text="仗势欺人" />
+    <string id="LWN_actnote_act_citizen_cleanup" text="打扫" />
+    <string id="LWN_actnote_act_citizen_cleanup_idle" text="收拾东西" />
+    <string id="LWN_actnote_act_conversation_aggressive_loop" text="凶巴巴地说话" />
+    <string id="LWN_actnote_act_conversation_closed_loop" text="冷淡地说话" />
+    <string id="LWN_actnote_act_conversation_confident_loop" text="自信地说话" />
+    <string id="LWN_actnote_act_conversation_hip_loop" text="叉着腰说话" />
+    <string id="LWN_actnote_act_conversation_point_somewhere" text="指着远处说话" />
+    <string id="LWN_actnote_act_conversation_talk_commenting" text="评头论足" />
+    <string id="LWN_actnote_act_conversation_threat_point" text="指着人威胁" />
+    <string id="LWN_actnote_act_play_celtic_harp_stand" text="站着弹竖琴" />
+    <string id="LWN_actnote_act_stealth_mission_guard_look_around_patrolling_cautious_1" text="警惕张望" />
+    <string id="LWN_hud_act_idle" text="待着" />
+    <string id="LWN_hud_act_walk" text="走路" />
+    <string id="LWN_hud_act_turn" text="转身" />
+    <string id="LWN_hud_act_follow" text="跟随" />
+    <string id="LWN_hud_act_confront" text="质问" />
+    <string id="LWN_hud_act_fight" text="交战" />
+    <string id="LWN_hud_act_perform" text="演出" />
+    <string id="LWN_hud_act_held" text="被制住" />
     <string id="LWN_plan_step_decision" text="步骤 {STEP} 收到决策结果（{TYPE}）" />
     <string id="LWN_plan_pause_modal" text="玩家在忙别的" />
     <string id="LWN_plan_pause_fight" text="玩家战斗中" />
@@ -5137,7 +5169,7 @@
     <string id="LWN_story_jail_btn_wait" text="我再想想" />
     <string id="LWN_story_jail_done" text="刑期已满。你已穿上旧衣和面罩，原来的装备和钱仍由剧情托管。" />
     <string id="LWN_story_intro_line_1" text="就是这儿了。你妹妹三个月前进的这座城。" />
-    <string id="LWN_story_intro_line_2" text="正门挂着你的通缉——硬闯等于自投罗网。" />
+    <string id="LWN_story_intro_line_2" text="你已经受过罚了。想进这道门，还得让守卫点头。" />
     <string id="LWN_story_intro_line_3" text="先跟门口这几家搭上线。帮谁，谁教你一手。" />
     <string id="LWN_story_intro_no_companion" text="没人愿意跟你一起进去。你一个人站在城门前。" />
     <string id="LWN_story_narr_ko" text="眼前一黑。" />
@@ -5293,7 +5325,7 @@
     <string id="LWN_story_event3_l3" text="那你演到城外去。" />
     <string id="LWN_story_event2_l3" text="涨价了。" />
     <string id="LWN_story_amb_pawnbroker_1" text="当东西还是找门路？" />
-    <string id="LWN_story_event1_l1" text="看什么看？没你的事。" />
+    <string id="LWN_story_event1_l1" text="别躲了，我看见你了。" />
     <string id="LWN_story_amb_son_2" text="别站这儿。" />
     <string id="LWN_story_react_weapon_thug" text="你确定？" />
     <string id="LWN_story_event6_l1" text="又砸了。" />
@@ -5497,5 +5529,21 @@
     <string id="LWN_dialogue_hint_offer_basis" text="你的出价或证据也会影响成功率。" />
     <string id="LWN_story_blocker_threat_fail_fight_response" text="还敢嘴硬，看招！" />
     <string id="LWN_story_blocker_threat_fail_surrender_response" text="这会儿知道服软了，走！" />
+    <string id="LWN_story_journal_title" text="入城寻人" />
+    <string id="LWN_story_journal_cancel" text="我暂且搁下了这次入城寻人的打算。" />
+    <string id="LWN_story_journal_start" text="我来到城门外，想进城打听妹妹的下落。先看看守卫是否肯让我进去。" />
+    <string id="LWN_story_journal_blocked" text="守卫拦住了我。想进城，还得另找门路。" />
+    <string id="LWN_story_journal_jail" text="与守卫的冲突后，我被拘押了。先处理眼前的刑期，再想入城的办法。" />
+    <string id="LWN_story_journal_released" text="刑期已经结束，我重获自由。旧案已经受过罚，但守卫仍要查验进城的资格。" />
+    <string id="LWN_story_journal_errand" text="我接下了城外的差事。各家委托另有任务记录，办事也许能帮我争取入城的门路。" />
+    <string id="LWN_story_journal_means" text="差事带来了新的门路。回门口看看是否能派上用场。" />
+    <string id="LWN_story_journal_clue_1" text="周守财查了当票：三个月前，穿青布的姑娘押下一只银镯，后来没有来赎。我可以继续向他追问。" />
+    <string id="LWN_story_journal_clue_2" text="据周守财所说，妹妹典当后跟人走了；那人穿水靠，他认作码头帮的人。" />
+    <string id="LWN_story_journal_clue_3" text="妹妹的银镯已经拿回来了，内侧刻着“宁”字。周守财让我往码头找，并提醒我别一个人去。" />
+    <string id="LWN_story_journal_clue_4" text="宋玉娘说见过那个穿青布的姑娘，后来一个穿水靠的水手把她领走了。她的说法也指向码头。" />
+    <string id="LWN_story_journal_warehouse_hint" text="小耗子说，那夜被押走的人往大西门里的私仓去了。他躲在高处，没有看清全部经过。" />
+    <string id="LWN_story_journal_warehouse_risk" text="屠户说，码头帮曾在半夜押人往西码头暗仓去。他警告我，去那里救人得有趁手的家伙。" />
+    <string id="LWN_story_journal_gate" text="守卫这次已经放行。我可以继续往门内走。" />
+    <string id="LWN_story_journal_finish" text="我已经进了城，城外这一段事情告一段落。妹妹仍未找到；已经听到的线索留在这里，接下来还要继续打听。" />
 </strings>
 </base>

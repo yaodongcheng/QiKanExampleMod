@@ -122,7 +122,7 @@ namespace LivingWorldNpcs
             Add(new StoryAtomSpec
             {
                 Name = "dialogue_open", Implemented = true,
-                RequiredParams = new[] { "Dialogue" }, Params = new[] { "Dialogue" },
+                RequiredParams = new[] { "Dialogue", "Trigger" }, Params = new[] { "Dialogue", "Trigger" },
                 ActorRole = "required", WaitKinds = new[] { "dialogue_open" },
                 Notes = "打开原版对话；已有全局对话互斥。"
             });
@@ -223,7 +223,7 @@ namespace LivingWorldNpcs
     /// **统一点位**（2026-11-16 用户裁定）：岗位（Post）和工作点（WorkPoint）本来就是同一件事
     /// —— 每个人"该待的地方"。现在只有这一种类型：
     ///   · 位置三选一：`Pos`（绝对世界坐标）/ `Anchor`+`Fwd/Right/Up`（相对锚点）/ `Prop`+`Side`+`Offset`（挂在道具旁）；
-    ///   · 朝向一个字段：`Facing`（-1 = 面朝玩家/门外；0~360 = 绝对角度；旧数据的 `Yaw` 等价，解析时并入）。
+    ///   · 朝向一个字段：`Facing`（绝对角度，-1°与359°同义；旧数据的 `Yaw` 等价，解析时并入）。
     ///   · `Role` 只是备注（"post"/"work"），不参与判定。
     ///   · `Gate` 只对门岗有意义（校验它引用的门区存在）。
     /// </summary>
@@ -237,7 +237,7 @@ namespace LivingWorldNpcs
         public string Side = "front";           // front / back / left / right
         public float Offset;
         public float[] Contact = new float[0];
-        /// <summary>这个点位本身的朝向：-1 = 面朝玩家/门外（哨兵，不是角度），0~360 = 绝对角度（度）。
+        /// <summary>这个点位本身的绝对朝向（度）；-1°与359°同义，没有朝玩家的魔法值。
         /// 站在这个点位上的人默认就用它；旧数据的 `Yaw` 解析时并入这里。</summary>
         public float Facing = -1f;
         public float ArriveTolerance = 0.6f;
@@ -279,6 +279,15 @@ namespace LivingWorldNpcs
         public float ActorReadyTimeoutSec = 3f;
     }
 
+    /// <summary>阶段入场环境；省略整个对象时沿用战役环境，重载后下次入场生效。</summary>
+    public sealed class StoryEnvironmentDef
+    {
+        public float Hour;
+        public string Weather;
+        public float Density;
+        public float SnowCover;
+    }
+
     public sealed class StoryStageDef
     {
         public string Id;
@@ -288,6 +297,7 @@ namespace LivingWorldNpcs
         public List<string> OptionalActors = new List<string>();
         public List<string> OptionalProps = new List<string>();
         public bool Opening;
+        public StoryEnvironmentDef Environment;
         public StoryPrepDef Prep = new StoryPrepDef();
     }
 
@@ -306,6 +316,8 @@ namespace LivingWorldNpcs
         /// false = 沿用旧的 PlayerInsideGate 口径（旧数据行为不变）。
         /// </summary>
         public bool PlayerInPostZone = false;
+        public string TargetPoint; // 任意工作点/保险箱旁的守护区域中心
+        public string TargetGate; // 本组负责的门区，禁止偷读宿主的单门状态
         public int MaxPerEncounter = 1;
     }
 
@@ -337,6 +349,7 @@ namespace LivingWorldNpcs
         public List<string> ActionsA = new List<string>();
         public List<string> ActionsB = new List<string>();
         public string JoinNode;
+        public string Placement = "gather";
     }
 
     public sealed class StoryStepWait
@@ -523,6 +536,18 @@ namespace LivingWorldNpcs
                         if (layout.FindPoint(postId) == null)
                             errors.Add(new StoryValidationIssue("$.Behaviors." + b.Id + ".Posts", "unknown_post",
                                 "岗位 '" + postId + "' 不在阶段 '" + stageId + "' 的布局 '" + layout.Id + "' 里"));
+                    if (b.Kind != "post") continue;
+                    var trigger = b.Trigger;
+                    if (!string.IsNullOrEmpty(trigger.TargetPoint) && layout.FindPoint(trigger.TargetPoint) == null)
+                        errors.Add(new StoryValidationIssue("$.Behaviors." + b.Id + ".Trigger.TargetPoint", "unknown_point", "守护点不存在"));
+                    if (!string.IsNullOrEmpty(trigger.TargetGate) && !layout.Gates.ContainsKey(trigger.TargetGate))
+                        errors.Add(new StoryValidationIssue("$.Behaviors." + b.Id + ".Trigger.TargetGate", "unknown_gate", "守护门区不存在"));
+                    if (trigger.PlayerInsideGate && string.IsNullOrEmpty(trigger.TargetGate))
+                        errors.Add(new StoryValidationIssue("$.Behaviors." + b.Id + ".Trigger.TargetGate", "missing_field", "门区触发必须指定本组门区"));
+                    foreach (string member in b.Members)
+                        if (!stage.Actors.Concat(stage.OptionalActors).Contains(member)
+                            || !layout.Standing.Any(s => s.Actor == member && b.Posts.Contains(s.Point)))
+                            errors.Add(new StoryValidationIssue("$.Behaviors." + b.Id + ".Members", "unknown_member", "成员必须在本阶段本组岗位上"));
                 }
             }
 
@@ -549,7 +574,7 @@ namespace LivingWorldNpcs
                 string path = "$.Layouts." + lp.Name;
                 if (!(lp.Value is JObject lo)) { errors.Add(new StoryValidationIssue(path, "wrong_type", "布局必须是对象")); continue; }
                 var layout = new StoryLayoutDef { Id = lp.Name };
-                Keys(lo, path, new[] { "Version", "Anchors", "Gates", "Props", "WorkPoints", "Posts", "Standing" }, errors);
+                Keys(lo, path, new[] { "Version", "Anchors", "Gates", "Props", "Points", "WorkPoints", "Posts", "Standing" }, errors);
                 layout.Version = Int(lo, "Version", path, errors, 1, 1, int.MaxValue);
 
                 var anchors = Obj(lo, "Anchors", path, errors, true);
@@ -563,8 +588,8 @@ namespace LivingWorldNpcs
                         Keys(ao, apath, new[] { "Source", "Value", "Pick", "Required" }, errors);
                         var a = new StoryAnchorDef();
                         a.Source = Str(ao, "Source", apath, errors, true) ?? "tag";
-                        if (a.Source != "tag" && a.Source != "entity" && a.Source != "player")
-                            errors.Add(new StoryValidationIssue(apath + ".Source", "bad_token", "Source 只能是 tag / entity / player，实际 '" + a.Source + "'"));
+                        if (a.Source != "tag" && a.Source != "entity" && a.Source != "player" && a.Source != "prop")
+                            errors.Add(new StoryValidationIssue(apath + ".Source", "bad_token", "Source 只能是 tag / entity / player / prop，实际 '" + a.Source + "'"));
                         a.Value = StrArray(ao, "Value", apath, errors, a.Source != "player");
                         if (a.Source == "player" && a.Value.Length > 0)
                             errors.Add(new StoryValidationIssue(apath + ".Value", "bad_field", "Source=player 时不允许写 Value"));
@@ -722,6 +747,12 @@ namespace LivingWorldNpcs
                     }
                 }
 
+                foreach (var anchor in layout.Anchors.Where(a => a.Value.Source == "prop"))
+                    if (anchor.Value.Value.Length != 1 || layout.FindProp(anchor.Value.Value.FirstOrDefault()) == null)
+                        errors.Add(new StoryValidationIssue(path + ".Anchors." + anchor.Key, "unknown_prop", "道具锚点必须引用本布局的一个道具"));
+                foreach (var prop in layout.Props)
+                    if (!string.IsNullOrEmpty(prop.Place.Anchor) && layout.Anchors.TryGetValue(prop.Place.Anchor, out var anchor) && anchor.Source == "prop")
+                        errors.Add(new StoryValidationIssue(path + ".Props." + prop.Id, "bad_anchor", "道具必须先落地；道具锚点仅供演员和区域使用"));
                 data.Layouts[lp.Name] = layout;
             }
         }
@@ -738,7 +769,7 @@ namespace LivingWorldNpcs
             {
                 string path = "$.Stages." + sp.Name;
                 if (!(sp.Value is JObject so)) { errors.Add(new StoryValidationIssue(path, "wrong_type", "阶段必须是对象")); continue; }
-                Keys(so, path, new[] { "Layout", "Actors", "Props", "OptionalActors", "OptionalProps", "Opening", "Prep" }, errors);
+                Keys(so, path, new[] { "Layout", "Actors", "Props", "OptionalActors", "OptionalProps", "Opening", "Prep", "Environment" }, errors);
                 var stage = new StoryStageDef { Id = sp.Name };
                 stage.Layout = Str(so, "Layout", path, errors, true);
                 if (!string.IsNullOrEmpty(stage.Layout) && !data.Layouts.ContainsKey(stage.Layout))
@@ -750,6 +781,12 @@ namespace LivingWorldNpcs
                 stage.OptionalProps = StrList(so, "OptionalProps", path, errors, false);
                 stage.Opening = Bool(so, "Opening", path, errors, false);
                 if (stage.Opening) opening++;
+                if (so.Property("Environment") != null)
+                {
+                    var environment = Obj(so, "Environment", path, errors, true);
+                    if (environment != null)
+                        stage.Environment = ParseEnvironment(environment, path + ".Environment", errors);
+                }
 
                 var prep = Obj(so, "Prep", path, errors, false);
                 if (prep != null)
@@ -784,6 +821,30 @@ namespace LivingWorldNpcs
         }
 
         // ── 流程 ──
+        private static StoryEnvironmentDef ParseEnvironment(JObject obj, string path, List<StoryValidationIssue> errors)
+        {
+            Keys(obj, path, new[] { "Hour", "Weather", "Density", "SnowCover" }, errors);
+            foreach (string field in new[] { "Hour", "Density" })
+                if (obj[field] == null || obj[field].Type == JTokenType.Null)
+                    errors.Add(new StoryValidationIssue(path + "." + field, "missing_field", "环境必须填写 " + field));
+            if (obj.Property("SnowCover") != null && obj["SnowCover"].Type == JTokenType.Null)
+                errors.Add(new StoryValidationIssue(path + ".SnowCover", "wrong_type", "SnowCover 必须是数字"));
+            var def = new StoryEnvironmentDef
+            {
+                Hour = Float(obj, "Hour", path, errors, 0f, 0f, 24f),
+                Weather = Str(obj, "Weather", path, errors, true),
+                Density = Float(obj, "Density", path, errors, 0f, 0f, 1f),
+                SnowCover = Float(obj, "SnowCover", path, errors, 0f, 0f, 1f),
+            };
+            if (def.Hour >= 24f)
+                errors.Add(new StoryValidationIssue(path + ".Hour", "bad_range", "Hour 必须小于 24"));
+            if (def.Weather != "snow" && def.Weather != "rain" && def.Weather != "clear")
+                errors.Add(new StoryValidationIssue(path + ".Weather", "unknown_weather", "Weather 只接受 snow、rain、clear"));
+            else if ((def.Weather == "clear" && def.Density != 0f) || (def.Weather != "clear" && def.Density <= 0f))
+                errors.Add(new StoryValidationIssue(path + ".Density", "bad_range", "晴天密度为 0，雨雪密度必须大于 0"));
+            return def;
+        }
+
         private static void ParseFlows(JObject root, StoryLayoutFile data, List<StoryValidationIssue> errors, StoryValidationMode mode, HashSet<string> cast)
         {
             var flows = Obj(root, "Flows", "$", errors, false);
@@ -992,7 +1053,7 @@ namespace LivingWorldNpcs
                 string path = "$.Behaviors." + bp.Name;
                 if (!(bp.Value is JObject bo)) { errors.Add(new StoryValidationIssue(path, "wrong_type", "行为规则必须是对象")); continue; }
                 Keys(bo, path, new[] { "Kind", "Posts", "Stages", "Perception", "Trigger", "Cooldown", "Rank", "Flow", "MaxActive",
-                    "Members", "Host", "Lines", "Speakers", "Listeners", "LineFallbacks", "ActionsA", "ActionsB", "JoinNode" }, errors);
+                    "Members", "Host", "Lines", "Speakers", "Listeners", "LineFallbacks", "ActionsA", "ActionsB", "JoinNode", "Placement" }, errors);
                 var b = new StoryBehaviorDef { Id = bp.Name };
                 b.Kind = Str(bo, "Kind", path, errors, true) ?? "post";
                 if (b.Kind != "post" && b.Kind != "group")
@@ -1007,6 +1068,8 @@ namespace LivingWorldNpcs
                 if (b.Kind == "post")
                 {
                     b.Posts = StrList(bo, "Posts", path, errors, true);
+                    b.Members = StrList(bo, "Members", path, errors, false);
+                    DupCheck(b.Members, path + ".Members", "组成员", errors);
                     if (b.Posts.Count == 0) errors.Add(new StoryValidationIssue(path + ".Posts", "empty_collection", "岗位规则至少要绑定一个岗位"));
                 }
                 else
@@ -1035,6 +1098,16 @@ namespace LivingWorldNpcs
                     b.ActionsA = StrList(bo, "ActionsA", path, errors, false);
                     b.ActionsB = StrList(bo, "ActionsB", path, errors, false);
                     b.JoinNode = Str(bo, "JoinNode", path, errors, false);
+                    b.Placement = Str(bo, "Placement", path, errors, false) ?? "gather";
+                    if (b.Placement != "standing" && b.Placement != "gather")
+                        errors.Add(new StoryValidationIssue(path + ".Placement", "bad_token", "Placement 只能是 standing/gather"));
+                    if (b.Placement == "standing")
+                        foreach (string stageId in b.Stages)
+                            if (data.Stages.TryGetValue(stageId, out var stage)
+                                && data.Layouts.TryGetValue(stage.Layout, out var layout))
+                                foreach (string member in b.Members)
+                                    if (!layout.Standing.Any(s => s.Actor == member && layout.FindPoint(s.Point) != null))
+                                        errors.Add(new StoryValidationIssue(path + ".Members", "missing_standing", "沿用初始站位的成员必须在阶段布局里有有效点位：" + member));
                     if (b.Members.Count == 0)
                         errors.Add(new StoryValidationIssue(path + ".Members", "empty_collection", "群组至少要有 1 名成员"));
                     if (!string.IsNullOrEmpty(b.Host) && !b.Members.Contains(b.Host))
@@ -1052,7 +1125,9 @@ namespace LivingWorldNpcs
                 var trigger = Obj(bo, "Trigger", path, errors, b.Kind == "post");
                 if (trigger != null)
                 {
-                    Keys(trigger, path + ".Trigger", new[] { "PlayerInsideGate", "PlayerInPostZone", "MaxPerEncounter" }, errors);
+                    Keys(trigger, path + ".Trigger", new[] { "PlayerInsideGate", "PlayerInPostZone", "MaxPerEncounter", "TargetPoint", "TargetGate" }, errors);
+                    b.Trigger.TargetPoint = Str(trigger, "TargetPoint", path + ".Trigger", errors, false);
+                    b.Trigger.TargetGate = Str(trigger, "TargetGate", path + ".Trigger", errors, false);
                     b.Trigger.PlayerInsideGate = Bool(trigger, "PlayerInsideGate", path + ".Trigger", errors, true);
                     b.Trigger.PlayerInPostZone = Bool(trigger, "PlayerInPostZone", path + ".Trigger", errors, false);
                     b.Trigger.MaxPerEncounter = Int(trigger, "MaxPerEncounter", path + ".Trigger", errors, 1, 1, 16);
@@ -1522,7 +1597,7 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 解析一个统一点位（2026-11-16 用户裁定：Post 与 WorkPoint 合并）。
         /// 位置三选一：`Pos` 绝对坐标 / `Anchor`+`Fwd/Right/Up` 相对锚点 / `Prop`+`Side`+`Offset` 挂在道具旁。
-        /// 朝向：`Facing`（-1 = 面朝玩家/门外；0~360 = 绝对角度）；旧字段 `Yaw` 并入同一字段。
+        /// 朝向：`Facing`始终为绝对角度；旧字段`Yaw`并入同一字段。
         /// </summary>
         private static void ParsePoint(JToken token, string ppath, List<StoryValidationIssue> errors,
             StoryLayoutDef layout, string legacyRole)
@@ -1632,6 +1707,8 @@ namespace LivingWorldNpcs
 
         public static string Report => _report;
         public static bool Published => StoryLayoutRegistry.Published != null;
+        public static bool HasSource => !string.IsNullOrEmpty(StoryProbeDataFiles.DesignDataFolder)
+            && File.Exists(Path.Combine(StoryProbeDataFiles.DesignDataFolder, "StoryScenePlan.json"));
 
         public static bool EnsurePublished() => _attempted ? Published : Reload();
 

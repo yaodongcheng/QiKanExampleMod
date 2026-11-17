@@ -209,6 +209,14 @@ namespace LivingWorldNpcs
                 _pendingConfrontation = default;
                 _pendingTriggerAction = default;
 
+                // 剧情请求已通过犯罪仲裁并占有本次会话；Normal网关不能叠进正式事件。
+                // 显式Alert/投降仍沿用原优先级，不受这条普通闲聊保护影响。
+                if (trigger == DialogueTrigger.Normal && StoryProbeDialogue.OwnsCurrentConversationAgent(agent))
+                {
+                    DebugLogger.Log($"[ConvEntry] Normal crime gateway yielded to story session actor={StoryProbeDialogue.ResolveNpcId(agent)}");
+                    return;
+                }
+
                 // ── 3. 设计契约：Surrender 必须有关联 WorldEvent；Alert 可以无事件（纯警戒质问）──
                 if (trigger != DialogueTrigger.Normal && evt == null)
                 {
@@ -722,6 +730,11 @@ namespace LivingWorldNpcs
                 // 🆕 序章（2026-11-12）：剧情 NPC 的对话树必须在引擎评估 start token **之前**注入。
                 // 非剧情 NPC 时它只做一次残留清理，原版对话一行不受影响（内部自带判定）。
                 StoryProbeDialogue.TryInjectEarly(effectiveAgent);
+
+                // 🆕 2026-11-17：剧情对话在**此刻**就接管相机——再晚一步，引擎切对话模式时会把镜头
+                // 硬切到 NPC 身上，然后我们才从那个机位过渡（实机看到"先切一下再过渡"）。
+                // 非剧情对话内部直接返回，不影响原版对话。
+                StoryProbeDialogue.ReserveDialogueCameraEarly(effectiveAgent);
 
                 if (trigger != DialogueTrigger.PlayerSurrender
                     && trigger != DialogueTrigger.NpcSurrender

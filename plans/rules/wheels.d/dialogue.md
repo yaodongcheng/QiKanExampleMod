@@ -1,4 +1,9 @@
 # dialogue — 轮子速查分卷（wheels.md 索引导航）
+
+> 🔴 **多人对话镜头**（换说话人时相机要跟着动、又不能看丢其他在场的人）→ 见 [camera.md](camera.md) 的
+> 「🔴 多 NPC 对话镜头（2026-11-17 立）」：四段式 `ReserveDialogueCamera`（**StartConversation 之前**）→
+> `FocusDialogueCamera`（换人才重摆）→ `TickDialogueCamera` → `ReleaseDialogueCamera(0.6f)`；机位 = `Camera.csv` 的 `dlg_group_mid`。
+
 ## 大世界地图对话 → 真对话 Mission 接入
 
 **咽喉补丁 `CampaignMapConversation.OpenConversation` + inquiry 分流 + 真 Mission + 自定义对话管线复用。**

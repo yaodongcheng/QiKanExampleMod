@@ -205,7 +205,8 @@
       },
       "Trigger": {
         "PlayerInsideGate": true,
-        "MaxPerEncounter": 1
+        "MaxPerEncounter": 1,
+        "TargetGate": "gate_main"
       },
       "Cooldown": {
         "RetrySec": 3.0,
@@ -249,7 +250,8 @@
           "Atom": "dialogue_open",
           "Actor": "$questioner",
           "Args": {
-            "Dialogue": "blocker_first"
+            "Dialogue": "blocker_first",
+            "Trigger": "first_meet_auto"
           },
           "Wait": {
             "Kind": "dialogue_open",

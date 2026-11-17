@@ -61,7 +61,6 @@ namespace LivingWorldNpcs
         private readonly Dictionary<Agent, AmbientSlot> _ambientActors = new Dictionary<Agent, AmbientSlot>();
 
         // ── 常驻 / 桥段 / 反应 ──
-        private readonly Dictionary<string, float> _nextAmbientAt = new Dictionary<string, float>();
         private readonly Dictionary<string, float> _nextGreetingAt = new Dictionary<string, float>();
         private float _nextSkitAt;
         private bool _playerWasArmed;
@@ -96,8 +95,6 @@ namespace LivingWorldNpcs
 
             foreach (var def in StoryProbeDefs.Npcs)
             {
-                _nextAmbientAt[def.Id] = t.Ambient.FirstDelayMinSec
-                                       + (float)_rng.NextDouble() * (t.Ambient.FirstDelayMaxSec - t.Ambient.FirstDelayMinSec);
                 _nextGreetingAt[def.Id] = 0f;
             }
 
@@ -216,6 +213,7 @@ namespace LivingWorldNpcs
                     ActionB = g.ActionsB.Count > 0 ? g.ActionsB.ToArray() : cast?.ActionB,
                     HostNpcId = !string.IsNullOrEmpty(g.Host) ? g.Host : cast?.HostNpcId,
                     JoinNode = !string.IsNullOrEmpty(g.JoinNode) ? g.JoinNode : cast?.JoinNode,
+                    Placement = g.Placement,
                     Members = new List<string>(members),
                     Speakers = g.Speakers != null ? new List<string>(g.Speakers) : new List<string>(),
                     Listeners = g.Listeners != null ? new List<string>(g.Listeners) : new List<string>(),
@@ -306,30 +304,54 @@ namespace LivingWorldNpcs
             var agents = members.Select(id => _host.GetAgent(id)).Where(a => a != null).ToList();
             if (agents.Count == 0 || agents.Any(a => !OwnsBody(a))) return;
 
-            var a = agents[0];
-            for (int i = 1; i < agents.Count; i++)
+            if (_activeEvent.Placement == "standing")
             {
-                var other = agents[i];
-                if (a.Position.Distance(other.Position) > StoryProbeTuning.Current.Events.ActorSpacingMeters)
+                // 初始点位已经由Prep和开场统一消费；起演不再按距离改位置，也不自动朝搭档转身。
+                foreach (var actor in agents)
                 {
-                    Vec3 dir = other.Position - a.Position;
-                    dir.z = 0f;
-                    if (dir.LengthSquared < 0.01f) dir = new Vec3(0, 1, 0);
-                    var offset = dir.NormalizedCopy() * StoryProbeTuning.Current.Events.ActorApproachMeters;
-                    // 第三人及以上绕圈排开，避免叠在同一点。
-                    if (i > 1)
-                    {
-                        float ang = (i - 1) * 1.2f;
-                        offset = new Vec3((float)Math.Cos(ang), (float)Math.Sin(ang), 0f)
-                                 * StoryProbeTuning.Current.Events.ActorApproachMeters;
-                    }
-                    other.TeleportToPosition(a.Position + offset);
+                    string id = ResolveNpcId(actor);
+                    var prep = _host.Prep;
+                    if (prep == null || !prep.TryGetStandingPosition(id, out var position))
+                        throw new InvalidOperationException("event standing unavailable: " + id);
+                    string pointId = prep.Layout?.Standing.FirstOrDefault(s => s.Actor == id)?.Point;
+                    var point = prep.Layout?.FindPoint(pointId);
+                    if (point == null) throw new InvalidOperationException("event standing point unavailable: " + id);
+                    // 外部移动了演员时，不能用另一次瞬移掩盖偏离；结束本场，等正常恢复再申请。
+                    if (actor.Position.Distance(position) > point.ArriveTolerance)
+                        throw new InvalidOperationException("event standing drift: " + id);
+                    float angle = point.Facing * (float)Math.PI / 180f;
+                    _eventActors[actor].AllowSpeechBodyTurn = false;
+                    AgentControlHelper.SetBodyDirection(actor, new Vec2((float)Math.Cos(angle), (float)Math.Sin(angle)));
+                    DebugLogger.Log($"[StoryProbe] event placement #{_activeEvent.Index} mode=standing actor={id} point={pointId} initial={position} actual={actor.Position} facing={point.Facing:F1} moved=0");
                 }
-                AgentControlHelper.FaceToActor(a, other);
-                AgentControlHelper.FaceToActor(other, a);
+            }
+            else
+            {
+                var a = agents[0];
+                for (int i = 1; i < agents.Count; i++)
+                {
+                    var other = agents[i];
+                    if (a.Position.Distance(other.Position) > StoryProbeTuning.Current.Events.ActorSpacingMeters)
+                    {
+                        Vec3 dir = other.Position - a.Position;
+                        dir.z = 0f;
+                        if (dir.LengthSquared < 0.01f) dir = new Vec3(0, 1, 0);
+                        var offset = dir.NormalizedCopy() * StoryProbeTuning.Current.Events.ActorApproachMeters;
+                        // 第三人及以上绕圈排开，避免叠在同一点。
+                        if (i > 1)
+                        {
+                            float ang = (i - 1) * 1.2f;
+                            offset = new Vec3((float)Math.Cos(ang), (float)Math.Sin(ang), 0f)
+                                     * StoryProbeTuning.Current.Events.ActorApproachMeters;
+                        }
+                        other.TeleportToPosition(a.Position + offset);
+                    }
+                    AgentControlHelper.FaceToActor(a, other);
+                    AgentControlHelper.FaceToActor(other, a);
+                }
             }
             _eventPrepared = true;
-            PlayLoopAction(a, _activeEvent.ActionA);
+            PlayLoopAction(agents[0], _activeEvent.ActionA);
             for (int i = 1; i < agents.Count; i++)
                 PlayLoopAction(agents[i], i == 1 ? _activeEvent.ActionB : _activeEvent.ActionA);
         }
@@ -564,11 +586,32 @@ namespace LivingWorldNpcs
         {
             if (agent == null || agent == Agent.Main) return;
             ReleaseAmbient(agent, "dialogue handoff");
+            // 市井常驻态必须一起收：脑在对话期间**整体不 tick**，留着它 = 定格在半个姿态上过完整场对话。
+            StopIdle(agent);
             if (!_eventActors.ContainsKey(agent) || _eventPaused) return;
             // 相关群戏整体暂停保留游标；对话结束沿用既有恢复路径，不能独留搭档继续演。
             _eventPaused = true;
             foreach (var lease in _eventActors.Values) lease.Pause(true);
             DebugLogger.Log($"[StoryProbe] dialogue handoff event={_activeEvent?.Index} actor={agent.Name}");
+        }
+
+        /// <summary>收掉某人的市井常驻态（复合动作）。没有就什么都不做。</summary>
+        internal static void StopIdle(Agent agent)
+        {
+            if (agent == null) return;
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            if (brain != null && brain.IsCurrentOrPending<StreetIdleAction>())
+                brain.ClearAllActions(lockPlace: false);
+        }
+
+        /// <summary>收掉全部市井常驻态（停演 / 场景收尾）。</summary>
+        internal static void StopAllIdle(StoryProbeMissionBehavior host)
+        {
+            if (host == null) return;
+            foreach (var def in StoryProbeDefs.StreetLife)
+                StopIdle(host.GetAgent(def.NpcId));
+            foreach (var kv in host.AllAgents)
+                StopIdle(kv.Value);
         }
 
         /// <summary>纯读：只有本导演已暂停并仍归该 Brain 所有的同一租约可进入对话。</summary>
@@ -619,40 +662,16 @@ namespace LivingWorldNpcs
                 _forcedAmbientIndex = -1;
             }
 
+            // 🔴 2026-11-16：日常小动作的节拍**不在这里**了——改由 StreetIdleAction 在脑内一次入队、
+            //   内部循环"站 → 小动作 → 站"。原先这里每人每 8~20 秒申请/释放一条演出租约，
+            //   每次让脑走一遍 清空→入队→开始→播→结束→清空→入队 Stay 共 7~9 行日志（44% 是填缝）。
+            //   本方法现在只负责：强制命令的租约、以及让位给工作点。
             foreach (var def in StoryProbeDefs.StreetLife)
             {
-                if (_activeEvent != null && IsEventParticipant(def.NpcId))
-                    continue;
-
-                // P4：工作点上的 NPC 由 StoryWorkDirector 接管；这里不再给常驻姿态，避免两边抢身体。
                 if (_host.Work?.IsWorkActor(def.NpcId) == true)
                 {
                     var worker = _host.GetAgent(def.NpcId);
                     if (worker != null) ReleaseAmbient(worker);
-                    continue;
-                }
-
-                float next;
-                if (!_nextAmbientAt.TryGetValue(def.NpcId, out next)) next = _time;
-                if (_time < next) continue;
-
-                var amb = StoryProbeTuning.Current.Ambient;
-                _nextAmbientAt[def.NpcId] = _time + amb.GapMinSec + (float)_rng.NextDouble() * (amb.GapMaxSec - amb.GapMinSec);
-
-                var agent = _host.GetAgent(def.NpcId);
-                if (agent == null) continue;
-
-                if (_ambientActors.ContainsKey(agent) || def.Actions == null || def.Actions.Length == 0) continue;
-                BeginAmbient(agent, def.Actions[_rng.Next(def.Actions.Length)]);
-                if (!_ambientActors.ContainsKey(agent)) continue;
-
-                if (def.LineKeys != null && def.LineKeys.Length > 0 && _rng.NextDouble() < 0.35)
-                {
-                    int i = _rng.Next(def.LineKeys.Length);
-                    string fb = def.LineFallbacks != null && i < def.LineFallbacks.Length ? def.LineFallbacks[i] : "";
-                    _ambientActors[agent].LineKey = def.LineKeys[i];
-                    _ambientActors[agent].LineFallback = fb;
-                    _ambientActors[agent].Listener = _host.ResolveSpeechListener(def.Listener);
                 }
             }
         }
@@ -775,6 +794,7 @@ namespace LivingWorldNpcs
             Stopped = true;
             EndEvent("stopped");
             foreach (var actor in _ambientActors.Keys.ToList()) ReleaseAmbient(actor);
+            StopAllIdle(_host);
             _forcedAmbientNpc = null;
             _forcedAmbientIndex = -1;
             DebugLogger.Log("[StoryProbe] street life stopped");
@@ -809,6 +829,7 @@ namespace LivingWorldNpcs
         {
             string evt = _activeEvent == null ? "-" : $"#{_activeEvent.Index}{( _eventSkit ? "(skit)" : "")}{(_eventPaused ? "(paused)" : "")}";
             return $"time={_time:F1} stopped={Stopped} event={evt} prepared={_eventPrepared} " +
+                   $"placement={_activeEvent?.Placement ?? "-"} " +
                    $"interrupted={(_eventInterrupted ?? "-")} actors={_eventActors.Count} groups={_events.Count} " +
                    $"join=player-F nextEventIn={Math.Max(0f, _nextEventAt - _time):F1}s played=[{string.Join(",", _playedEvents)}]";
         }
@@ -817,10 +838,156 @@ namespace LivingWorldNpcs
         {
             var lines = new List<string>();
             foreach (var e in StoryProbeDefs.Events)
-                lines.Add($"event {e.Index}: {e.ActorA}{(e.TwoPerson ? "+" + e.ActorB : "")} host={e.HostNpcId} node={e.JoinNode}");
+                lines.Add($"event {e.Index}: {e.ActorA}{(e.TwoPerson ? "+" + e.ActorB : "")} host={e.HostNpcId} node={e.JoinNode} placement={e.Placement}");
             foreach (var s in StoryProbeDefs.StreetLife)
                 lines.Add($"ambient {s.NpcId}: {string.Join("|", s.Actions)}");
             return string.Join(" ; ", lines);
+        }
+    }
+
+    /// <summary>
+    /// **市井常驻态（复合行为，2026-11-16 用户裁定）**：把"站着 → 偶尔做个小动作 → 站着"
+    /// 收进**一个长生命周期动作**，一次入队能待几分钟。
+    ///
+    /// 为什么不再用「StayAction + 每次小动作申请一条 PerformanceAction 租约」：
+    ///   · 那样每换一次姿态就是 清空 → 入队 → 开始 → 播 → 结束 → 清空 → 入队 Stay → 开始 共 7~9 行日志，
+    ///     而其中只有"播动画"那一行有物理意义（实测 20 秒 43 次入队，44% 是填缝动作）；
+    ///   · 复合之后，队列只在这一态**开始时**动一次，之后每次换姿态只留 `[ForcePlayAction]` 一行 ——
+    ///     也就是用户要保留的"真实切换"。
+    ///
+    /// 边界（照 StayAction / FollowAgentAction 的既有模式）：
+    ///   · **不申请演出租约** ⇒ `brain.IsPerforming` 保持 false，所有"演出中不选人/不对话/不摸门"的判据不受影响；
+    ///   · 永不自己结束（同 StayAction）；外部要身体时走 `ClearAllActions` / <see cref="StreetLifeDirector.StopIdle"/>；
+    ///   · 战斗中脑整体不跑（战斗场景由原生 AI 接管），本动作自然跟着停。
+    /// </summary>
+    public sealed class StreetIdleAction : IAtomicAction
+    {
+        private readonly string _npcId;
+        private readonly string[] _actions;
+        private readonly string[] _lineKeys;
+        private readonly string[] _lineFallbacks;
+        private readonly string _listenerId;
+        private readonly Vec2? _dutyDir;
+        private readonly System.Random _rng = new System.Random();
+
+        private float _t;
+        private float _nextPoseAt;
+        private float _poseEndsAt = -1f;
+        private float _holdAt;
+        private string _currentPose;
+        private Vec3 _stayPos;
+        private bool _bodyHeld;
+        private bool _interrupted;
+
+        public StreetIdleAction(string npcId, StreetLifeDef def, Vec2? dutyDir = null)
+        {
+            _npcId = npcId;
+            _actions = def?.Actions ?? new string[0];
+            _lineKeys = def?.LineKeys ?? new string[0];
+            _lineFallbacks = def?.LineFallbacks ?? new string[0];
+            _listenerId = def?.Listener;
+            _dutyDir = dutyDir;
+        }
+
+        public string NpcId => _npcId;
+
+        /// <summary>当前正在播的姿态动作名（没在播 = null）。HUD 用它在"意图"那行显示此刻在做什么。</summary>
+        public string CurrentPose => _poseEndsAt >= 0f ? _currentPose : null;
+
+        public string GetNarration(Agent owner) => null;
+        public void RequestInterrupt() => _interrupted = true;
+
+        public void OnStart(Agent agent)
+        {
+            _t = 0f;
+            _poseEndsAt = -1f;
+            _bodyHeld = false;
+            _stayPos = agent.Position;
+            var amb = StoryProbeTuning.Current.Ambient;
+            float lo = Math.Max(0.5f, amb.FirstDelayMinSec);
+            float hi = Math.Max(lo, amb.FirstDelayMaxSec);
+            _nextPoseAt = lo + (float)_rng.NextDouble() * (hi - lo);
+
+            // 职责点朝向（绝对角度）先摆正；-1 就是 −1°（359°），不是特殊值。
+            // 玩家靠近**不转身**——那是通用感知层（NpcPerception）的事：只有听到脚步声才回头。
+            if (_dutyDir.HasValue)
+            {
+                Vec2 want = _dutyDir.Value;
+                Vec2 look = agent.Frame.rotation.f.AsVec2;
+                float dot = look.LengthSquared > 1e-4f && want.LengthSquared > 1e-4f
+                    ? Vec2.DotProduct(look.Normalized(), want.Normalized()) : 1f;
+                if (dot < 0.96f) AgentControlHelper.SetBodyDirection(agent, want);
+            }
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            _t += dt;
+
+            // 钉在原地：与 PerformanceAction.HoldBody 同一套（清移动输入 + 速度上限 0），
+            // 不用 StayAction 的 SetScriptedPosition —— 姿态动画在那个合同下会被引擎压掉。
+            if (_t >= _holdAt)
+            {
+                _holdAt = _t + 0.2f;
+                AgentControlHelper.HoldInPlace(agent, resetScriptedMovement: !_bodyHeld);
+                _bodyHeld = true;
+            }
+
+            // 「听到声音转头 / 看到人注视」由通用感知层 NpcPerception 统一处理，这里不再自己判玩家距离。
+
+            if (_poseEndsAt >= 0f)
+            {
+                if (_t < _poseEndsAt) return;
+                AgentControlHelper.ClearPose(agent);
+                _poseEndsAt = -1f;
+                var amb = StoryProbeTuning.Current.Ambient;
+                float lo = Math.Max(1f, amb.GapMinSec);
+                float hi = Math.Max(lo, amb.GapMaxSec);
+                _nextPoseAt = _t + lo + (float)_rng.NextDouble() * (hi - lo);
+                return;
+            }
+
+            if (_t < _nextPoseAt) return;
+            PlayPose(agent);
+        }
+
+        private void PlayPose(Agent agent)
+        {
+            if (_actions.Length == 0) { _nextPoseAt = _t + 10f; return; }
+            string action = _actions[_rng.Next(_actions.Length)];
+            _currentPose = action;
+            AgentControlHelper.ForcePlayAction(agent, action);
+            _poseEndsAt = _t + Math.Max(0.5f, StoryProbeTuning.Current.Performance.AmbientPoseDurationSec);
+            if (StoryPoseTrace.IsOn(_npcId)) StoryPoseTrace.Anim(agent, action, "StreetIdleAction");
+
+            if (_lineKeys.Length > 0 && _rng.NextDouble() < 0.35)
+            {
+                var host = StoryProbeMissionBehavior.Current;
+                if (host == null) return;
+                int i = _rng.Next(_lineKeys.Length);
+                string fb = i < _lineFallbacks.Length ? _lineFallbacks[i] : "";
+                var listener = host.ResolveSpeechListener(_listenerId);
+                if (AgentControlHelper.SafeIsActive(listener) && listener != agent && listener.Health > 0f)
+                    host.SayOnAgent(agent, _lineKeys[i], fb, listener: listener);
+            }
+        }
+
+        public bool IsFinished(Agent agent)
+        {
+            if (_interrupted) return true;
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent) || agent.Health <= 0f) return true;
+            if (AgentBrain.IsRoped(agent) || AgentBrain.IsHeldByStatus(agent) || AgentBrain.IsKnockedOut(agent)) return true;
+            // 被人推到别处（推搡/绕行）：结束这一态，让默认行为把人走回岗位，别在原地硬撑。
+            if (agent.Position.Distance(_stayPos) > 3f) return true;
+            var host = StoryProbeMissionBehavior.Current;
+            if (host == null || !host.Active || host.Director == null || host.Director.Stopped) return true;
+            return false;
+        }
+
+        public void OnEnd(Agent agent)
+        {
+            try { AgentControlHelper.ClearPose(agent); } catch (Exception) { }
+            try { agent?.SetLookAgent(null); } catch (Exception) { }
         }
     }
 }

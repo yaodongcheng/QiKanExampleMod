@@ -889,6 +889,13 @@ namespace LivingWorldNpcs
                 }
             }
 
+            // 刑满/缴清罚金且实际放人后，结清关押地所属势力的原版犯罪值。
+            // 不能在BeginRelease（仍在押）或取消刑期时提前清；也不触碰其他势力。
+            if (Hero.MainHero?.IsPrisoner == true || !SettleCrimeAtRelease(settlement))
+            {
+                _menuRetryDelay = MENU_RETRY_SECONDS;
+                return;
+            }
             if (!string.IsNullOrEmpty(_sentenceOwner) && reason == "served")
                 _completedSentenceOwner = _sentenceOwner;
             Cleanup();
@@ -903,6 +910,28 @@ namespace LivingWorldNpcs
                 Colors.Yellow));
 
             DebugLogger.Log($"[Detention] Released (reason={reason}, wasJailed={wasJailed})");
+        }
+
+        private bool SettleCrimeAtRelease(Settlement settlement)
+        {
+            try
+            {
+                var faction = settlement?.MapFaction;
+                if (faction == null)
+                {
+                    DebugLogger.Log("[Detention] release crime settlement pending: no detention faction");
+                    return false;
+                }
+                float before = faction.MainHeroCrimeRating;
+                if (before > 0f) ChangeCrimeRatingAction.Apply(faction, -before, true);
+                DebugLogger.Log(FormattableString.Invariant($"[Detention] release crime settled faction={faction.StringId} before={before:F2} after={faction.MainHeroCrimeRating:F2} reason={_releaseReason} owner={_sentenceOwner ?? "none"}"));
+                return faction.MainHeroCrimeRating <= 0.001f;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Detention] release crime settlement failed: {ex.Message}");
+                return false;
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════

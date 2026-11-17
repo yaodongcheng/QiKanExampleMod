@@ -94,6 +94,7 @@ namespace LivingWorldNpcs
         public SkitTuning Skits = new SkitTuning();
         public GateTuning Gate = new GateTuning();
         public GreetingTuning Greeting = new GreetingTuning();
+        public NoiseTuning Noise = new NoiseTuning();
         public CrimeTuning Crime = new CrimeTuning();
         public IntroTuning Intro = new IntroTuning();
         public PerformanceTuning Performance = new PerformanceTuning();
@@ -241,6 +242,30 @@ namespace LivingWorldNpcs
         /// <summary>玩家走到多少米内，NPC 会打招呼。</summary>
         public float NearRadiusMeters = 3f;
         public float NearCooldownSec = 30f;
+    }
+
+    /// <summary>
+    /// **声音感知**（2026-11-16 用户裁定）：身体转向只由"听到声音"驱动，不再按半径盯玩家。
+    /// 这样玩家才能蹲着偷东西——蹲着不出声，NPC 就不会回头。
+    /// </summary>
+    public sealed class NoiseTuning
+    {
+        /// <summary>走路（默认速度）的声音半径。</summary>
+        public float WalkRadiusMeters = 6f;
+        /// <summary>跑起来的声音半径。</summary>
+        public float RunRadiusMeters = 15f;
+        /// <summary>超过这个速度算"跑"（米/秒）。</summary>
+        public float RunSpeedMps = 3.2f;
+        /// <summary>蹲着不出声（true = 蹲行完全无声）。</summary>
+        public bool CrouchSilent = true;
+        /// <summary>多久发一次脚步声（秒）。</summary>
+        public float PublishIntervalSec = 0.4f;
+        /// <summary>声音多久内还有效（秒）——NPC 只对这段时间内的声音回头。</summary>
+        public float MaxAgeSec = 1.5f;
+        /// <summary>直视扇形内注视玩家的最大距离（米）：只转头，不转身。</summary>
+        public float GazeRadiusMeters = 10f;
+        /// <summary>朝声源转身后保持多久（秒）再转回岗位朝向。</summary>
+        public float TurnHoldSec = 6f;
     }
 
     public sealed class IntroTuning

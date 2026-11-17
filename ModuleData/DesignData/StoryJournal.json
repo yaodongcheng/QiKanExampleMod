@@ -1,0 +1,18 @@
+{
+  "Entries": [
+    {"Id":"start","TextKey":"LWN_story_journal_start","Conditions":[]},
+    {"Id":"blocked","TextKey":"LWN_story_journal_blocked","Conditions":["goal:asked"]},
+    {"Id":"jail","TextKey":"LWN_story_journal_jail","Conditions":["sentence_started"]},
+    {"Id":"released","TextKey":"LWN_story_journal_released","Conditions":["jail_done"]},
+    {"Id":"errand","TextKey":"LWN_story_journal_errand","Conditions":["has_commission"]},
+    {"Id":"means","TextKey":"LWN_story_journal_means","Conditions":["goal:tool"]},
+    {"Id":"clue_1","TextKey":"LWN_story_journal_clue_1","Conditions":["clue:sister_1"],"SourceTextKey":"LWN_story_pawnbroker_ask_sister"},
+    {"Id":"clue_2","TextKey":"LWN_story_journal_clue_2","Conditions":["clue:sister_2"],"SourceTextKey":"LWN_story_pawnbroker_sister_where"},
+    {"Id":"clue_3","TextKey":"LWN_story_journal_clue_3","Conditions":["clue:sister_3"],"SourceTextKey":"LWN_story_pawnbroker_sister_got"},
+    {"Id":"clue_4","TextKey":"LWN_story_journal_clue_4","Conditions":["clue:sister_4"],"SourceTextKey":"LWN_story_widow_ask_sister"},
+    {"Id":"warehouse_hint","TextKey":"LWN_story_journal_warehouse_hint","Conditions":[],"SourceTextKey":"LWN_story_son_ask_sister_2"},
+    {"Id":"warehouse_risk","TextKey":"LWN_story_journal_warehouse_risk","Conditions":[],"SourceTextKey":"LWN_story_butcher_ask_sister_2"},
+    {"Id":"gate","TextKey":"LWN_story_journal_gate","Conditions":["gate_opened"]},
+    {"Id":"finish","TextKey":"LWN_story_journal_finish","Conditions":["phase:done"]}
+  ]
+}

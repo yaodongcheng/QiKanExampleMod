@@ -4021,6 +4021,38 @@
     <string id="LWN_plan_loot" text="loot" />
     <string id="LWN_plan_gold" text="gold" />
     <string id="LWN_hud_plan_executing" text="Executing plan: {STEP}" />
+    <string id="LWN_hud_act_pose" text="Doing: {ACT}" />
+    <string id="LWN_hud_act_pose_note" text="Doing: {ACT} ({NOTE})" />
+    <!-- 动作释义（HUD 动作名后面的括号）：玩家看不懂 act_* 的英文名，这里给它一句人话。 -->
+    <string id="LWN_actnote_act_applaud_3" text="clapping" />
+    <string id="LWN_actnote_act_argue" text="arguing" />
+    <string id="LWN_actnote_act_argue_2" text="arguing (variant)" />
+    <string id="LWN_actnote_act_argue_soft_1" text="bickering" />
+    <string id="LWN_actnote_act_bar_talk_to_2" text="talking at the bar" />
+    <string id="LWN_actnote_act_bartender_meat" text="chopping meat" />
+    <string id="LWN_actnote_act_bartender_wipe" text="wiping the counter" />
+    <string id="LWN_actnote_act_beggar_idle" text="begging" />
+    <string id="LWN_actnote_act_bullied" text="taking a scolding" />
+    <string id="LWN_actnote_act_bully" text="throwing his weight around" />
+    <string id="LWN_actnote_act_citizen_cleanup" text="cleaning up" />
+    <string id="LWN_actnote_act_citizen_cleanup_idle" text="tidying up" />
+    <string id="LWN_actnote_act_conversation_aggressive_loop" text="talking aggressively" />
+    <string id="LWN_actnote_act_conversation_closed_loop" text="talking coldly" />
+    <string id="LWN_actnote_act_conversation_confident_loop" text="talking confidently" />
+    <string id="LWN_actnote_act_conversation_hip_loop" text="talking, hands on hips" />
+    <string id="LWN_actnote_act_conversation_point_somewhere" text="pointing while talking" />
+    <string id="LWN_actnote_act_conversation_talk_commenting" text="commenting" />
+    <string id="LWN_actnote_act_conversation_threat_point" text="threatening with a point" />
+    <string id="LWN_actnote_act_play_celtic_harp_stand" text="playing the harp" />
+    <string id="LWN_actnote_act_stealth_mission_guard_look_around_patrolling_cautious_1" text="watching warily" />
+    <string id="LWN_hud_act_idle" text="Standing by" />
+    <string id="LWN_hud_act_walk" text="Walking" />
+    <string id="LWN_hud_act_turn" text="Turning" />
+    <string id="LWN_hud_act_follow" text="Following" />
+    <string id="LWN_hud_act_confront" text="Confronting" />
+    <string id="LWN_hud_act_fight" text="Fighting" />
+    <string id="LWN_hud_act_perform" text="Performing" />
+    <string id="LWN_hud_act_held" text="Restrained" />
     <string id="LWN_plan_step_decision" text="Step {STEP}: decision received ({TYPE})" />
     <string id="LWN_plan_pause_modal" text="The player is busy" />
     <string id="LWN_plan_pause_fight" text="The player is in combat" />
@@ -5032,7 +5064,7 @@
     <string id="LWN_story_jail_btn_wait" text="Not yet" />
     <string id="LWN_story_jail_done" text="Your sentence is complete. You have put on the old clothes and face covering; your belongings remain in safekeeping." />
     <string id="LWN_story_intro_line_1" text="This is it. This is the town your sister walked into three months ago." />
-    <string id="LWN_story_intro_line_2" text="Your warrant hangs on the gate. Walking up front is walking into a cell." />
+    <string id="LWN_story_intro_line_2" text="You've served your sentence. You still need the guard's permission to pass." />
     <string id="LWN_story_intro_line_3" text="Get in with the people at the gate. Help one of them, and they teach you a way." />
     <string id="LWN_story_intro_no_companion" text="No one will walk in with you. You stand at the gate alone." />
     <string id="LWN_story_narr_ko" text="Everything goes dark." />
@@ -5188,7 +5220,7 @@
     <string id="LWN_story_event3_l3" text="Then play outside the walls." />
     <string id="LWN_story_event2_l3" text="Price went up." />
     <string id="LWN_story_amb_pawnbroker_1" text="Pawning, or looking for a way in?" />
-    <string id="LWN_story_event1_l1" text="What are you looking at? Not your business." />
+    <string id="LWN_story_event1_l1" text="No use hiding. I can see you." />
     <string id="LWN_story_amb_son_2" text="Don&#x27;t stand there." />
     <string id="LWN_story_react_weapon_thug" text="You sure about that?" />
     <string id="LWN_story_event6_l1" text="Broken again." />
@@ -5392,5 +5424,21 @@
     <string id="LWN_dialogue_hint_offer_basis" text="Your offer or evidence also affects your chance." />
     <string id="LWN_story_blocker_threat_fail_fight_response" text="Enough talk, have at you!" />
     <string id="LWN_story_blocker_threat_fail_surrender_response" text="Move, now that you have given in!" />
+    <string id="LWN_story_journal_title" text="A way into town" />
+    <string id="LWN_story_journal_cancel" text="I have put this search aside." />
+    <string id="LWN_story_journal_start" text="I came to the town gate to ask after my sister. First I must find out whether the guards will let me through." />
+    <string id="LWN_story_journal_blocked" text="The guards stopped me. I will need another way into town." />
+    <string id="LWN_story_journal_jail" text="After the clash with the guards, I was detained. I must deal with the sentence before trying to enter town again." />
+    <string id="LWN_story_journal_released" text="My sentence is over and I am free again. I have been punished for the old offence, but the guards still require permission to enter town." />
+    <string id="LWN_story_journal_errand" text="I accepted work outside the gate. Each commission has its own journal entry; helping these people may also give me a way into town." />
+    <string id="LWN_story_journal_means" text="My dealings outside the gate have brought new possibilities. I should return to the guards and see whether they will help." />
+    <string id="LWN_story_journal_clue_1" text="Zhou checked his ledger: three months ago, a young woman in blue pawned a silver bracelet and never redeemed it. I can ask him what happened next." />
+    <string id="LWN_story_journal_clue_2" text="According to Zhou, my sister left with a man after pawning the bracelet. The man wore a sailor's suit; Zhou identified him as one of the dock gang." />
+    <string id="LWN_story_journal_clue_3" text="I recovered my sister's silver bracelet, engraved with Ning on the inside. Zhou told me to look around the docks and warned me against going alone." />
+    <string id="LWN_story_journal_clue_4" text="Song says she saw the young woman in blue, who was later led away by a sailor. Her account also points toward the docks." />
+    <string id="LWN_story_journal_warehouse_hint" text="The young thief says the people taken away that night were heading toward a private warehouse inside the west gate. He was hiding above them and did not see everything." />
+    <string id="LWN_story_journal_warehouse_risk" text="The butcher says the dock gang took prisoners toward a hidden warehouse at the western docks one night. He warned me to have a proper weapon before trying to rescue anyone there." />
+    <string id="LWN_story_journal_gate" text="The guards have let me through this time. I can continue inside." />
+    <string id="LWN_story_journal_finish" text="I made it into town, bringing this part of the journey to an end. My sister is still missing. The accounts I have heard remain here for the search ahead." />
 </strings>
 </base>

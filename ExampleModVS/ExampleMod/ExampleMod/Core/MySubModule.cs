@@ -386,6 +386,9 @@ namespace LivingWorldNpcs
             //    用法与判据见 Combat/IceFxBehavior.cs 文件头。
             mission.AddMissionBehavior(new LivingWorldNpcs.Combat.IceFxBehavior());
 
+            // 环境调试与剧情入场共用；未请求降水时不创建粒子、不写场景。
+            mission.AddMissionBehavior(new SceneEnvironmentMissionBehavior());
+
             // 🔴 2026-09-02（用户裁定：全部行为以 IsInteractionDisabled 总闸拦截，战场不需要跑
             // 本 mod 玩法逻辑）：战场/竞技场/对话/藏身处潜入/自定义战斗等场景（config.json
             // DisabledInteractionMissionModes + 非战役 + 训练场 + arena_* 前缀）一个都不挂——

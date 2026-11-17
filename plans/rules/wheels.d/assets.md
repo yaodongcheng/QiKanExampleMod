@@ -2226,3 +2226,50 @@ end
 - 🔴 **TRF 能不能被编辑器认成 Physics Shape**（官方文档的物理形状规则是按 FBX 写的）—— 整条管线成立与否就看这一步；不成改 FBX。
 - 盒子只能**轴对齐**：斜摆建筑（yaw≠0）碰撞呈阶梯；要贴合得按实体 yaw 旋转后再体素化。
 - 加了碰撞后 **navmesh 必须重生成**（现有 `navmesh.bin` 是零碰撞场地上烘的，NPC 不会走新表面）。
+
+## 30. 🔴🔴 查"场景里到底有什么实体"：**离线读 `scene.xscene`**，别只信运行期扫描（2026-11-17 登记，城门锚点实战）
+
+**症状**：序章首遇报 `[StoryPrep] anchor 'gate_entity' 未命中 [...]`，据此判断"这个场景没有城门实体"—— **判断错了**。离线读场景文件，门就在那儿：
+
+```xml
+<game_entity prefab="empire_castle_gate_outer_l2">
+    <transform position="427.959, 422.201, 72.962" rotation_euler="0.000, 0.000, -1.632"/>
+    <scripts><script name="CastleGate"> …
+```
+
+坐标与配置表 `gate=(428, 422.2, 72.962)` 逐位一致 ⇒ **数据没错，是运行期扫描漏了**。
+
+### 30.1 首选：离线读 `scene.xscene`（秒级，不用进游戏）
+
+```powershell
+# 1) 场景名：运行日志里就有（或 Mission.Current.SceneName）
+#    [StoryPopulation] … mission scene='empire_town_m'
+$scene = 'empire_town_m'
+$dir = "H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Blade II Bannerlord\Modules\SandBoxCore\SceneObj\$scene"
+
+# 2) 这个场景有哪些 prefab（找门 / 找房子 / 找道具）
+Select-String -Path "$dir\scene.xscene" -Pattern 'prefab="([^"]*gate[^"]*)"' -AllMatches |
+  ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+
+# 3) 某个 prefab 实例的坐标 / 脚本（grep 到那一行，紧跟着就是）
+Select-String -Path "$dir\scene.xscene" -Pattern 'empire_castle_gate_outer_l2' -Context 0,6
+```
+
+**要点**：
+- 实体是 `<game_entity prefab="名字">`，**坐标 = 紧跟的 `<transform position="x, y, z" rotation_euler="...">`**，脚本 = `<scripts><script name="...">`。
+- 🔴 **场景常驻 `Modules\SandBoxCore\SceneObj\`**（`empire_town_m` / `empire_town_a…s` 都在那儿）；`Modules\SandBox\SceneObj\` 只有 `empire_town_f` / `empire_town_j`。**搜不到先换模块目录**，别急着说"没有"。
+- 同理可查：出生点（`sp_*` prefab 的坐标 = 守卫/商贩刷新点）、道具摆位、门轴位置。
+
+### 30.2 运行期对照：`custom.story_probe scene list [filter]`
+
+把当前 Mission 场景的**全部实体**导出到 `Modules\LivingWorldNpcs\Debug\scene_entities.txt`（`名字 / prefab / x,y,z / tags`，制表符分隔），控制台回"总数 + 匹配数 + 前 12 条"。`filter` 同时匹配实体名 / prefab 名 / tag。只读。用来和离线 xscene 对照 —— 两边对得上，说明运行的就是这份场景。
+
+### 30.3 🔴 三条纪律（"未命中"≠"场景没有"）
+
+| 坑 | 后果 | 正解 |
+|---|---|---|
+| 只读日志里那句"场景实体名样本" | 那只是**前 12 条**遍历样本，不是全集 | 离线读 xscene，或 `scene list` 全量导出 |
+| 用 `scene.GetRootEntities` + 手写递归 + 外层 `catch {}` | 中途任何异常被吞 ⇒ **扫描半途而废**，报"未命中" | `Scene.GetEntities(ref List<GameEntity>)` 一次拿全量 |
+| 只比 `GetPrefabName()` | 场景加载后展开的 prefab 实例**常返回空** | 同时比 `entity.Name`（引擎给的默认名），两者有一个相等就算命中 |
+
+补充：日志里**必须带"已扫描实体数"**，`已扫描=0` 说明扫描没跑起来，此时"未命中"毫无意义。

@@ -53,6 +53,10 @@ namespace LivingWorldNpcs
         public bool IntroPlayed;           // 第二次进场随从 3 句已播
         public bool GoalReached;           // 已走到门内目标点
         public string GoalStage = "enter"; // 屏幕目标（enter/asked/quest/tool/done）
+        public List<string> GoalHistory = new List<string>(); // 已实际提交的目标，日记恢复不丢中间阶段
+        public List<string> JournalShownTextKeys = new List<string>(); // 仅登记日记引用的真实展示句，最多64条
+        public int JournalKnowledgeVersion;
+        public bool JournalCompleted; // 原版成功完成已提交，任务页归档后不重新接单。
 
         // ── nobody（剥夺）──
         public bool Stripped;              // 身上那套已被没收；有尚欠账时保持为 true
@@ -299,6 +303,8 @@ namespace LivingWorldNpcs
             int next = Array.IndexOf(order, stage);
             if (next <= cur) return;
             Data.GoalStage = stage;
+            Data.GoalHistory ??= new List<string>();
+            if (!Data.GoalHistory.Contains(stage)) Data.GoalHistory.Add(stage);
             // §6.8：屏幕左上一句话，随进度换一行（只在真的换阶段时播一次）
             try { StoryProbeScreenGoal.Show(); } catch { }
         }

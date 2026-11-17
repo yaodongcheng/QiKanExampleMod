@@ -21,8 +21,8 @@
     "ActionChangeChancePerSec": 0.25,
     "SoloActionChancePerSec": 0.08,
     "MaxDurationSec": 20.0,
-    "ActorSpacingMeters": 4.0,
-    "ActorApproachMeters": 1.8,
+    "ActorSpacingMeters": 2.5,
+    "ActorApproachMeters": 1.6,
     "JoinArmDistanceMeters": 6.0,
     "JoinDistanceMeters": 4.0,
     "PlayerFarMeters": 20.0,
@@ -76,6 +76,18 @@
     "_comment": "首次硬闯实际败退后登记拘押缘由，让第二次遮面有意义；不在进场时先挂罪抢掉正常质问", 
     "SmallBountyAtEntry": 15.0,
     "RecognizedExtra": 10.0
+  },
+
+  "Noise": {
+    "_comment": "声音感知：身体只朝声音转。蹲着不出声、走路小声、跑步大声——想偷偷靠近就蹲着走。",
+    "WalkRadiusMeters": 6.0,
+    "RunRadiusMeters": 15.0,
+    "RunSpeedMps": 3.2,
+    "CrouchSilent": true,
+    "PublishIntervalSec": 0.4,
+    "MaxAgeSec": 1.5,
+    "GazeRadiusMeters": 10.0,
+    "TurnHoldSec": 6.0
   },
 
   "Greeting": {

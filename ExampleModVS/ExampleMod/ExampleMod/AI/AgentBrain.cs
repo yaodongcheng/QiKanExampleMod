@@ -89,10 +89,10 @@ namespace LivingWorldNpcs
         //    默认行为由 DecideDefaultBehavior 消费：离岗走回去、到位就站住。
         private bool _hasDutyPoint;
         private Vec3 _dutyPoint;
-        private float _dutyFacing = -1f;   // -1 = 面朝玩家；0~360 = 绝对角度（与 JSON 的 Facing 同义）
+        private float _dutyFacing = -1f;   // 绝对角度；-1°与359°同义，不代表玩家。
         /// <summary>
         /// 写这名 NPC 的**职责点**（位置 + 朝向）。
-        /// 朝向语义与 JSON 一致：`facingDeg < 0` = 面朝玩家（首遇即面朝门外），否则按绝对角度（度）。
+        /// 朝向语义与 JSON 一致：facingDeg始终按绝对角度（度）解释。
         /// 写入后如果正挂着站岗占位（StayAction），清掉重排，让新朝向立刻生效。
         /// </summary>
         public void SetDutyPoint(Vec3 point, float facingDeg = -1f)
@@ -100,10 +100,26 @@ namespace LivingWorldNpcs
             _dutyPoint = point;
             _dutyFacing = facingDeg;
             _hasDutyPoint = true;
-            if (_currentAction is StayAction || (_actionQueue.Count > 0 && _actionQueue.Peek() is StayAction))
+            _dutyMoveFailures = 0;
+            _dutyMoveGiveUpUntil = 0f;
+            if (_currentAction is StayAction || _currentAction is StreetIdleAction
+                || (_actionQueue.Count > 0 && (_actionQueue.Peek() is StayAction || _actionQueue.Peek() is StreetIdleAction)))
                 ClearAllActions(lockPlace: false);
         }
         public void ClearDutyPoint() { _hasDutyPoint = false; }
+
+        /// <summary>这个人有没有被我们接管岗位（感知层只对我们接管的人写身体，原版 NPC 不动）。</summary>
+        public bool HasDutyPoint => _hasDutyPoint;
+        public Vec3 DutyPoint => _dutyPoint;
+
+        // ── 走回岗位的失败退避（2026-11-16，见 DecideDefaultBehavior）──
+        private const float DutyMoveRetrySec = 60f;
+        private const float DutyMoveLongRetrySec = 300f;
+        private int _dutyMoveFailures;
+        private float _dutyMoveGiveUpUntil;
+
+        private bool DutyMoveAllowed()
+            => (Mission.Current?.CurrentTime ?? 0f) >= _dutyMoveGiveUpUntil;
         public bool IsPerforming => _performance != null && !_performance.Ended;
         public bool IsStoryIntercepting => _storyInterceptAction != null;
         internal bool OwnsPerformance(PerformanceAction action) => _performance == action;
@@ -164,6 +180,14 @@ namespace LivingWorldNpcs
         /// </summary>
         public bool IsCurrentOrPending<T>() where T : IAtomicAction
             => EffectiveAction is T;
+
+        /// <summary>
+        /// 正在走位 / 转身（2026-11-16）：通用感知层要写身体朝向时先问这个 ——
+        /// 这两种动作每帧都在写移动方向，外面再写一次就是两边打架。
+        /// </summary>
+        public bool IsMovingOrTurning
+            => EffectiveAction is StoryMoveAction || EffectiveAction is MoveToPositionAction
+               || EffectiveAction is TurnToDirectionAction;
 
         // ═══════════════════════════════════════════════════════════════
         // 🆕 警戒值系统（Phase 1-2）
@@ -422,7 +446,8 @@ namespace LivingWorldNpcs
                     && AgentControlHelper.SafeIsActive(Owner) && !ConversationEntryPatch.IsConversationActive())
                 {
                     if (IsPerforming && _performance.OwnerToken == token) accepted = _performance;
-                    else if (!IsPerforming && (EffectiveAction == null || EffectiveAction is StayAction)
+                    else if (!IsPerforming && (EffectiveAction == null || EffectiveAction is StayAction
+                            || EffectiveAction is StreetIdleAction)   // 市井常驻态可被演出/工作/群戏直接抢占
                         && CurrentIntent.Type != NpcIntentType.ExecutingCommand
                         && CurrentIntent.Type != NpcIntentType.Fighting && CurrentIntent.Type != NpcIntentType.Confronting
                         && !(EffectiveAction is StayAction stay && stay.IsKnockout))
@@ -1788,16 +1813,28 @@ namespace LivingWorldNpcs
             //    每个人都有自己的点位（屠夫→肉铺、守卫→门口），点位来自 JSON，不是写死。
             if (_hasDutyPoint && !IsStunned && Owner != null)
             {
-                if (Owner.Position.Distance(_dutyPoint) > 1.2f)
+                if (Owner.Position.Distance(_dutyPoint) > 1.2f && DutyMoveAllowed())
                 {
-                    EnqueueAction(new StoryMoveAction(_dutyPoint, 0.6f, null));
+                    // 🔴 2026-11-16 实机：走到岗位的移动会以"5 秒卡死预算"结束（避障把终点横搬 1.2 米，
+                    //    落不到停步半径内），而结束那一刻人**并没有真的到位** ⇒ 下一拍又发一次，无限循环
+                    //    （实测郑大山/顾长生每 5 秒一次，一分钟 12 次）。这里给失败加退避：失败一次 60 秒内不再试，
+                    //    连续 3 次就彻底放弃（直到 SetDutyPoint 重设）——宁可站在附近待机，也不要刷队列。
+                    EnqueueAction(new StoryMoveAction(_dutyPoint, 1.2f, ok =>
+                    {
+                        if (ok) { _dutyMoveFailures = 0; return; }
+                        _dutyMoveFailures++;
+                        float backoff = _dutyMoveFailures >= 3 ? DutyMoveLongRetrySec : DutyMoveRetrySec;
+                        _dutyMoveGiveUpUntil = (Mission.Current?.CurrentTime ?? 0f) + backoff;
+                        DebugLogger.Log($"[Brain-Duty] {Owner.Name}(Idx={Owner.Index}) 走回岗位失败({_dutyMoveFailures}) ⇒ "
+                                        + backoff + " 秒后再试");
+                    }));
                     return;
                 }
 
                 // 到位：先按点位朝向转身（Facing 终于在这里被消费），转正了再站住。
                 if (TryResolveDutyDirection(out var want))
                 {
-                    Vec2 look = Owner.LookDirection.AsVec2;
+                    Vec2 look = Owner.Frame.rotation.f.AsVec2;
                     float dot = look.LengthSquared > 1e-4f && want.LengthSquared > 1e-4f
                         ? Vec2.DotProduct(look.Normalized(), want.Normalized()) : 1f;
                     // 阈值要比 TurnToDirectionAction 自己的精度(0.98)更宽松，否则转到了又被判"不够正"→ 无限转圈。
@@ -1808,31 +1845,50 @@ namespace LivingWorldNpcs
                     }
                 }
 
-                // -1（面朝玩家）时保留"看着玩家"，绝对角度时纯站住。
-                EnqueueAction(_dutyFacing < 0f ? new StayAction(Agent.Main, keepRotating: true)
-                                               : new StayAction(null, keepRotating: false));
+                // 市井常驻态（2026-11-16 用户裁定）：有常驻配置的人走**一个复合动作**——
+//   "站 ↔ 偶尔做个小动作"全在 StreetIdleAction 内部换，队列不再每 3~20 秒转一圈。
+//   这条取代了原来的「StayAction + 每次小动作另起一条 PerformanceAction 租约」：
+//   那条路每次换姿态要 7~9 行队列日志，其中 44% 是纯填缝动作（实测 20 秒 43 次入队）。
+var streetDef = StoryProbeDefs.GetStreetLife(StoryProbeDialogue.ResolveNpcId(Owner));
+                if (streetDef != null)
+                {
+                    // 岗位朝向（绝对角度）交给待机动作自己维持；-1 = 无固定朝向（只听声音转头）。
+                    Vec2? dutyDir = TryResolveDutyDirection(out var idleDir) ? (Vec2?)idleDir : null;
+                    EnqueueAction(new StreetIdleAction(streetDef.NpcId, streetDef, dutyDir));
+                    return;
+                }
+
+                // 岗位朝向是绝对角度（-1 = −1°/359°），已经在上面的转身块里转正了 → 这里纯站住。
+                // 看人由通用感知层负责（视野扇形内才转头），不再写死"盯着玩家"。
+                EnqueueAction(new StayAction(null, keepRotating: false));
                 return;
             }
 
             ResumeVanillaAI();
         }
 
-        /// <summary>把职责点的朝向解成一个水平方向向量；解不出来（比如 -1 但玩家不在附近）就返回 false。</summary>
+        /// <summary>把职责点的朝向解成一个水平方向向量。</summary>
         private bool TryResolveDutyDirection(out Vec2 direction)
         {
             direction = Vec2.Zero;
-            if (_dutyFacing >= 0f)
-            {
-                float rad = _dutyFacing * MathF.PI / 180f;
-                direction = new Vec2(MathF.Cos(rad), MathF.Sin(rad));
-                return direction.LengthSquared > 1e-4f;
-            }
-            // -1 = 面朝玩家：只在他离得不太远时这么做，别让站岗的人盯着三十米外的路人。
-            var player = Agent.Main;
-            if (player == null || !AgentControlHelper.SafeIsActive(player)) return false;
-            if (Owner.Position.Distance(player.Position) > 30f) return false;
-            direction = (player.Position - Owner.Position).AsVec2;
+            // 🔴 2026-11-16 用户裁定：`Dir` **一律按角度解释** —— `-1` 就是 −1°（等同 359°），
+            //   没有"面朝玩家"这种魔法值。身体转向只由声音驱动（见 NpcPerception）。
+            if (!_hasDutyPoint) return false;
+            if (NpcPerception.TryGetHeardDirection(Owner, out direction)) return true;
+            float rad = _dutyFacing * MathF.PI / 180f;
+            direction = new Vec2(MathF.Cos(rad), MathF.Sin(rad));
             return direction.LengthSquared > 1e-4f;
+        }
+
+        /// <summary>岗位朝向（度 → 水平方向）；没设岗位点返回零向量。供感知层"声音过后转回来"用。</summary>
+        public Vec2 DutyDirection
+        {
+            get
+            {
+                if (!_hasDutyPoint) return Vec2.Zero;
+                float rad = _dutyFacing * MathF.PI / 180f;
+                return new Vec2(MathF.Cos(rad), MathF.Sin(rad));
+            }
         }
 
         /// <summary>脑里现在还挂着 <see cref="BoundAction"/> 占位吗（安全网判据，见 <see cref="Tick"/>）。</summary>

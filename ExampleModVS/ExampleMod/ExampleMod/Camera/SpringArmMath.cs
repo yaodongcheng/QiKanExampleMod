@@ -124,7 +124,10 @@ namespace LivingWorldNpcs
             //     （2026-10-04 定位；此前 `camlift` 标定的那 0.5 米 = 这一项）。
             //     ⇒ **引擎口径下必须带上**（UseEngineEyeHeight = true 的跟随相机）；旧口径（飞行/模板）不带，行为不变。
             //     ⚠️ 若实机发现方向反了（Δ眼 反而变小），把 `+` 改 `-` 即可（两边 π/2 修正都是同一个调用，理论同向）。
-            if (p.UseEngineEyeHeight)
+            // 🔴 2026-11-17 实机修正：**引擎只在非对话/非交易模式下加这一抬**（`MissionScreen.UpdateCamera` 里
+            //     两处都是 `Mode != 1 && Mode != 5` 才加）。对话模式下引擎不加，我们加了 ⇒ 交接瞬间相机比引擎
+            //     高 0.48~0.66 米（"从原生相机过渡到自定义相机高度没对上"）。这里按同一条件门控。
+            if (p.UseEngineEyeHeight && EngineAppliesCameraLift())
             {
                 cameraPos += finalCamRot.f * ComputeEngineLift(targetAgent, p.ArmLength);
             }
@@ -226,6 +229,26 @@ namespace LivingWorldNpcs
                 // 变量系统取不到就按站姿算 —— 眼高不该阻断相机
             }
             return StandEyeHeight;
+        }
+
+        /// <summary>
+        /// **引擎会不会加"沿画面向上偏移"** —— 照抄 `MissionScreen.UpdateCamera`：两处抬升都写在
+        /// `Mission.Mode != Conversation(1) && != Barter(5)` 的分支里，对话/交易模式下引擎**不加**。
+        /// 我们若在对话里照加，机位会比引擎高 0.48~0.66 米（2026-11-17 实机交接"高度没对上"）。
+        /// </summary>
+        private static bool EngineAppliesCameraLift()
+        {
+            try
+            {
+                Mission mission = Mission.Current;
+                if (mission == null) return true;
+                MissionMode mode = mission.Mode;
+                return mode != MissionMode.Conversation && mode != MissionMode.Barter;
+            }
+            catch
+            {
+                return true;   // 取不到模式按"加"处理：与改动前行为一致
+            }
         }
 
         /// <summary>

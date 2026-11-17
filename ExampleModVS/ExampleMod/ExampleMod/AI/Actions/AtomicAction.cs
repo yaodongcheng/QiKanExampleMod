@@ -392,7 +392,7 @@ namespace LivingWorldNpcs
             _timer = 0f;
 
             // 可以在开始时直接设定一次，响应更快
-            agent.SetMovementDirection(_targetDir);
+            AgentControlHelper.SetBodyDirection(agent, _targetDir);
             agent.SetLookAgent(null);
         }
 
@@ -402,7 +402,7 @@ namespace LivingWorldNpcs
 
             // 1. 执行你要求的关键旋转函数
             // SetMovementDirection 控制身体朝向意图
-            agent.SetMovementDirection(_targetDir);
+            AgentControlHelper.SetBodyDirection(agent, _targetDir);
 
             // 建议：同时设置 SetLookDirection，否则 Agent 可能会身体转了头没转，
             // 或者视线判定导致逻辑认为还没转到位。
@@ -410,7 +410,7 @@ namespace LivingWorldNpcs
 
             // 2. 检测是否完成
             // 获取当前 Agent 的视线/身体朝向
-            Vec2 currentDir = agent.LookDirection.AsVec2.Normalized();
+            Vec2 currentDir = agent.Frame.rotation.f.AsVec2.Normalized();
 
             // 计算点积：1.0 = 完全同向, 0 = 垂直, -1.0 = 反向
             float dot = Vec2.DotProduct(currentDir, _targetDir);
@@ -582,7 +582,7 @@ namespace LivingWorldNpcs
                 agent.TeleportToPosition(_targetPos);
             // 朝向守卫：逃跑/回岗传 Vec2.Zero（无意义方向）→ 跳过，避免零向量下发给引擎（解锁后原版 AI 接管）
             if (_targetDir.LengthSquared > 0.01f)
-                agent.SetMovementDirection(_targetDir);
+                AgentControlHelper.SetBodyDirection(agent, _targetDir);
 
             // 收尾行为参数化：精确移动 = 到位准备互动（对峙/对话）；逃跑/回岗 = 解锁恢复原版 AI
             if (_endBehavior == EndBehavior.InteractPrepare)
@@ -1499,12 +1499,13 @@ namespace LivingWorldNpcs
             //AgentControlHelper.MoveEndAndInteractPrepare(agent);
 
             stayPos = agent.Position;
+            AgentControlHelper.HoldInPlace(agent);
 
             if (_lookTarget == null) return;
             Vec3 dir = (_lookTarget.Position - agent.Position).NormalizedCopy();
 
-            agent.SetMovementDirection(dir.AsVec2);
-            agent.SetLookAgent(_lookTarget);
+            AgentControlHelper.SetBodyDirection(agent, dir.AsVec2);
+            AgentControlHelper.LookAtAgent(agent, _lookTarget);
         }
 
         public void OnTick(Agent agent, float dt)
@@ -1513,7 +1514,10 @@ namespace LivingWorldNpcs
             if(_timer > 0.2f)
             {
                 _timer = 0;
-                AgentControlHelper.MoveEndAndInteractPrepare(agent,stayPos);
+                // 待机只保持停步，不能每0.2秒重建InConversation移动合同，覆盖听觉/对话的方向。
+                AgentControlHelper.HoldInPlace(agent, resetScriptedMovement: false);
+                if (_keepRotating && AgentControlHelper.SafeIsActive(_lookTarget))
+                    AgentControlHelper.FaceToActor(agent, _lookTarget);
             }
 
         }
@@ -1547,8 +1551,11 @@ namespace LivingWorldNpcs
         private bool _bodyHeld;
         private float _facingDebugElapsed;
         private bool _facingDebugReported;
+        private AgentControlHelper.FacingTracker _facingTracker = new AgentControlHelper.FacingTracker();
         public bool BodyTurnRequested { get; private set; }
         public Agent SpeechListener { get; private set; }
+        /// <summary>固定站位演出可保留策划方向；发声仍注视真实听话者，不自动转身体。</summary>
+        public bool AllowSpeechBodyTurn { get; set; } = true;
         public string OwnerToken { get; }
         public bool Started { get; private set; }
         public bool Paused { get; private set; }
@@ -1639,11 +1646,11 @@ namespace LivingWorldNpcs
             if (CanControl)
             {
                 _facingDebugElapsed += Math.Max(0f, dt);
-                HoldBody();
+                HoldBody(dt);
             }
         }
 
-        private void HoldBody()
+        private void HoldBody(float dt = 0f)
         {
             if (!CanControl) return;
             var listener = SpeechChannel.GetPerformanceListener(_brain.Owner, this);
@@ -1660,25 +1667,24 @@ namespace LivingWorldNpcs
                 Finish("listener-unavailable");
                 return;
             }
-            AgentControlHelper.HoldInPlace(_brain.Owner);
+            // 首次接管才清旧移动合同；之后保留本动作的站位方向，不能每帧清掉再重建。
+            AgentControlHelper.HoldInPlace(_brain.Owner, resetScriptedMovement: !_bodyHeld);
             _bodyHeld = true;
             if (SpeechListener != null)
             {
                 // 只控制正在冒泡的speaker；扇形内只追踪注视，出了身体前方视野才请求转身。
                 // 复用视线引擎的120度扇形部分，不把远、遮挡或高差当成转身条件。
-                bool turnBody = !NpcSightSystem.IsTargetInViewCone(_brain.Owner, SpeechListener, useBodyFacing: true);
-                bool bodyModeChanged = turnBody != BodyTurnRequested;
+                bool turnBody = AllowSpeechBodyTurn
+                    && !NpcSightSystem.IsTargetInViewCone(_brain.Owner, SpeechListener, useBodyFacing: true);
                 BodyTurnRequested = turnBody;
-                if (turnBody) AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);
-                else AgentControlHelper.LookAtAgent(_brain.Owner, SpeechListener);
+                _facingTracker.Tick(_brain.Owner, SpeechListener, turnBody, false, dt, OwnerToken);
                 // 转身/注视诊断：统一受 ShowPerformanceFacingDebugMessages 控制（默认关，
                 // 排查朝向问题时在 config.json 打开或运行时 `custom.story_probe life debug on`）。
                 if (Settings.Instance.ShowPerformanceFacingDebugMessages)
                 {
                     if (listenerChanged)
                         DebugLogger.Log($"[Performance] tracking requested owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body={(turnBody ? "turn-outside-cone" : "gaze-only-inside-cone")} fov={NpcSightSystem.DefaultFovDegrees} gaze=SetLookAgent");
-                    else if (bodyModeChanged)
-                        DebugLogger.Log($"[Performance] body mode owner={OwnerToken} speaker={_brain.Owner.Name} listener={SpeechListener.Name} body={(turnBody ? "turn-outside-cone" : "gaze-only-inside-cone")} fov={NpcSightSystem.DefaultFovDegrees}");
+                    // 模式反复切换由FacingTrace按秒汇总，抖动时也不逐帧刷日志。
                 }
                 // 等引擎推进半秒再读真实身体朝向；每次换听话者只播一次，不能每帧刷屏。
                 if (Settings.Instance.ShowPerformanceFacingDebugMessages && !_facingDebugReported
@@ -1707,6 +1713,7 @@ namespace LivingWorldNpcs
         {
             if (!_bodyHeld) return;
             _bodyHeld = false;
+            _facingTracker = new AgentControlHelper.FacingTracker();
             BodyTurnRequested = false;
             if (Mission.Current != _mission || !_brain.OwnsPerformance(this)
                 || _brain.IsBound || _brain.IsStatusHeld || _brain.IsStunned

@@ -196,6 +196,117 @@ custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
 
 ---
 
+<a id="scene-environment"></a>
+
+## 通用场景天气与时间控制（2026-11-17，用户批准登记）
+
+**解决什么问题**：在指定场景入场时设置时辰、雨雪与积雪，或在场景内临时调整并恢复；既有环境参数，也有可见雨滴／雪花。后续演出、玩法或调试需求复用本节的入场接入、Scene控制和降水显示，具体环境值留在需求自己的数据里。
+
+**适用范围**：已就绪的户外战役Mission，必须有原版入场记录的完整插值大气；没有场景、正在结束、室内、多人及不满足大气前提的场景拒绝修改。场景写入在游戏主线程执行；当前类型为LWN程序集内能力，不是外部DLL公开API，也没有新增Story DSL动作token。
+
+### 数据与版本边界
+
+现有剧情阶段支持可选的`Environment`对象：
+
+```json
+{"Hour":7,"Weather":"rain","Density":0.7,"SnowCover":0}
+```
+
+| 字段 | 含义与校验 |
+|---|---|
+| `Hour` | 必填，小数小时，范围`[0,24)`；7是07:00，7.5是07:30。只改本场环境小时，不推进战役日期。 |
+| `Weather` | 必填，只接受`clear`、`rain`、`snow`；雨雪互斥。`clear`表示停止降水。 |
+| `Density` | 必填，雨雪强度`(0,1]`；clear必须为0。临时weather命令省略强度时雨雪默认0.7。 |
+| `SnowCover` | 可选，默认0，范围`[0,1]`；原版冬季覆盖系数，不是厚度。与降水独立，下雨或停雨不会自动清掉已有积雪。 |
+
+省略整个Environment沿用原版战役环境；空对象、未知字段、错误类型、非有限数字和越界值拒绝发布。临时命令也先校验完整参数，多余参数拒绝；直接调用底层`SceneEnvironment.Execute`时调用方须先完成同等校验。
+
+现有维护源为`ModuleData/DesignData/StoryGateSetup.json`的`Stages.first_meet.Environment`及`StoryOpeningTimeline.json`顶层Environment，生成到`StoryScenePlan.json`的阶段Environment；其他需求需接入自己的数据源，不会因任意JSON出现这个字段就自动生效。不要手改生成物。生成命令：
+
+```powershell
+python -X utf8 "H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\Scripts\gen_story_stage_v2.py"
+```
+
+此命令用于改完现有两处维护源后发布正式布局；会按生成器规则更新生成物与内容版本，不运行游戏、不移动人物或结算财物。预期校验通过且重复生成字节一致。游戏已打开时在大地图执行`custom.story_probe reload`重读整套剧情配置，下次入场使用新版本；该命令不传送、不重置剧情或财物，已有场景环境不会随重载自动改变。
+
+| 能力 | 1.2.12 | 1.3.15／1.5.7及当前1.3+分支 |
+|---|---|---|
+| JSON入场时辰与雨雪／积雪 | 支持，原版初始化器计算完整大气 | 支持，沿用各版原初始化器 |
+| 临时weather／snowcover／reset | 支持 | 支持；reset只恢复本场曾应用的临时修改 |
+| 临时time／set | 支持，刷新入场已加载的完整插值对象 | **尚未接通，整条在任何写入前拒绝**；不能仅凭同名托管API存在解除限制 |
+
+### 关键入口与接入范例
+
+| 真实签名 | 职责 |
+|---|---|
+| `StoryEnvironment.Open(string sceneName, StoryStageDef stage, int version)` → `EntryScope` | 为下一次匹配的原版入场限定小时输入和环境数据；固定本次数据版本。 |
+| `EntryScope.Attach(Mission mission)`／`Dispose()` | 把入场回执绑定到返回的Mission；using确保成功或异常都清作用域。 |
+| `StoryEnvironment.ReportActual(Mission mission)` | Tick中等到当前户外Scene就绪，补一次入场雨雪／积雪及降水显示，再打印实际回读。 |
+| `EnvironmentCommands.Execute(List<string> args)` → `string` | 校验并执行当前场景控制；参数从status／time等子命令开始，返回纯英文回执。 |
+| `SceneEnvironment.Execute(SceneEnvironment.Change change)` → `string` | 通用Scene修改与恢复；Change含Operation／Weather及可空Hour／Density／SnowCover。 |
+| `SceneEnvironment.CheckMission(Mission mission)` → `string` | null表示场景运行状态及户外／非多人检查通过，修改时另核大气前提。 |
+| `SceneEnvironment.ApplyEntryWeather(Mission mission, AtmosphereInfo atmosphere)` | 场景就绪后从已初始化的入场大气补天气及显示，不重算光照；其他入场调用方自行保证只补一次。 |
+| `SceneEnvironment.Describe(Mission mission)` → `string` | 只读实际环境、临时请求、版本支持及降水宿主状态。 |
+
+场景内复用范例（同一LWN程序集，主线程调用）：
+
+```csharp
+// 已有参数校验、场景检查、失败恢复和雨滴宿主，不另写裸Scene setter。
+string result = EnvironmentCommands.Execute(new List<string> { "weather", "rain", "0.7" });
+string status = EnvironmentCommands.Execute(new List<string> { "status" });
+string reset = EnvironmentCommands.Execute(new List<string> { "reset" });
+```
+
+现有原版入场接入范例，`sceneName`须与初始化器本次场景名一致，`stage`来自已经校验的发布数据；`encounter`、`location`、`spawnTag`由原入场调用方提供：
+
+```csharp
+IMission openedMission;
+using (var environment = StoryEnvironment.Open(sceneName, stage, version))
+{
+    openedMission = encounter.CreateAndOpenMissionController(location, null, null, spawnTag);
+    environment.Attach(openedMission as Mission);
+}
+```
+
+在返回Mission的已有行为中，每次Tick调用；内部等到当前户外Scene就绪后只补一次：
+
+```csharp
+StoryEnvironment.ReportActual(Mission);
+```
+
+入场小时覆盖只限本线程、本次初始化器、指定场景和原版`DefaultMapWeatherModel`实例；嵌套其他场景不继承，Postfix／Finalizer／Dispose负责清理。补丁禁用、模型未消费小时或原版模型不满足前提时明确拒绝；不重建Mission或复制原版行为列表。
+
+### 完整验收指令
+
+下列修改只影响当前Scene，不移动人物、不改JSON／存档／剧情进度／财物／战役时钟；退出后按正常入场规则加载。临时控制保留已加载的天空／云层预设，clear不承诺把阴云换成晴空。
+
+| 完整指令 | 作用、使用时机与预期结果 |
+|---|---|
+| `custom.story_probe environment status` | 随时只查询发布环境、当前Scene及降水状态；入场配置与临时请求各有自己的matches比较。开阔处下雨时应有kind=rain、雨资源、attached=True、emitting=True；查询不改变环境。 |
+| `custom.story_probe environment time 7.5` | 1.2.12场景内临时设07:30，预期actualHour=7.50并改变光照；保留天气、积雪和模拟速度。1.3+整条拒绝。 |
+| `custom.story_probe environment weather rain 0.7` | 场景内临时设雨强度0.7、雪密度0并接雨滴显示；开阔处观察快速下落雨滴。保留时辰和积雪。 |
+| `custom.story_probe environment weather snow 0.7` | 场景内临时设雪强度0.7、雨密度0并接雪花显示；开阔处观察雪花。保留时辰和积雪。 |
+| `custom.story_probe environment weather clear` | 场景内临时停止雨雪并清显示，用于画面对比；预期雨雪密度0、attached=False。保留时辰、积雪和天空预设。 |
+| `custom.story_probe environment snowcover 0` | 场景内临时去掉动态积雪，0为无覆盖、1为最大覆盖；只改地面覆盖，保留降水和时辰。 |
+| `custom.story_probe environment set 7 rain 0.7 0` | 1.2.12场景内同时设07:00、雨0.7、积雪0，预期四项读数一致且有雨滴。全部参数合法才执行；1.3+整条拒绝，天气与积雪也不写。 |
+| `custom.story_probe environment reset` | 调试结束后恢复本场原入场环境与对应降水效果；只在本次曾改时辰时恢复原光照。无临时修改时重复执行不写Scene；不重置剧情或人物。不能回溯旧DLL写坏的光照／模拟速度。 |
+| `custom.story_probe environment help` | 随时只查完整语法与版本限制，不改变环境。 |
+
+### 显示、清理与踩坑纪律
+
+- **雨雪共用一个活跃宿主**：`SceneEnvironmentMissionBehavior.Get(Mission)`取得已挂载行为，`Prepare(float rain, float snow)`准备候选，`SetDensity(float rain, float snow)`提交显示。雨资源为Native的`psys_game_rain`／回落`psys_game_rain_close`；雪为`psys_game_snow`／回落`psys_game_snow_2`。同类调密度复用，换天气先建停用且发射倍率0的候选，Scene写成功才换；失败清候选并保留旧效果。
+- **只跟实际渲染视点位置**：`Scene.LastFinalRenderCameraFrame.origin`上方4米放发射器，不接管相机或读取方向。每0.2秒向上30米射线，屋檐下暂停、离开恢复；这是视点遮挡判定，不是每颗粒子的建筑碰撞。clear、退场及行为移除清理；已切Mission时旧行为只丢托管引用，不调用旧场景原生实体。
+- **禁止把TimeSpeed当日照时钟**：它是模拟速度，设0会被原生钳到约0.0001，运动和降水几乎停住。环境控制保持原模拟速度，不写0或强行改回1。
+- **调时复用完整原版大气**：1.2.12由`V.RefreshSceneEnvironmentHour(Scene scene, float hour)`调用入场已加载对象，内部小时乘10；调用方传普通小时，不重复乘10。禁止直接拼写太阳／曝光／雾字段或临时加载大地图大气。1.3+通过`V.SceneEnvironmentTimeError`门控，不能绕过。
+- **密度生效不等于雨雪可见**：1.2.12原入场漏复制雪密度；此前雨密度已为0.7却无雨滴宿主。现在入场和命令共用`ApplyScene`与降水显示。看不到效果时查kind／resource／attached／emitting／sheltered／failed和simulationSpeed，不能仅凭matches=True或XML里有资源宣布画面通过。原版粒子运行期来自资产包，复用现有宿主与清理规则见[粒子轮子](spells.md)“运行期挂粒子的两条硬事实”。
+- **失败恢复按Mission隔离**：`ConditionalWeakTable<Mission, Session>`保留入场值及临时请求；异常尝试回滚、保留恢复凭据，跨场景不继承。新调用方复用原子入口，不自行做半套环境更新或另造雨／雪行为。
+
+**源码位置**：`Core/SceneEnvironment.cs`、`Core/SceneEnvironmentMissionBehavior.cs`、`Core/VersionCompat.cs`；入场接入在`Interaction/StoryProbe/StoryEnvironment.cs`及`StoryProbeBehavior.cs`，参数定义／解析在`StoryLayoutDefs.cs`；控制台实现为`CampaignMode/Tools/EnvironmentCommands.cs`，由`StoryProbeCommands.cs`分派。MySubModule在互动系统闸门前挂降水行为，无降水请求不建资源。
+
+**验收依据**：2026-11-17用户确认即时调时可用，并在清晨雨天、无积雪的入场与雨滴显示修复后明确反馈“成功了”。这确认当前实机路径，不代表1.3+即时调时已接通，也不替代屋檐／全部命令的逐项画面验收。三安装隔离编译0错误0警告，命令／粒子／失败恢复117／106／106项及各62项入场环境回归通过；离线原生渲染为替身。详细用户记录见[归档问题21](../../逆水寒511/用户反馈的问题清单-已解决归档.md#feedback-21)，实施依据见[总纲§16.25](../../逆水寒511/逆水寒511-总纲与实施计划.md)。后续扩版本须保留原生安全门控并补实际证据。
+
+---
+
 ## Settings 新增开关
 
 ```csharp

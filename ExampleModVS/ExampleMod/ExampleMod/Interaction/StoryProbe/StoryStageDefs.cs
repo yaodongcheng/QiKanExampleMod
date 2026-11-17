@@ -13,7 +13,7 @@ namespace LivingWorldNpcs
     ///
     /// 缺省值（JSON 里不写就用这个）：
     ///   · <see cref="Scale"/> = 1
-    ///   · <see cref="Facing"/> = -1（面朝玩家）
+    ///   · <see cref="Facing"/> = -1°（与359°同义）
     ///   · <see cref="Civilian"/> = true（用平民装生成）
     /// </summary>
     public sealed class StageBeat
@@ -61,7 +61,7 @@ namespace LivingWorldNpcs
         /// <summary>物件缩放。</summary>
         public float Scale = 1f;
 
-        /// <summary>人朝向（度；-1 = 面朝玩家）。</summary>
+        /// <summary>人朝向（度；-1°与359°同义）。</summary>
         public float Facing = -1f;
 
         /// <summary>actor_place：true = 用平民装生成（默认），false = 战斗装。</summary>

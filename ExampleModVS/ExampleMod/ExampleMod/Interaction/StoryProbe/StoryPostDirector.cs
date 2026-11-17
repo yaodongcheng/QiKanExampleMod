@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.Library;
 
 namespace LivingWorldNpcs
 {
@@ -24,10 +25,20 @@ namespace LivingWorldNpcs
         private readonly StoryProbeMissionBehavior _host;
         private readonly Dictionary<string, float> _lastAttempt = new Dictionary<string, float>(StringComparer.Ordinal);
         private readonly Dictionary<string, int> _opened = new Dictionary<string, int>(StringComparer.Ordinal);
-        private StoryFlowRunner _flow;
-        private string _flowBehaviorId;
-        private string _flowActorId;
+        private sealed class GroupRun
+        {
+            public StoryFlowRunner Flow;
+            public string BehaviorId, ActorId;
+        }
+        private readonly List<GroupRun> _runs = new List<GroupRun>();
+        private readonly Dictionary<string, float> _lastOpened = new Dictionary<string, float>(StringComparer.Ordinal);
+        private readonly Dictionary<string, float> _outsideSince = new Dictionary<string, float>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _pending = new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly Dictionary<StoryLayoutDef, Dictionary<string, Vec3>> _anchors = new Dictionary<StoryLayoutDef, Dictionary<string, Vec3>>();
+        private readonly Dictionary<StoryLayoutDef, Dictionary<string, string>> _anchorResults = new Dictionary<StoryLayoutDef, Dictionary<string, string>>();
         private string _lastReport = "not evaluated";
+        private string _lastRefusalReport;
+        private float _nextRefusalLogAt;
         private bool _sceneMismatchLogged;
 
         public StoryPostDirector(StoryProbeMissionBehavior host) { _host = host; }
@@ -45,7 +56,7 @@ namespace LivingWorldNpcs
                 {
                     _sceneMismatchLogged = true;
                     DebugLogger.Log("[StoryV2] data scene='" + file.Scene + "' but mission scene='" + scene
-                                    + "'; v2 rules disabled here (legacy fallback).");
+                                    + "'; v2 rules disabled here.");
                 }
                 return false;
             }
@@ -66,12 +77,18 @@ namespace LivingWorldNpcs
                       .Append(" stages=").Append(string.Join(",", b.Stages))
                       .Append(" posts=").Append(string.Join(",", b.Posts))
                       .Append(" rank=").Append(string.Join(">", b.Rank))
+                      .Append(" members=").Append(string.Join(",", b.Members))
+                      .Append(" target=").Append(b.Trigger.TargetPoint ?? b.Trigger.TargetGate ?? "member-posts")
+                      .Append(" active=").Append(_runs.Count(r => r.BehaviorId == b.Id && !r.Flow.Done))
+                      .Append("/").Append(b.MaxActive)
+                      .Append(" pending=").Append(_pending.TryGetValue(b.Id, out var pending) ? pending : "-")
                       .Append(" range=").Append(b.Perception.RangeMeters.ToString("F1"));
                     if (_opened.TryGetValue(b.Id, out int count)) sb.Append(" opened=").Append(count);
                 }
             }
             sb.Append("\n  last: ").Append(_lastReport);
-            if (_flow != null && !_flow.Done) sb.Append("\n  flow: ").Append(_flow.Describe());
+            foreach (var run in _runs.Where(r => !r.Flow.Done))
+                sb.Append("\n  guard group ").Append(run.BehaviorId).Append(" actor=").Append(run.ActorId).Append(" ").Append(run.Flow.Describe());
             return sb.ToString();
         }
 
@@ -83,9 +100,9 @@ namespace LivingWorldNpcs
             actorId = null;
             behaviorId = null;
             report = "";
-            if (!StoryV2Data.EnsurePublished())
+            if (!HasRules(stageId))
             {
-                _lastReport = "no published v2 data";
+                _lastReport = "no matching published post rules";
                 report = _lastReport;
                 return false;
             }
@@ -104,7 +121,7 @@ namespace LivingWorldNpcs
             {
                 if (!file.Stages.TryGetValue(stageId, out var stage) || stage == null) continue;
                 if (!file.Layouts.TryGetValue(stage.Layout, out var layout) || layout == null) continue;
-                if (behavior.Trigger.PlayerInsideGate && !_host.IsPlayerInGateApproach())
+                if (!InGroupZone(layout, behavior, null))
                 { lines.Add(behavior.Id + ": player outside gate passage"); continue; }
 
                 foreach (string id in stage.Actors.Concat(stage.OptionalActors).Distinct())
@@ -112,14 +129,20 @@ namespace LivingWorldNpcs
                     var def = StoryProbeDefs.GetNpc(id);
                     if (def == null) { lines.Add(id + ": no cast def"); continue; }
 
-                    // 只认登记在岗位上的演员（有 Standing 就按数据筛；没写就退回首遇守卫名单）。
+                    // 正式规则只认本布局已登记的岗位，不借用某场戏的选角旗标。
                     var standing = layout.Standing.FirstOrDefault(s => s != null && s.Actor == id);
-                    bool onPost = standing == null
-                        ? def.FirstMeetGuard
-                        : (behavior.Posts.Count == 0 || behavior.Posts.Contains(standing.Point ?? ""));
+                    bool onPost = standing != null && behavior.Posts.Contains(standing.Point ?? "");
+                    if (behavior.Members.Count > 0 && !behavior.Members.Contains(id)) continue;
                     if (!onPost) { lines.Add(id + ": not on a post of " + behavior.Id); continue; }
 
+                    if (_runs.Count(r => r.BehaviorId == behavior.Id && !r.Flow.Done)
+                        + (_pending.ContainsKey(behavior.Id) ? 1 : 0) >= behavior.MaxActive)
+                    { lines.Add(behavior.Id + ": active limit " + behavior.MaxActive); continue; }
+                    if (_lastOpened.TryGetValue(behavior.Id, out float previous) && _host.Clock - previous < behavior.Cooldown.ReentrySec)
+                    { lines.Add(behavior.Id + ": group reentry cooldown"); continue; }
                     var agent = _host.GetAgent(id);
+                    if (_pending.Values.Contains(id)) { lines.Add(id + ": group request pending"); continue; }
+                    if (_runs.Any(r => r.ActorId == id && !r.Flow.Done)) { lines.Add(id + ": group flow active"); continue; }
                     if (agent == null) { lines.Add(id + ": no agent"); continue; }
                     if (!AgentControlHelper.SafeIsActive(agent) || agent.Health <= 0f)
                     { lines.Add(id + ": inactive/dead"); continue; }
@@ -128,19 +151,16 @@ namespace LivingWorldNpcs
 
                     var brain = AgentAIController.GetBrainForAgent(agent);
                     if (brain == null) { lines.Add(id + ": no brain"); continue; }
-                    if (brain.IsPerforming || brain.IsInCombat)
+                    if (brain.IsPerforming || brain.IsInCombat || brain.IsStoryIntercepting
+                        || agent.GetScriptedFlags().HasFlag(Agent.AIScriptedFrameFlags.InConversation))
                     { lines.Add(id + ": brain busy"); continue; }
 
                     // 岗位职责区（2026-11-16）：进了"我这名守卫"的感知半径就算轮到我，
                     // 不再要求玩家正好踩在门轴中线 ±3 米那条窄带里（旧口径见 Trigger.PlayerInsideGate）。
-                    if (behavior.Trigger.PlayerInPostZone && !_host.IsPlayerInPostZone(agent, behavior.Perception.RangeMeters))
+                    if (!InGroupZone(layout, behavior, standing?.Point))
                     { lines.Add(id + ": outside my post zone"); continue; }
 
-                    // 在区里的人必须真的朝玩家看：站着不动的 AI 会一直保持旧朝向，
-                    // 光有距离也会被判"看不见"（LookDirection 是视线判定的输入）。
-                    if (behavior.Trigger.PlayerInPostZone)
-                        AgentControlHelper.LookAtAgent(agent, player);
-
+                    // 资格只查询视线；注视与身体方向由感知/Brain执行。
                     float distance = agent.Position.Distance(player.Position);
                     if (distance > behavior.Perception.RangeMeters)
                     { lines.Add(id + ": out of range " + distance.ToString("F1")); continue; }
@@ -160,10 +180,8 @@ namespace LivingWorldNpcs
 
                     lines.Add(id + ": eligible dist=" + distance.ToString("F1"));
                     // 排序：distanceToPlayer 升序，末位 npcId 升序（稳定身份）。
-                    bool better = bestActor == null
-                        || distance < bestDistance - 0.01f
-                        || (Math.Abs(distance - bestDistance) <= 0.01f
-                            && string.CompareOrdinal(id, bestActor) < 0);
+                    bool better = bestActor == null || bestBehavior.Id == behavior.Id
+                        && CompareCandidates(behavior, id, distance, bestActor, bestDistance) < 0;
                     if (better)
                     {
                         bestActor = id;
@@ -183,8 +201,7 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// P3 准备：按 v2 布局给演员解出站位（岗位优先，其次工作点/显式点）。
-        /// 当前兼容实现：player 用玩家基准，其他 Anchor 均用宿主 BlockerPos。
-        /// 注册锚点与 Facing 尚未在首遇完整消费，不能把偏移计算当成真实门轴对齐。
+        /// 复用准备批次的场景锚点；尚无对应批次时自行只读解析。
         /// </summary>
         public bool TryGetStandingPosition(string stageId, string actorId, out TaleWorlds.Library.Vec3 position)
         {
@@ -210,13 +227,9 @@ namespace LivingWorldNpcs
                 return true;
             }
 
-            var f = _host.Forward;
-            var origin = string.Equals(point.Anchor, "player", StringComparison.OrdinalIgnoreCase)
-                ? _host.PlayerAnchor : _host.BlockerPos;
-            position = origin
-                       + new TaleWorlds.Library.Vec3(f.x, f.y, 0f) * point.Fwd
-                       + new TaleWorlds.Library.Vec3(f.y, -f.x, 0f) * point.Right
-                       + new TaleWorlds.Library.Vec3(0f, 0f, point.Up);
+            var anchors = GetAnchors(layout);
+            if (!CanResolve(layout, point)) return false;
+            position = StoryPrepRunner.PointPos(_host, anchors, point);
             return true;
         }
 
@@ -230,12 +243,52 @@ namespace LivingWorldNpcs
             {
                 _opened.TryGetValue(behaviorId, out int n);
                 _opened[behaviorId] = n + 1;
+                _lastOpened[behaviorId] = _host.Clock;
             }
             _lastReport = (opened ? "opened " : "refused ") + key + " (" + (reason ?? "-") + ")";
             DebugLogger.Log("[StoryV2] intercept " + _lastReport);
         }
 
         /// <summary>按流程开会话（流程里的 dialogue_open 才是真正开窗点）。</summary>
+        public bool TryRequestQuestion(string stageId, Action<bool> onResult = null)
+        {
+            if (AgentAIController.Instance == null || ConversationEntryPatch.IsConversationActive()) return false;
+            if (!TrySelectQuestioner(stageId, out string actorId, out string behaviorId, out string report))
+            {
+                // 只在实际申请时记录；状态查询不写身体，也不刷拒绝日志。
+                if (report != _lastRefusalReport && _host.Clock >= _nextRefusalLogAt)
+                {
+                    _lastRefusalReport = report;
+                    _nextRefusalLogAt = _host.Clock + 5f;
+                    DebugLogger.Log("[StoryV2] no eligible questioner: " + report);
+                }
+                return false;
+            }
+            var actor = _host.GetAgent(actorId);
+            if (actor == null || _pending.ContainsKey(behaviorId)) return false;
+            var requestedFile = StoryLayoutRegistry.Published;
+            var requestedPhase = _host.Phase;
+            _pending[behaviorId] = actorId;
+            _lastRefusalReport = null;
+            DebugLogger.Log("[StoryV2] Brain questioning request stage=" + stageId + " group=" + behaviorId + " actor=" + actorId);
+            AgentAIController.Instance.SendEventToAgent(actor, "event_story_intercept", Agent.Main, "auto",
+                new Action<Agent>(ready =>
+                {
+                    _pending.Remove(behaviorId);
+                    if (!_host.Active || StoryProbeMissionBehavior.Current != _host
+                        || _host.Phase != requestedPhase || StoryLayoutRegistry.Published != requestedFile)
+                    { onResult?.Invoke(false); return; }
+                    bool opened = false;
+                    string reason = "brain refused";
+                    if (ready == actor && AgentControlHelper.SafeIsActive(actor)
+                        && BeginQuestionFlow(behaviorId, actorId, out reason))
+                        opened = ConversationEntryPatch.IsConversationActive();
+                    if (!opened) NoteAttempt(behaviorId, actorId, false, reason);
+                    onResult?.Invoke(opened);
+                }));
+            return true;
+        }
+
         public bool BeginQuestionFlow(string behaviorId, string actorId, out string reason)
         {
             reason = null;
@@ -245,43 +298,148 @@ namespace LivingWorldNpcs
             if (string.IsNullOrEmpty(behavior.Flow) || !file.Flows.TryGetValue(behavior.Flow, out var flow) || flow == null)
             { reason = "unknown flow " + behavior.Flow; return false; }
 
-            if (_flow != null && !_flow.Done)
-            { reason = "flow already running"; return false; }
-
-            _flow = new StoryFlowRunner(_host, behavior, flow, actorId, this);
-            _flowBehaviorId = behaviorId;
-            _flowActorId = actorId;
-            try { _flow.Start(); }
+            if (_runs.Count(r => r.BehaviorId == behaviorId && !r.Flow.Done) >= behavior.MaxActive)
+            { reason = "group active limit reached"; return false; }
+            var run = new GroupRun { Flow = new StoryFlowRunner(_host, behavior, flow, actorId, this),
+                BehaviorId = behaviorId, ActorId = actorId };
+            _runs.Add(run);
+            try { run.Flow.Start(); }
             catch (Exception ex)
             {
-                DebugLogger.Log("[StoryV2] flow start failed: " + ex.Message);
-                _flow = null;
+                _runs.Remove(run);
                 reason = "flow start failed: " + ex.Message;
+                DebugLogger.Log("[StoryV2] " + reason);
                 return false;
             }
-            reason = _flow.Done ? "finished immediately: " + _flow.Reason : "started";
+            reason = run.Flow.Done ? "finished immediately: " + run.Flow.Reason : "started";
+            return !run.Flow.Done || run.Flow.TerminalToken == "end" || run.Flow.TerminalToken == "release";
+        }
+
+        public void Tick(float dt, string stageId)
+        {
+            // 离开本组职责区足够久才算新遭遇；查询不写回执。
+            var file = StoryLayoutRegistry.Published;
+            if (file != null && file.Stages.TryGetValue(stageId, out var stage)
+                && file.Layouts.TryGetValue(stage.Layout, out var layout))
+                foreach (var b in file.Behaviors.Values.Where(b => b.Kind == "post" && b.Stages.Contains(stageId)))
+                {
+                    bool inside = b.Posts.Any(point => InGroupZone(layout, b, point));
+                    if (inside) _outsideSince.Remove(b.Id);
+                    else if (!_outsideSince.ContainsKey(b.Id)) _outsideSince[b.Id] = _host.Clock;
+                    else if (_host.Clock - _outsideSince[b.Id] >= b.Cooldown.ReentrySec
+                        && !_pending.ContainsKey(b.Id) && !_runs.Any(r => r.BehaviorId == b.Id && !r.Flow.Done)) _opened.Remove(b.Id);
+                }
+            foreach (var run in _runs.ToArray())
+            {
+                try { if (!run.Flow.Done) run.Flow.Tick(dt); }
+                catch (Exception ex)
+                {
+                    NoteAttempt(run.BehaviorId, run.ActorId, false, "flow failed: " + ex.Message);
+                    _runs.Remove(run);
+                    continue;
+                }
+                if (!run.Flow.Done) continue;
+                if (run.Flow.TerminalToken == "retry" || run.Flow.TerminalToken == "reselect")
+                    NoteAttempt(run.BehaviorId, run.ActorId, false, run.Flow.Reason);
+                _runs.Remove(run);
+            }
+        }
+
+        private static int CompareCandidates(StoryBehaviorDef behavior, string actor, float distance, string other, float otherDistance)
+        {
+            foreach (string rank in behavior.Rank)
+            {
+                int comparison = rank == "npcId" ? string.CompareOrdinal(actor, other) : distance.CompareTo(otherDistance);
+                if (comparison != 0) return comparison;
+            }
+            return 0;
+        }
+
+        public void TickLeash(string stageId)
+        {
+            var file = StoryLayoutRegistry.Published;
+            if (file == null || !file.Stages.TryGetValue(stageId, out var stage)
+                || !file.Layouts.TryGetValue(stage.Layout, out var layout)) return;
+            foreach (var behavior in file.Behaviors.Values.Where(b => b.Kind == "post" && b.Stages.Contains(stageId)))
+                foreach (var standing in layout.Standing.Where(s => behavior.Posts.Contains(s.Point)
+                    && (behavior.Members.Count == 0 || behavior.Members.Contains(s.Actor))))
+                {
+                    bool owns = _pending.TryGetValue(behavior.Id, out var pending) && pending == standing.Actor
+                        || _runs.Any(r => r.BehaviorId == behavior.Id && r.ActorId == standing.Actor && !r.Flow.Done);
+                    var agent = _host.GetAgent(standing.Actor);
+                    var brain = AgentAIController.GetBrainForAgent(agent);
+                    if (owns && brain?.IsStoryIntercepting == true && !InGroupZone(layout, behavior, standing.Point, 2f))
+                    {
+                        AgentAIController.Instance?.SendEventToAgent(agent, "event_story_intercept_cancel");
+                        DebugLogger.Log("[StoryV2] guard group " + behavior.Id + " chase cancelled actor=" + standing.Actor);
+                    }
+                }
+        }
+
+        private bool InGroupZone(StoryLayoutDef layout, StoryBehaviorDef behavior, string postId, float margin = 1f)
+        {
+            var player = Agent.Main;
+            if (player == null) return false;
+            var anchors = GetAnchors(layout);
+            var trigger = behavior.Trigger;
+            if (trigger.PlayerInsideGate)
+            {
+                if (string.IsNullOrEmpty(trigger.TargetGate) || !layout.Gates.TryGetValue(trigger.TargetGate, out var gate)) return false;
+                if (!CanResolve(layout, gate.Center) || !CanResolve(layout, gate.Inner) || !CanResolve(layout, gate.Outside)) return false;
+                Vec3 center = StoryPrepRunner.PointPos(_host, anchors, gate.Center);
+                Vec2 direction = (StoryPrepRunner.PointPos(_host, anchors, gate.Inner)
+                    - StoryPrepRunner.PointPos(_host, anchors, gate.Outside)).AsVec2;
+                if (direction.LengthSquared < 0.0001f) return false;
+                direction.Normalize();
+                Vec2 delta = (player.Position - center).AsVec2;
+                float along = Vec2.DotProduct(delta, direction);
+                float side = Math.Abs(Vec2.DotProduct(delta, new Vec2(direction.y, -direction.x)));
+                if (along < -gate.OutsideMeters * margin || along > gate.InsideMeters * margin || side > gate.HalfWidth * margin) return false;
+            }
+            if (trigger.PlayerInPostZone)
+            {
+                string pointId = string.IsNullOrEmpty(trigger.TargetPoint) ? postId : trigger.TargetPoint;
+                if (pointId == null) return true; // 每名成员的岗位区在候选循环中判。
+                var point = layout.FindPoint(pointId);
+                if (point == null) return false;
+                Vec3 position;
+                if (!string.IsNullOrEmpty(point.Prop))
+                {
+                    var prop = layout.FindProp(point.Prop);
+                    if (prop == null || _host.Prep == null || !_host.Prep.TryGetPropEntity(prop.Id, out var entity)) return false;
+                    position = StoryPrepRunner.WorkPos(entity, prop, point);
+                }
+                else
+                {
+                    if (!CanResolve(layout, point.Place)) return false;
+                    position = StoryPrepRunner.PointPos(_host, anchors, point.Place);
+                }
+                if (position.Distance(player.Position) > behavior.Perception.RangeMeters * margin) return false;
+            }
             return true;
         }
 
-        public void Tick(float dt)
+        private Dictionary<string, Vec3> GetAnchors(StoryLayoutDef layout)
         {
-            if (_flow == null || _flow.Done) return;
-            try { _flow.Tick(dt); }
-            catch (Exception ex)
+            if (_host.Prep?.Layout == layout && _host.Prep.ResolvedAnchors != null) return _host.Prep.ResolvedAnchors;
+            if (!_anchors.TryGetValue(layout, out var anchors))
             {
-                DebugLogger.Log("[StoryV2] flow tick failed: " + ex.Message);
-                _flow = null;
-                _lastReport = "flow failed: " + ex.Message;
-                return;
+                var results = new Dictionary<string, string>();
+                _anchors[layout] = anchors = StoryPrepRunner.ResolveAnchors(_host, layout, results);
+                _anchorResults[layout] = results;
             }
-            if (_flow.Done)
-            {
-                DebugLogger.Log("[StoryV2] flow done (" + _flow.Reason + ")");
-                _lastReport = "flow " + _flow.Reason;
-                // retry / reselect：本次不成立 → 记失败退避，下一轮重新选人；release/end 不重试。
-                if (_flow.TerminalToken == "retry" || _flow.TerminalToken == "reselect")
-                    NoteAttempt(_flowBehaviorId, _flowActorId, false, _flow.Reason);
-            }
+            return anchors;
+        }
+
+        private bool CanResolve(StoryLayoutDef layout, StoryPoint point)
+        {
+            if (point == null) return false;
+            if (point.HasAbsolute || string.IsNullOrEmpty(point.Anchor) || point.Anchor == "player") return true;
+            if (_host.Prep?.Layout == layout && _host.Prep.ResolvedAnchors != null)
+                return _host.Prep.IsAnchorResolved(point.Anchor);
+            GetAnchors(layout);
+            return _anchorResults[layout].TryGetValue("anchor:" + point.Anchor, out var result)
+                && result.StartsWith("ok", StringComparison.Ordinal);
         }
 
         internal void OnFlowTerminal(string actorId, string token)
@@ -309,6 +467,7 @@ namespace LivingWorldNpcs
         private string _terminal = "";
         private float _timerSeconds;
         private string _dialogueId;
+        private string _dialogueActor;
         /// <summary>本次流程真正开出来的会话编号（0 = 还没开窗）；用来分辨“我们的窗口”与“别人顶掉了”。</summary>
         private int _sessionId;
 
@@ -406,17 +565,25 @@ namespace LivingWorldNpcs
 
         private bool RunAtom(StoryFlowStep step)
         {
-            var agent = _host.GetAgent(_actorId);
+            string identity = ResolveActor(step.Actor);
+            var agent = identity == "player" ? Agent.Main : string.IsNullOrEmpty(identity) ? null : _host.GetAgent(identity);
             switch ((step.Atom ?? "").ToLowerInvariant())
             {
                 case "dialogue_open":
                     // 唯一的开窗入口：对话 ID 由数据指定，等待只看**本次 session**。
                     if (agent == null) return false;
                     _dialogueId = Arg(step, "Dialogue");
-                    _host.StartStoryConversation(agent, null, "first_meet_auto", _dialogueId);
+                    _dialogueActor = identity;
+                    _host.StartStoryConversation(agent, null, Arg(step, "Trigger"), _dialogueId);
                     // 记下这次真正开出来的会话编号：后面判定“还是我们”靠它，不靠对话 ID。
                     _sessionId = StoryDialogueRuntime.Current?.Id ?? 0;
-                    return SessionMatches();
+                    bool opened = SessionMatches() && ConversationEntryPatch.IsConversationActive();
+                    if (opened)
+                    {
+                        _director?.NoteAttempt(_behavior.Id, _actorId, true, "flow dialogue opened actor=" + identity);
+                        if (_waitKind == "dialogue_open") _waitKind = null;
+                    }
+                    return opened;
 
                 case "dialogue_wait":
                     return true;
@@ -426,7 +593,10 @@ namespace LivingWorldNpcs
                     if (agent == null) return false;
                     string key = Arg(step, "TextKey");
                     if (string.IsNullOrEmpty(key)) return false;
-                    _host.SayOnAgent(agent, key, null);
+                    string listenerId = ResolveActor(Arg(step, "Listener"));
+                    var listener = listenerId == "player" ? Agent.Main : _host.GetAgent(listenerId);
+                    if (!AgentControlHelper.SafeIsActive(listener) || listener == agent) return false;
+                    _host.SayOnAgent(agent, key, null, listener: listener);
                     return true;
                 }
 
@@ -435,6 +605,9 @@ namespace LivingWorldNpcs
                     if (agent == null) return false;
                     string action = Arg(step, "Action");
                     if (string.IsNullOrEmpty(action)) return false;
+                    var brain = AgentAIController.GetBrainForAgent(agent);
+                    if (brain == null || !brain.IsStoryIntercepting || brain.IsInCombat || brain.IsPerforming
+                        || AgentBrain.IsRoped(agent) || AgentBrain.IsHeldByStatus(agent) || AgentBrain.IsKnockedOut(agent)) return false;
                     AgentControlHelper.ForcePlayAction(agent, action, restoreAfter: false);
                     return true;
                 }
@@ -447,6 +620,16 @@ namespace LivingWorldNpcs
 
         private string Arg(StoryFlowStep step, string key)
             => step.Args != null && step.Args.TryGetValue(key, out var v) ? v : null;
+
+        private string ResolveActor(string actor)
+        {
+            if (string.IsNullOrEmpty(actor)) return null;
+            if (actor.StartsWith("$", StringComparison.Ordinal))
+            {
+                if (!_flow.Roles.TryGetValue(actor.Substring(1), out actor)) return null;
+            }
+            return actor == "candidate" ? _actorId : actor;
+        }
 
         private static float TryFloat(Dictionary<string, string> args, string key, float fallback)
             => args != null && args.TryGetValue(key, out var v)
@@ -496,8 +679,8 @@ namespace LivingWorldNpcs
             if (_sessionId != 0 && s.Id != _sessionId) return false;
             if (!string.IsNullOrEmpty(_dialogueId)
                 && !string.Equals(s.Definition?.DialogueId, _dialogueId, StringComparison.Ordinal)) return false;
-            if (!string.IsNullOrEmpty(_actorId)
-                && !string.Equals(s.Request?.ActorId, _actorId, StringComparison.Ordinal)) return false;
+            if (!string.IsNullOrEmpty(_dialogueActor)
+                && !string.Equals(s.Request?.ActorId, _dialogueActor, StringComparison.Ordinal)) return false;
             return true;
         }
     }

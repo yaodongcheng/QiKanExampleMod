@@ -574,6 +574,7 @@
       "ActorB": "pawnbroker",
       "HostNpcId": "pawnbroker",
       "JoinNode": "event_1_join",
+      "Placement": "standing",
       "LineKeys": [
         "LWN_story_event1_l1",
         "LWN_story_event1_l2",
@@ -581,7 +582,7 @@
         "LWN_story_event1_l4"
       ],
       "LineFallbacks": [
-        "What are you looking at? Not your business.",
+        "No use hiding. I can see you.",
         "Sir, please... he has been drinking.",
         "The money. This month's.",
         "...Here. Here it is."

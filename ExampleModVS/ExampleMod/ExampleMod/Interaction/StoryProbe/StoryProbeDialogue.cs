@@ -10,6 +10,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.MountAndBlade.View.MissionViews;
 
 namespace LivingWorldNpcs
 {
@@ -187,6 +188,7 @@ namespace LivingWorldNpcs
         public static void OnConversationEnded()
         {
             ReleaseDialogueFacing();
+            ReleaseDialogueCamera();
             _entryAgent = null;
             _entrySession = null;
             try
@@ -259,14 +261,30 @@ namespace LivingWorldNpcs
             }, out bool allowed, out _, out _) && allowed;
         }
 
+        private static bool OwnsConversation(StoryDialogueSession session, ConversationManager cm)
+        {
+            if (session == null || cm == null || StoryDialogueRuntime.Current != session || session.Ended
+                || session.Request.RuntimeToken != StoryProbeState.RuntimeToken) return false;
+            var primary = ResolveTurnAgent(session, session.Request.ActorId);
+            return primary != null && (cm.ConversationAgents.Contains(primary)
+                || (_entrySession == session && _entryAgent != null && cm.ConversationAgents.Contains(_entryAgent)));
+        }
+
+        /// <summary>已裁决的剧情会话所用真实演员；普通犯罪网关不能再覆盖其开场或选项。</summary>
+        internal static bool OwnsCurrentConversationAgent(Agent agent)
+        {
+            var session = StoryDialogueRuntime.Current;
+            return agent != null && session != null && !session.Failed
+                && OwnsConversation(session, Campaign.Current?.ConversationManager)
+                && (agent == ResolveTurnAgent(session, session.Request.ActorId)
+                    || (_entrySession == session && agent == _entryAgent));
+        }
+
         private static bool PrepareTurn(StoryDialogueSession session, StoryDialogueNodeDef node)
         {
             var cm = Campaign.Current?.ConversationManager;
             var primary = ResolveTurnAgent(session, session.Request.ActorId);
-            if (cm == null || primary == null || (!cm.ConversationAgents.Contains(primary)
-                && !(_entrySession == session && _entryAgent != null && cm.ConversationAgents.Contains(_entryAgent)))
-                || StoryDialogueRuntime.Current != session || session.Ended || session.Failed
-                || session.Request.RuntimeToken != StoryProbeState.RuntimeToken)
+            if (!OwnsConversation(session, cm) || session.Failed)
                 return RejectTurn(session, node.Id);
             var required = new List<Agent> { primary, ResolveTurnAgent(session, node.Speaker), ResolveTurnAgent(session, node.Listener) };
             // 玩家选项的听话对象也必须在选项出现前到位；不是文本查询时才加入。
@@ -286,6 +304,7 @@ namespace LivingWorldNpcs
             if (!IsTurnValid(session, node) || required.Any(a => !CanUseTurnAgent(a)))
                 return RejectTurn(session, node.Id);
             cm.AddConversationAgents(required.Where(a => a != Agent.Main).Distinct(), false);
+            DebugLogger.Log($"[StoryDialogue] prepared session={session.Id} node={node.Id} entry={ResolveNpcId(_entryAgent)} host={session.Request.ActorId} speaker={node.Speaker} listener={node.Listener} participants={string.Join("+", required.Distinct().Select(a => ResolveNpcId(a) ?? "player"))}");
             return true;
         }
 
@@ -295,6 +314,8 @@ namespace LivingWorldNpcs
         private static float _facingElapsed;
         private static bool _facingReported;
         private static readonly HashSet<Agent> _facingActors = new HashSet<Agent>();
+        private static readonly Dictionary<Agent, AgentControlHelper.FacingTracker> _facingTrackers
+            = new Dictionary<Agent, AgentControlHelper.FacingTracker>();
 
         private static void BeginDialogueFacing(StoryDialogueSession session, StoryDialogueNodeDef node)
         {
@@ -312,6 +333,7 @@ namespace LivingWorldNpcs
         /// <summary>正式会话逐句持有朝向；不重新申请演出动作，不控制玩家，不播放/推进台词。</summary>
         public static void TickDialogueFacing(float dt)
         {
+            TickDialogueCamera(dt);
             if (_facingSession == null) return;
             var cm = Campaign.Current?.ConversationManager;
             if (Mission.Current != _facingMission || StoryDialogueRuntime.Current != _facingSession
@@ -331,8 +353,8 @@ namespace LivingWorldNpcs
             }
             foreach (var old in _facingActors.ToList())
                 if (old != speaker && old != listener) ReleaseFacingActor(old);
-            HoldDialogueFacing(speaker, listener);
-            HoldDialogueFacing(listener, speaker);
+            HoldDialogueFacing(speaker, listener, dt);
+            HoldDialogueFacing(listener, speaker, dt);
             _facingElapsed += Math.Max(0f, dt);
             if (!_facingReported && _facingElapsed >= 0.5f)
             {
@@ -348,11 +370,14 @@ namespace LivingWorldNpcs
             }
         }
 
-        private static void HoldDialogueFacing(Agent actor, Agent target)
+        private static void HoldDialogueFacing(Agent actor, Agent target, float dt)
         {
             if (actor == Agent.Main) return;
             _facingActors.Add(actor);
-            AgentControlHelper.HoldFacingActor(actor, target, inConversation: true);
+            if (!_facingTrackers.TryGetValue(actor, out var tracker))
+                _facingTrackers[actor] = tracker = new AgentControlHelper.FacingTracker();
+            tracker.Tick(actor, target, true, true, dt,
+                $"dialogue:{_facingSession.Id}/{_facingNode.Id}");
         }
 
         private static string FacingError(Agent actor, Agent target)
@@ -377,6 +402,7 @@ namespace LivingWorldNpcs
         private static void ReleaseFacingActor(Agent actor)
         {
             _facingActors.Remove(actor);
+            _facingTrackers.Remove(actor);
             if (Mission.Current != _facingMission || !CanUseTurnAgent(actor)) return;
             // 只清本层的站位/注视，不归还或抢占刚由战斗、击晕、绑缚接管的身体。
             actor.ClearTargetFrame();
@@ -389,6 +415,165 @@ namespace LivingWorldNpcs
             _facingSession = null;
             _facingNode = null;
             _facingMission = null;
+        }
+
+        /// <summary>
+        /// 每句展示时把"相机关注对象"切到本句真正的主角：说话人是玩家 → 关注听话人；否则关注说话人。
+        /// 原版 MissionConversationCameraView 每帧做同一件事，但它依赖 SpeakerAgent / 原版视图链；
+        /// 2026-11-17 实机出现"说话人换了、镜头没动"，所以这里显式补一次（幂等，不夺控制权、不摆相机）。
+        /// 只有 MissionScreen 的构图重算需要 ConversationCharacterChanged，缺了它目标值不会更新。
+        /// </summary>
+        private static void ApplyConversationCameraFocus(StoryDialogueSession session, StoryDialogueNodeDef node)
+        {
+            try
+            {
+                var mission = Mission.Current;
+                var main = Agent.Main;
+                if (mission == null || main == null) return;
+                var speaker = ResolveTurnAgent(session, node.Speaker);
+                var listener = ResolveTurnAgent(session, node.Listener);
+                if (speaker == null || listener == null) return;
+
+                var focus = speaker == main ? listener : speaker;
+                var controller = mission.GetMissionBehavior<MissionMainAgentController>();
+                if (controller == null) return;
+
+                V.SetConversationFocus(controller, focus);
+                Vec3 direction = focus.Position - main.Position;
+                if (direction.LengthSquared > 0.0001f)
+                    controller.CustomLookDir = direction.NormalizedCopy();
+                main.SetLookAgent(focus);
+                mission.ConversationCharacterChanged();
+
+                // 🔴 2026-11-17 实机：焦点确实换了、进对话那次构图也生效了，但换发言人时画面不动（原版链只认第一次）。
+                //    这里改成我们自己摆机位：等下一帧 `Agent.LookFrame` 跟上新方向后，用剧情机位接口平滑切过去。
+                //    机位模板 = 中远景（玩家侧过肩，FOV 50）：既对准说话人，又能把其他在场的人留在画里。
+                FocusDialogueCamera(focus);
+
+                // 验收用：mode 必须是 Conversation(1)/Barter(5)，customCamera 必须是 False，focused 必须等于本句主角。
+                var screen = controller.MissionScreen;
+                var focused = controller.InteractionComponent.CurrentFocusedObject as Agent;
+                DebugLogger.Log($"[StoryDialogueCamera] node={node.Id} speaker={ResolveNpcId(speaker) ?? "player"} listener={ResolveNpcId(listener) ?? "player"} focus={ResolveNpcId(focus) ?? "player"} mode={mission.Mode} firstPerson={mission.CameraIsFirstPerson} customCamera={(screen?.CustomCamera != null)} focused={ResolveNpcId(focused) ?? "none"}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log("[StoryDialogueCamera] skipped: " + ex.Message);
+            }
+        }
+
+        // ── 剧情对话机位（2026-11-17 起由我们接管，原版链在换发言人时不工作）──
+        private const string DialogueCameraOwner = "dialogue";
+        private const string DialogueCameraCase = "dlg_group_mid";
+        private static Agent _pendingCameraSpeaker;
+        private static float _pendingCameraDelay = -1f;
+        private static Agent _lastCameraFocus;
+
+        /// <summary>
+        /// **玩家按下交互键那一刻**就接管相机（在 `MissionConversationLogic.StartConversation` 之前调）。
+        /// 为什么必须这么早：引擎切对话模式时会把相机"瞬移"到 NPC 身上（`_cameraApplySpecialMovementsInstantly`），
+        /// 晚一步接管 = 先硬切一下再过渡。先占住 `CustomCamera`，`CheckForUpdateCamera` 整段跳过，引擎根本没机会切。
+        /// 起点 = 当前呈现帧（玩家正看着 NPC 的走路机位），所以是从玩家视角平滑推过去。
+        /// </summary>
+        /// <summary>剧情对话专用入口：只有确实开出了剧情会话才接管相机（普通原版对话一律放过）。</summary>
+        internal static bool ReserveDialogueCameraEarly(Agent partner)
+        {
+            var session = StoryDialogueRuntime.Current;
+            if (session == null || session.Ended || session.Failed) return false;
+            return ReserveDialogueCamera(partner);
+        }
+
+        /// <summary>
+        /// **多人对话通用机位①：进场即接管**。在 `MissionConversationLogic.StartConversation` **之前**调。
+        /// 为什么必须这么早：引擎切对话模式时会把相机"瞬移"到 NPC 身上（`_cameraApplySpecialMovementsInstantly`），
+        /// 晚一步接管 = 先硬切一下再过渡。先占住 `CustomCamera`，`CheckForUpdateCamera` 整段跳过，引擎根本没机会切。
+        /// 起点 = 当前呈现帧（玩家正看着 NPC 的走路机位），所以是从玩家视角平滑推过去。
+        /// 返回 true = 相机已经是我们的（或本来就是我们）。
+        /// </summary>
+        public static bool ReserveDialogueCamera(Agent partner)
+        {
+            try
+            {
+                if (partner == null || Agent.Main == null) return false;
+                if (CameraService.IsHeldBy(DialogueCameraOwner)) return true;
+                bool ok = CameraService.BlendPose(DialogueCameraCase, partner, Agent.Main, Vec3.Zero, DialogueCameraOwner, 0.7f);
+                _lastCameraFocus = partner;
+                _pendingCameraDelay = -1f;
+                _pendingCameraSpeaker = null;
+                DebugLogger.Log($"[StoryDialogueCamera] early reserve partner={ResolveNpcId(partner) ?? "-"} ok={ok} holder={CameraService.Holder ?? "none"}");
+                return ok;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log("[StoryDialogueCamera] early reserve failed: " + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// **多人对话通用机位②：换发言人**。每次"这句谁在说/谁在被说"变化时调一次（不用每帧调）。
+        /// 规则：同一人连续说话**不重摆**（否则每句一次微调 = 画面一直晃）；相机被别的系统顶掉则下一句自动拿回来。
+        /// 真正摆机位延后 0.25 秒，等玩家 `LookFrame` 转向新说话人后再算——机位方向就是靠这个朝向决定的。
+        /// </summary>
+        public static void FocusDialogueCamera(Agent focus)
+        {
+            if (focus == null) return;
+            if (_lastCameraFocus != focus)
+            {
+                _lastCameraFocus = focus;
+                _pendingCameraSpeaker = focus;
+                _pendingCameraDelay = 0.25f;
+            }
+            else if (_pendingCameraDelay < 0f && !CameraService.IsHeldBy(DialogueCameraOwner))
+            {
+                _pendingCameraSpeaker = focus;
+                _pendingCameraDelay = 0.25f;
+            }
+        }
+
+        /// <summary>**多人对话通用机位③：每帧推进**（由 MissionBehavior 的 tick 调）。</summary>
+        public static void TickDialogueCamera(float dt)
+        {
+            if (_pendingCameraDelay >= 0f)
+            {
+                _pendingCameraDelay -= dt;
+                if (_pendingCameraDelay < 0f)
+                {
+                    var speaker = _pendingCameraSpeaker;
+                    _pendingCameraSpeaker = null;
+                    if (speaker != null && Agent.Main != null)
+                    {
+                        try
+                        {
+                            bool ok = CameraService.BlendPose(DialogueCameraCase, speaker, Agent.Main, Vec3.Zero, DialogueCameraOwner, 0.45f);
+                            DebugLogger.Log($"[StoryDialogueCamera] blend case={DialogueCameraCase} speaker={ResolveNpcId(speaker) ?? "player"} ok={ok} holder={CameraService.Holder ?? "none"}");
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.Log("[StoryDialogueCamera] blend failed: " + ex.Message);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// **多人对话通用机位④：收场归还**。在会话结束（EndConversation）时调。
+        /// 滑 0.6 秒回引擎接管那一刻的机位再撒手——引擎"模式切回"的构图接在终帧上，避免硬切。
+        /// </summary>
+        public static void ReleaseDialogueCamera(float seconds = 0.6f)
+        {
+            _pendingCameraDelay = -1f;
+            _pendingCameraSpeaker = null;
+            _lastCameraFocus = null;
+            if (CameraService.IsHeldBy(DialogueCameraOwner))
+            {
+                CameraService.RequestHandBack(seconds);
+                DebugLogger.Log($"[StoryDialogueCamera] camera hand-back requested ({seconds:F1}s)");
+            }
+            else
+            {
+                DebugLogger.Log($"[StoryDialogueCamera] release skipped: holder={CameraService.Holder ?? "none"}");
+            }
         }
 
         private static bool RejectTurn(StoryDialogueSession session, string nodeId)
@@ -444,9 +629,8 @@ namespace LivingWorldNpcs
                 // 文本查询仅取正文；真实展示该句才调用OnShown，不能把查询次数当进入次数。
                 copy.LazyNpcLine = () => LWNTextHelper.ResolveText(node.TextKey, null);
                 int preparedTurn = 0, shownTurn = -1;
-                copy.OwnsTurn = () => StoryDialogueRuntime.Current == session && !session.Ended
-                    && Campaign.Current?.ConversationManager?.ConversationAgents.Contains(
-                        ResolveTurnAgent(session, session.Request.ActorId)) == true;
+                // F点到群戏成员时，业务主持人可能尚未加入；必须先认真实入口，再准备本句人物。
+                copy.OwnsTurn = () => OwnsConversation(session, Campaign.Current?.ConversationManager);
                 copy.PrepareTurn = () =>
                 {
                     try
@@ -470,8 +654,10 @@ namespace LivingWorldNpcs
                     shownTurn = preparedTurn;
                     if (!IsTurnValid(session, node) || !StoryDialogueRuntime.NotifyNodeShown(node.Id))
                     { RejectTurn(session, node.Id); return; }
+                    PrologueJournalQuest.NoteShown(node.TextKey);
                     PlayNodeLineActions(node.Id);
                     BeginDialogueFacing(session, node);
+                    ApplyConversationCameraFocus(session, node);
                     DebugLogger.Log("[StoryDialogue] turn node=" + node.Id + " speaker=" + node.Speaker
                         + " listener=" + node.Listener + " next=" + (node.NextNode ?? "options/close"));
                 };
@@ -753,7 +939,7 @@ namespace LivingWorldNpcs
                 && _actionFailed && CurrentNpcId == npcId && !string.IsNullOrEmpty(npcId)
                 && _lastTag == ownerTag && ownerTag == "story_probe_" + npcId
                 && Campaign.Current?.ConversationManager == cm
-                && cm.ConversationAgents.Any(a => ResolveNpcId(a as Agent) == npcId);
+                && OwnsConversation(StoryDialogueRuntime.Current, cm);
             try
             {
                 if (!stillOwnsConversation()) return false;

@@ -302,3 +302,53 @@ fovDeg = fov0 + (fov1 - fov0) * t;
 
 范本 = `Flight/FlightCameraRig.cs` 的 `BeginHandBack`（终点按引擎口径归零）+ `Tick` 的 `_handingBack` 分支（插帧）。
 **配套三件（缺一仍会跳）**：撞地/落下就 `BeginHandBack`（别等落地动画演完）· 滑完等 `!V.IsAgentAI(MainAgent)` 连续 4 帧再撒手（引擎重置在解冻后的下一帧）· 撒手前 `HandBackLookToEngine()` + `ClearEngineSpecialCameraAdds()`。
+
+---
+
+## 🔴 多 NPC 对话镜头（2026-11-17 立 · 511 打样 → **通用机制**，新对话系统直接复用）
+
+> **一句话**：原版对话相机**不跟"换说话人"**（2026-11-17 实机 + 探针证实：焦点确实换了、`mode=Conversation`、
+> 无 `CustomCamera` 占用，但 `MissionScreen` 的构图目标只在"进对话"那一次重算，之后再也不变）。
+> 多人对话的镜头由我们自己摆，四段式：**进场即接管 → 换人重摆 → 每帧推进 → 收场归还**。
+
+### 契约（四个 public 方法，当前实现在 `Interaction/StoryProbe/StoryProbeDialogue.cs`）
+
+| 时机 | 调用 | 行为 |
+|---|---|---|
+| 交互键按下、**`MissionConversationLogic.StartConversation` 之前** | `ReserveDialogueCamera(partner)` | `BlendPose(dlg_group_mid, partner, 玩家, 0.7s)` 立刻占住 `CustomCamera` |
+| 每句"说话人/听话人"变化 | `FocusDialogueCamera(focus)` | 换人才重摆（0.45s）；同一人连说 = 空操作 |
+| 每帧（MissionBehavior tick） | `TickDialogueCamera(dt)` | 延后 0.25s 执行重摆（等 `LookFrame` 转向新说话人） |
+| 会话结束（EndConversation） | `ReleaseDialogueCamera(0.6f)` | 滑回引擎接管机位再撒手 |
+
+> 剧情对话用 `StoryProbeDialogue.ReserveDialogueCameraEarly(agent)` 包一层：只有确实开出剧情会话才接管，
+> **普通原版对话不受影响**。新消费者用自己的门控，直接调上面四个 public 方法即可。
+
+### 🔴 为什么必须"按 F 那一刻"接管
+引擎 `MissionConversationLogic.StartConversation` 里 `SetMissionMode(Conversation)` → `MissionScreen.OnMissionModeChange`
+把 `_cameraApplySpecialMovementsInstantly = true` ⇒ **下一帧相机瞬移到 NPC（硬切）**。
+晚一步接管 = 先硬切再过渡（实机症状就是这个）。
+**只要 `CustomCamera != null`，`CheckForUpdateCamera` 整段跳过**，引擎那次瞬移根本不会发生，起点自然是玩家当前画面。
+
+### 机位数据 = `Camera.csv` 的 `dlg_group_mid`
+`Listener` 锚点（**锚点永远是玩家** ⇒ 画面永远在玩家这一侧，正脸/侧脸读"在跟谁说话"）· 臂长 2.4m · 偏航 −15° · 俯仰 −8° ·
+Socket (0.45, 0.25) · **FOV 50** · `UseEngineEyeHeight=1`。
+调观感只改这一行：**远近 = ArmLength、视野宽窄 = Fov、肩膀挡人 = ArmYaw**。
+
+### 🔴🔴 坑：对话模式下引擎**不加**那条 0.484 米的"沿画面向上抬升"
+`MissionScreen.UpdateCamera` 里两处抬升都写在 `Mode != Conversation(1) && != Barter(5)` 分支。
+我们 `SpringArmMath.ComputeFrame` 原来只要 `UseEngineEyeHeight=1` 就无条件加 ⇒ 对话里接管瞬间相机比引擎高
+**0.48~0.66 米**（臂长 2.4 时 0.66），表现为"从原生相机过渡过去时高度没对上、往上飘"。
+2026-11-17 已加同一模式门控（`EngineAppliesCameraLift()`）。**任何在对话/交易模式用的机位都受这条影响。**
+
+### 验收（`Debug/StoryEngine_RuntimeLog.txt`）
+- `[StoryDialogueCamera] early reserve partner=... ok=True holder=dialogue` —— 必须出现在 `blend` 之前
+- `[StoryDialogueCamera] blend case=dlg_group_mid speaker=... ok=True` —— 换人时一行
+- `[StoryDialogueCamera] camera hand-back requested (0.6s)` —— 收场
+- 反射诊断（`[StoryDialogueCameraProbe]` 那套读 `MissionScreen._cameraSpecial*` 的探针）**已按用户要求删除（2026-11-17）**；
+  排障只看上面三行 `[StoryDialogueCamera]`。
+
+### 已知代价 / 未做
+- 接管期间**原版对话景深失效**（`SetDepthOfFieldParameters` 是引擎相机那条路里的）；要的话在 `TickDialogueCamera` 里自己补。
+- 换人是 0.45s 平滑，不是硬切；要硬切把秒数改成 0（`BlendPose` 传 0 = 直接到位）。
+- **NPC↔NPC 句子**目前仍是"玩家侧中景 + 说话人侧脸"（按设计如此）；想要双人独立机位得另加 `Speaker+Listener` 机位，
+  1.5.x 有原版实现可抄（见 `Knowledge/原版对话流引擎逆向分析.md` §9.4）。

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""从旧 `StoryOpeningTimeline.json`（v1 的 30 拍）生成 `StoryScenePlan.json` 的第二阶段布局。
+"""从StoryGateSetup.json与StoryOpeningTimeline.json生成正式场景布局。
 
-- 保留文件里已有的 first_meet（不覆盖）；
-- 把 v1 的 7 个 `prop_spawn` 拍搬成布局 `Props`（几何只有一份）；
+- 首遇岗位、职责区和流程来自StoryGateSetup.json；
+- 把市集 `prop_spawn` 搬成布局 `Props`（几何只有一份）；
 - 把 9 个 `actor_place` 拍搬成 `Standing`，并给老周/屠户/寡妇三个摊位加工作点；
 - 工作动作取该 NPC 在 v1 里第一条 `actor_action`。
 幂等：重复运行输出一致。
@@ -18,11 +18,12 @@ ROOT = os.path.abspath(os.path.join(HERE, ".."))
 DESIGN = os.path.join(ROOT, "ModuleData", "DesignData")
 V1 = os.path.join(DESIGN, "StoryOpeningTimeline.json")
 V2 = os.path.join(DESIGN, "StoryScenePlan.json")
+GATE_SOURCE = os.path.join(DESIGN, "StoryGateSetup.json")
 
 WORK_MAP = {
-    "pawnbroker": ("pawnbroker_desk", "act_wood_workshop_idle_part_01"),
-    "butcher": ("butcher_block", "act_shipyard_worker_repair_loop"),
-    "widow": ("widow_stage_a", "act_conversation_aggressive_trivial"),
+    "pawnbroker": "pawnbroker_desk",
+    "butcher": "butcher_block",
+    "widow": "widow_stage",
 }
 
 
@@ -36,6 +37,7 @@ def _fmt(v):
 def write_points_csv(new_rows):
     """把 market_square 的点位行换成新算出来的一批；其它布局（如 gate_outer 的两个岗位）原样保留。"""
     rows = []
+    previous = io.open(POINTS_CSV, encoding="utf-8-sig").read() if os.path.exists(POINTS_CSV) else ""
     if os.path.exists(POINTS_CSV):
         for line in io.open(POINTS_CSV, encoding="utf-8-sig").read().splitlines():
             if not line.strip():
@@ -48,8 +50,10 @@ def write_points_csv(new_rows):
             rows.append(cols)
     rows.extend([[_fmt(v) for v in r] for r in new_rows])
     out = [",".join(POINTS_HEADER)] + [",".join(r) for r in rows]
+    rendered = chr(10).join(out) + chr(10)
     with io.open(POINTS_CSV, "w", encoding="utf-8", newline="") as f:
-        f.write(chr(10).join(out) + chr(10))
+        f.write(rendered)
+    return rendered != previous
 
 
 def group_behaviors(cast):
@@ -76,6 +80,7 @@ def group_behaviors(cast):
             "ActionsA": e.get("ActionA") or [],
             "ActionsB": e.get("ActionB") or [],
             "JoinNode": e.get("JoinNode") or "",
+            "Placement": e.get("Placement") or "gather",
         }
     return out
 
@@ -98,6 +103,7 @@ def main():
         fail("先有 StoryScenePlan.json（first_meet）再生成 second_meet")
     v1 = json.load(io.open(V1, encoding="utf-8"))
     v2 = json.load(io.open(V2, encoding="utf-8"))
+    previous = json.loads(json.dumps(v2))
     # 只更新说话人物，不覆盖策划已经审定的布局、岗位、流程或开场名单。
     if "--groups-only" in sys.argv[1:]:
         cast = json.load(io.open(os.path.join(DESIGN, "StoryProbeCast.json"), encoding="utf-8"))
@@ -106,6 +112,23 @@ def main():
             f.write(json.dumps(v2, ensure_ascii=False, indent=2) + "\n")
         print("updated group speech bindings; contentVersion=%s" % v2["ContentVersion"])
         return
+    # 首遇也有明确维护源；不再靠保留生成物里的半份数据续命。
+    gate = json.load(io.open(GATE_SOURCE, encoding="utf-8"))
+    # 环境是阶段入场参数；先校验维护源，不能把无效源发布成生成物。
+    from check_story_probe import environment_issues
+    for stage_id, stage in (gate.get("Stages") or {}).items():
+        if "Environment" in stage:
+            issues = environment_issues(stage["Environment"], "$.Stages." + stage_id + ".Environment")
+            if issues:
+                fail(str(issues))
+    if "Environment" in v1:
+        issues = environment_issues(v1["Environment"], "$.Environment")
+        if issues:
+            fail(str(issues))
+    for key in ("Scene", "WallLevel"):
+        v2[key] = gate[key]
+    for key in ("Layouts", "Stages", "Behaviors", "Flows"):
+        v2[key] = gate.get(key) or {}
     beats = v1.get("Beats") or []
 
     props, prop_seen = [], set()
@@ -126,7 +149,8 @@ def main():
                 "Fwd": b.get("Fwd", 0), "Right": b.get("Right", 0), "Up": b.get("Up", 0),
                 "Yaw": b.get("Yaw", 0), "Scale": b.get("Scale", 1),
                 "Support": "ground",
-                "Footprint": [1.2, 0.8],
+                "Footprint": [6.8, 5.3] if b.get("Prefab") == "lwn_market_stage"
+                    else [1.6, 3.5] if b.get("Prefab") in ("lwn_market_meat_counter", "lwn_market_pawn_counter") else [1.2, 0.8],
                 "Required": True,
             })
         elif cmd == "actor_place":
@@ -149,30 +173,29 @@ def main():
     props.sort(key=lambda p: p["Id"])
     scene = v2.get("Scene") or "empire_town_m"
 
-    # 工作点不再挂道具：按"道具位置 + 侧向偏移"折算成**相对锚点**的坐标，写进 StoryPoints.csv
+    # 工作点挂组合道具锚点，直接消费道具贴地后的最终基准，写进StoryPoints.csv。
     # （2026-11-16 用户裁定：点位表只有 Anchor/X/Y/Z/Dir，Anchor 留空才是绝对坐标）。
     work_by_actor = {}
     work_csv_rows = []
     by_prop = {x["Id"]: x for x in props}
-    for actor, (prop_id, action) in WORK_MAP.items():
+    for actor, prop_id in WORK_MAP.items():
+        action = first_action.get(actor)
+        if not action:
+            raise ValueError("work actor %s has no source actor_action" % actor)
         if actor not in actor_seen or prop_id not in prop_seen:
             continue
         wid = actor + "_work"
         prop = by_prop.get(prop_id)
         if prop is None:
             continue
-        yaw = math.radians(prop.get("Yaw", 0.0))
-        cos, sin = math.cos(yaw), math.sin(yaw)
-        r0, f0 = 0.0, 1.0          # side = front
-        offset = 0.65
-        r1 = r0 * cos - f0 * sin
-        f1 = r0 * sin + f0 * cos
-        x = prop.get("Fwd", 0.0) + f1 * offset
-        y = prop.get("Right", 0.0) + r1 * offset
-        z = prop.get("Up", 0.0)
+        # 初始几何由源JSON维护；工作点不得再覆盖演员的初始位置或方向。
+        initial = next(a for a in actors if a["Actor"] == actor)
+        if initial["Anchor"] != prop_id:
+            raise ValueError("work actor %s must use its prop anchor %s" % (actor, prop_id))
         # 动作必须真的在 as_human_warrior 里（铁律 41），不要抄职业集的动作。
-        work_csv_rows.append([wid, scene, "market_square", "work", prop.get("Anchor", "player"),
-                              x, y, z, 0, action, 1, 0.6])
+        work_csv_rows.append([wid, scene, "market_square", "work", prop_id,
+                              initial["Fwd"], initial["Right"], initial["Up"],
+                              initial["Facing"], action, 1, 0.6])
         work_by_actor[actor] = wid
 
     standing = []
@@ -195,7 +218,7 @@ def main():
             # 第二阶段没有使用 gate_entity 的点位或门区；不要把一级/二级门实体
             # 列为开演必需项，否则实际加载 level_3 时会取消已准备好的整场演出。
             # 旧 v1 拍里用 `gate` 这个别名；这里显式登记，避免“未声明锚点”。
-            "gate": {"Source": "entity", "Value": ["empire_castle_gate_outer_l2", "empire_castle_gate_outer_l1", "european_castle_gate_outer_l2"], "Pick": "nearestToPlayer", "Required": False},
+            "gate": dict(gate["Layouts"]["gate_outer"]["Anchors"]["gate_entity"], Required=False),
             "idle": {"Source": "tag", "Value": ["npc_idle"], "Pick": "nearestToPlayer", "Required": False},
             "market": {"Source": "tag", "Value": ["sp_merchant"], "Pick": "nearestToPlayer", "Required": False},
         },
@@ -203,6 +226,9 @@ def main():
         "Props": props,
         "Standing": standing,
     }
+    for prop_id in WORK_MAP.values():
+        if prop_id in by_prop:
+            layout["Anchors"][prop_id] = {"Source": "prop", "Value": [prop_id], "Required": True}
 
     v2.setdefault("Layouts", {})["market_square"] = layout
     v2.setdefault("Stages", {})["second_meet"] = {
@@ -212,15 +238,20 @@ def main():
         "Opening": False,
         "Prep": {"SkipAllowed": True, "ActorReadyTimeoutSec": 5},
     }
+    if "Environment" in v1:
+        v2["Stages"]["second_meet"]["Environment"] = v1["Environment"]
 
     cast_path = os.path.join(DESIGN, "StoryProbeCast.json")
     if os.path.exists(cast_path):
         cast = json.load(io.open(cast_path, encoding="utf-8"))
         update_groups(v2, cast)
-    v2["ContentVersion"] = int(v2.get("ContentVersion") or 1) + (0 if "market_square" in (v1.get("Layouts") or {}) else 0)
+    old_version = int(previous.get("ContentVersion") or 1)
+    current_body = {k: v for k, v in v2.items() if k != "ContentVersion"}
+    previous_body = {k: v for k, v in previous.items() if k != "ContentVersion"}
+    points_changed = write_points_csv(work_csv_rows)
+    v2["ContentVersion"] = old_version + int(current_body != previous_body or points_changed)
     with io.open(V2, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(v2, ensure_ascii=False, indent=2) + "\n")
-    write_points_csv(work_csv_rows)
     print("second_meet: actors=%d props=%d work=%d standing=%d" %
           (len(actors), len(props), len(work_csv_rows), len(standing)))
 

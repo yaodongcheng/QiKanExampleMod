@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_pawnbroker",
-  "ContentVersion": 6,
+  "ContentVersion": 7,
   "EntryOption": "LWN_story_pawnbroker_entry",
   "EntryOptionZh": "[说两句] 老板，生意不错。",
   "SkipVanillaOpening": true,
@@ -1849,7 +1849,7 @@
     {
       "Id": "event_1_join_line1",
       "Speaker": "thug",
-      "Listener": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_event1_join_line1",
       "TextKeyZh": "看什么看？",
       "LineActions": ["act_conversation_aggressive_trivial"],
@@ -1859,7 +1859,7 @@
     {
       "Id": "event_1_join_line2",
       "Speaker": "thug",
-      "Listener": "npc",
+      "Listener": "player",
       "TextKey": "LWN_story_event1_join_line2",
       "TextKeyZh": "没你的事。",
       "LineActions": ["act_conversation_aggressive_trivial"],
@@ -1869,7 +1869,7 @@
     {
       "Id": "event_1_join",
       "Speaker": "npc",
-      "Listener": "thug",
+      "Listener": "player",
       "TextKey": "LWN_story_event1_join",
       "TextKeyZh": "客官，您别掺和……钱我这就给。",
       "LineActions": ["act_conversation_closed_negative"],

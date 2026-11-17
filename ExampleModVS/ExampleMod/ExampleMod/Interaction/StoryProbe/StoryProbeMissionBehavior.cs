@@ -96,6 +96,7 @@ namespace LivingWorldNpcs
 
         /// <summary>P4 工作点（占用/走位/工作动作/局部让位）。</summary>
         private StoryWorkDirector _work;
+        private bool _workInitialized;
         public StoryWorkDirector Work => _work;
 
         /// <summary>本 Mission 的演出时钟（秒）。对话请求的冷却/重入与台本共用同一个钟。</summary>
@@ -275,6 +276,7 @@ namespace LivingWorldNpcs
             if (!Active) return;
 
             // 扣押只在原版对话关闭后的正常 tick 转场，不能与战斗泵同时推进。
+            StoryEnvironment.ReportActual(Mission);
             if (PumpPlayerDetention()) return;
 
             _time += dt;
@@ -490,6 +492,7 @@ namespace LivingWorldNpcs
 
             if (Phase == StoryProbePhase.FirstAttempt) SetupFirstAttempt();
             else SetupSecondPhase();
+            if (!Active) return;
 
             StoryProbeState.SetGoal(Phase == StoryProbePhase.Second ? StoryProbeState.Goal : "enter");
             StoryProbeScreenGoal.Show();
@@ -807,7 +810,10 @@ namespace LivingWorldNpcs
         {
             // P2：首遇名单来自选角表（FirstMeetGuard），不再写死「只有铁头」。
             RestoreFirstGuardEnhancement();
-            var guards = StoryProbeDefs.Npcs.Where(n => n.FirstMeetGuard).ToList();
+            StoryStageDef firstStage = null;
+            StoryLayoutRegistry.Published?.Stages.TryGetValue("first_meet", out firstStage);
+            var guards = firstStage == null ? StoryProbeDefs.Npcs.Where(n => n.FirstMeetGuard).ToList()
+                : firstStage.Actors.Concat(firstStage.OptionalActors).Select(StoryProbeDefs.GetNpc).Where(n => n != null).ToList();
             if (guards.Count == 0 && StoryProbeDefs.Blocker != null) guards.Add(StoryProbeDefs.Blocker);
             DebugLogger.Log("[StoryProbe] setup first attempt guards=" + string.Join(",", guards.Select(g => g.Id)));
 
@@ -821,15 +827,27 @@ namespace LivingWorldNpcs
                 var pos = BlockerPos
                           + new Vec3(Forward.x, Forward.y, 0f) * def.FirstMeetOffsetForward
                           + new Vec3(Forward.y, -Forward.x, 0f) * def.FirstMeetOffsetRight;
-                // P3：正式 v2 布局有站位就用它（岗位 -> 点），没有才用选角表偏移。
+                // 出生与质问范围共用正式岗位点，不能只把出生改成另一份门口偏移。
                 if (_posts != null && _posts.TryGetStandingPosition("first_meet", def.Id, out var placed))
                     pos = placed;
+                else if (firstStage != null)
+                {
+                    Active = false;
+                    DebugLogger.Log("[StoryProbe] first-meet standing unresolved: " + def.Id + "; setup stopped, no alternate spawn");
+                    ShowSceneAbortInquiry(LWNTextHelper.ResolveText("LWN_story_err_gate_layout",
+                        "This town's prologue gate is not ready. Choose a supported town."), "first-meet standing unresolved: " + def.Id);
+                    return;
+                }
                 var agent = SpawnNpc(def.Id, pos, def.Civilian);
                 if (agent != null)
                 {
                     if (def.IsBlocker) BoostFirstGuardAgent(agent);
                     AgentControlHelper.HoldInPlace(agent);
-                    AgentControlHelper.FaceToActor(agent, Agent.Main);
+                    var layout = firstStage == null ? null : StoryLayoutRegistry.Published.Layouts[firstStage.Layout];
+                    var standing = layout?.Standing.FirstOrDefault(st => st.Actor == def.Id);
+                    float facing = layout?.FindPoint(standing?.Point)?.Facing ?? -1f;
+                    float angle = facing * (float)Math.PI / 180f;
+                    AgentControlHelper.SetBodyDirection(agent, new Vec2((float)Math.Cos(angle), (float)Math.Sin(angle)));
                 }
                 Schedule(1.5f, () => DebugLogger.Log("[StoryProbe] first guard live: " + DescribeActor(def.Id)));
             }
@@ -891,7 +909,7 @@ namespace LivingWorldNpcs
                 _dutyPointsApplied = true;
                 ApplyDutyPoints();
             }
-            _posts?.Tick(dt);
+            _posts?.Tick(dt, "first_meet");
             Vec3 previousPosition = _lastGatePosition;
             float previousAlong = GateAlong(previousPosition);
             _lastGatePosition = player.Position;
@@ -944,9 +962,33 @@ namespace LivingWorldNpcs
                 }
                 return;
             }
-            if (walkingIn && _blockerAutoTalkArmed && !_firstInterceptRequested && _time >= _nextInterceptRetryAt)
+            // 正式规则按职责区和感知触发；站住或Brain拒绝后重试不要求玩家再迈一步。
+            if (_blockerAutoTalkArmed && !_firstInterceptRequested && _time >= _nextInterceptRetryAt)
             {
                 // P4：谁去问由数据（Behaviors + 岗位资格 + 次序）决定；没有正式数据才退回铁头。
+                if (_posts?.HasRules("first_meet") == true)
+                {
+                    _firstInterceptRequested = true;
+                    _blockerAutoTalkArmed = false;
+                    bool requested = _posts.TryRequestQuestion("first_meet", opened =>
+                    {
+                        _firstInterceptRequested = false;
+                        if (!opened)
+                        {
+                            _blockerAutoTalkArmed = true;
+                            _nextInterceptRetryAt = _time + InterceptRetryCooldownSec;
+                        }
+                    });
+                    if (!requested)
+                    {
+                        _firstInterceptRequested = false;
+                        _blockerAutoTalkArmed = true;
+                        _nextInterceptRetryAt = _time + InterceptRetryCooldownSec;
+                    }
+                    return;
+                }
+                // 正式规则缺失/拒绝不能伪装成旧城门脚本成功；旧路径只兼容没有正式源的模块。
+                if (StoryV2Data.HasSource || StoryV2Data.Published) return;
                 string questionerId = "blocker";
                 string behaviorId = null;
                 if (_posts?.HasRules("first_meet") == true)
@@ -1196,7 +1238,7 @@ namespace LivingWorldNpcs
             if (_prep != null)
             {
                 _work = new StoryWorkDirector(this);
-                _work.Begin("second_meet");
+                _workInitialized = false;
             }
 
             // 随从 + 3 句
@@ -1315,6 +1357,11 @@ namespace LivingWorldNpcs
                 _dutyPointsApplied = true;
                 ApplyDutyPoints();
             }
+            if (_prep?.Ready == true && _work != null && !_workInitialized)
+            {
+                _workInitialized = true;
+                _work.Begin("second_meet");
+            }
 
             // 🔴 准备失败 ⇒ 不许照常开演：停台本、交还机位与玩家。
             // 🔴 2026-11-16 用户裁定：**不要直接把玩家踢出场景** —— 先弹窗说清缺什么，
@@ -1341,6 +1388,9 @@ namespace LivingWorldNpcs
             }
 
             if (_stage?.Active == true) return; // 镜头演出占用期间不识破、不开战、不判通关。
+            _posts?.Tick(dt, "second_meet");
+            if (_prep?.Ready == true && _posts?.HasRules("second_meet") == true)
+                _posts.TryRequestQuestion("second_meet");
             _work?.Tick(dt);
             TrackGateCrossing(player, dt);
             PumpStoryFights();
@@ -1861,6 +1911,12 @@ namespace LivingWorldNpcs
         /// </summary>
         private void TickGuardLeash()
         {
+            string stageId = Phase == StoryProbePhase.FirstAttempt ? "first_meet" : "second_meet";
+            if (_posts?.HasRules(stageId) == true)
+            {
+                _posts.TickLeash(stageId);
+                return;
+            }
             if (!_gateGeometryReady) return;
             float zone = PostZoneRangeMeters;
             var player = Agent.Main;
@@ -2540,7 +2596,7 @@ namespace LivingWorldNpcs
             string[] keys = { "LWN_story_intro_line_1", "LWN_story_intro_line_2", "LWN_story_intro_line_3" };
             string[] fall = {
                 "This is it. The town your sister walked into three months ago.",
-                "Your warrant is on the gate — walking up front is walking into a cell.",
+                "You've served your sentence. You still need the guard's permission to pass.",
                 "Get in with the people at the gate. Help one of them, they teach you a way."
             };
             if (index < 0 || index >= keys.Length) return;

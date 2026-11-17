@@ -306,4 +306,95 @@
 			</game_entity>
 		</children>
 	</game_entity>
+
+<!-- 市场组合：原版网格与物理体共用一个落地基准；工作点跟随组合根。 -->
+<game_entity name="lwn_market_meat_counter" old_prefab_name="">
+	<transform position="0, 0, 0" rotation_euler="0, 0, 0" />
+	<children>
+		<game_entity name="bd_table_c" old_prefab_name="">
+			<transform position="0, 0, 0" rotation_euler="0, 0, 0" scale="1, 1, 1" />
+			<physics shape="bo_bd_table_c" override_material="wood" mass="1.000" />
+			<components>
+				<meta_mesh_component name="bd_table_c" />
+			</components>
+		</game_entity>
+		<game_entity name="kitchen_chopping_board_a" old_prefab_name="">
+			<transform position="0.32, -0.30, 0.8" rotation_euler="0, 0, 0" scale="1, 1, 1" />
+			<physics shape="bo_kitchen_chopping_board_a" mass="1.000" />
+			<components>
+				<meta_mesh_component name="kitchen_chopping_board_a" />
+			</components>
+		</game_entity>
+		<game_entity name="kitchen_cutting_food_meat" old_prefab_name="">
+			<transform position="0.32, -0.30, 0.872" rotation_euler="0, 0, 0" scale="1, 1, 1" />
+			<physics mass="1.000" />
+			<components>
+				<meta_mesh_component name="kitchen_cutting_food_meat" />
+			</components>
+		</game_entity>
+		<game_entity name="kitchen_cutting_food_meat_b" old_prefab_name="">
+			<transform position="-0.1, 0.5, 0.8" rotation_euler="0, 0, 0" scale="1, 1, 1" />
+			<physics mass="1.000" />
+			<components>
+				<meta_mesh_component name="kitchen_cutting_food_meat_b" />
+			</components>
+		</game_entity>
+	</children>
+</game_entity>
+<game_entity name="lwn_market_pawn_counter" old_prefab_name="">
+	<transform position="0, 0, 0" rotation_euler="0, 0, 0" />
+	<children>
+		<game_entity name="bd_table_c" old_prefab_name="">
+			<transform position="0, 0, 0" rotation_euler="0, 0, 0" scale="1, 1, 1" />
+			<physics shape="bo_bd_table_c" override_material="wood" mass="1.000" />
+			<components>
+				<meta_mesh_component name="bd_table_c" />
+			</components>
+		</game_entity>
+		<game_entity name="bd_pole_3m" old_prefab_name="">
+			<transform position="-0.45, 1.03, 0.9225" rotation_euler="0, 0, 0" scale="0.4, 0.4, 0.5" />
+			<physics shape="bo_bd_pole_3m" override_material="stone" mass="1.000" />
+			<components>
+				<meta_mesh_component name="bd_pole_3m" />
+			</components>
+		</game_entity>
+		<game_entity name="bd_pole_3m" old_prefab_name="">
+			<transform position="-0.34, 1.03, 2.4" rotation_euler="0, 1.5707963267948966, 0" scale="0.35, 0.35, 0.2" />
+			<physics shape="bo_bd_pole_3m" override_material="stone" mass="1.000" />
+			<components>
+				<meta_mesh_component name="bd_pole_3m" />
+			</components>
+		</game_entity>
+		<game_entity name="bd_wall_scales" old_prefab_name="">
+			<transform position="-0.3, 0.83, 2.38" rotation_euler="0, 0, 0" scale="1, 1, 1" />
+			<physics mass="1.000" />
+			<components>
+				<meta_mesh_component name="bd_wall_scales" />
+			</components>
+		</game_entity>
+	</children>
+</game_entity>
+<game_entity name="lwn_market_stage" old_prefab_name="">
+	<transform position="0, 0, 0" rotation_euler="0, 0, 0" />
+	<children>
+		<game_entity name="wooden_platform_a" old_prefab_name="">
+			<transform position="0, 0, 0" rotation_euler="0, 0, 0" scale="1, 1, 1.5" />
+			<physics shape="bo_wooden_platform_a" mass="1.000" />
+			<components>
+				<meta_mesh_component name="wooden_platform_a" />
+			</components>
+		</game_entity>
+		<game_entity name="wooden_platform_stairs_a" old_prefab_name="">
+			<transform position="3.35, 0, 0" rotation_euler="0, 0, 1.5707963267948966" scale="0.5, 0.5, 0.247" />
+			<physics mass="1.000" shape="bo_wooden_platform_stairs_a">
+				<body_flags>
+					<body_flag name="has_steps" />
+				</body_flags>
+			</physics>
+			<components>
+				<meta_mesh_component name="wooden_platform_stairs_a" />
+			</components>
+		</game_entity>
+	</children>
+</game_entity>
 </prefabs>

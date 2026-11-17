@@ -1,27 +1,20 @@
 {
   "_comment": "P3/P4 正式数据（2026-11-15）：首遇双岗的布局、岗位、候选规则与质问流程。改这里 = 改谁站哪、谁有资格问、先问谁、开窗后等多久，不需要改 C#。几何坐标仍待实机快照复核（V06），当前锚点来自场景 tag。",
   "Schema": "story_stage/2",
-  "ContentVersion": 3,
+  "ContentVersion": 12,
   "Scene": "empire_town_m",
   "WallLevel": "2",
   "Layouts": {
     "gate_outer": {
       "Version": 2,
       "Anchors": {
-        "guard_spawn": {
-          "Source": "tag",
-          "Value": [
-            "sp_guard_with_spear"
-          ],
-          "Pick": "nearestToPlayer",
-          "Required": true
-        },
         "gate_entity": {
           "Source": "entity",
           "Value": [
+            "outer_gate",
+            "empire_castle_gate_inner_l3",
             "empire_castle_gate_outer_l2",
-            "empire_castle_gate_outer_l1",
-            "european_castle_gate_outer_l2"
+            "european_castle_gate_outer_l1"
           ],
           "Pick": "nearestToPlayer",
           "Required": true
@@ -68,9 +61,10 @@
         "gate": {
           "Source": "entity",
           "Value": [
+            "outer_gate",
+            "empire_castle_gate_inner_l3",
             "empire_castle_gate_outer_l2",
-            "empire_castle_gate_outer_l1",
-            "european_castle_gate_outer_l2"
+            "european_castle_gate_outer_l1"
           ],
           "Pick": "nearestToPlayer",
           "Required": false
@@ -90,6 +84,27 @@
           ],
           "Pick": "nearestToPlayer",
           "Required": false
+        },
+        "pawnbroker_desk": {
+          "Source": "prop",
+          "Value": [
+            "pawnbroker_desk"
+          ],
+          "Required": true
+        },
+        "butcher_block": {
+          "Source": "prop",
+          "Value": [
+            "butcher_block"
+          ],
+          "Required": true
+        },
+        "widow_stage": {
+          "Source": "prop",
+          "Value": [
+            "widow_stage"
+          ],
+          "Required": true
         }
       },
       "Gates": {},
@@ -114,7 +129,7 @@
         {
           "Id": "butcher_block",
           "Source": "prefab",
-          "Prefab": "bd_table_c",
+          "Prefab": "lwn_market_meat_counter",
           "Anchor": "player",
           "Fwd": 5.4,
           "Right": 8.5,
@@ -123,15 +138,15 @@
           "Scale": 1,
           "Support": "ground",
           "Footprint": [
-            1.2,
-            0.8
+            1.6,
+            3.5
           ],
           "Required": true
         },
         {
           "Id": "pawnbroker_desk",
           "Source": "prefab",
-          "Prefab": "bd_table_a",
+          "Prefab": "lwn_market_pawn_counter",
           "Anchor": "player",
           "Fwd": 6.8,
           "Right": -5.0,
@@ -140,25 +155,8 @@
           "Scale": 1,
           "Support": "ground",
           "Footprint": [
-            1.2,
-            0.8
-          ],
-          "Required": true
-        },
-        {
-          "Id": "pawnbroker_scale",
-          "Source": "prefab",
-          "Prefab": "bd_barrel_a",
-          "Anchor": "player",
-          "Fwd": 6.2,
-          "Right": -6.2,
-          "Up": 0,
-          "Yaw": 0,
-          "Scale": 1,
-          "Support": "ground",
-          "Footprint": [
-            1.2,
-            0.8
+            1.6,
+            3.5
           ],
           "Required": true
         },
@@ -167,8 +165,8 @@
           "Source": "prefab",
           "Prefab": "carpet_empire_a",
           "Anchor": "player",
-          "Fwd": 7.4,
-          "Right": 6.5,
+          "Fwd": 8,
+          "Right": 3.5,
           "Up": 0,
           "Yaw": 0,
           "Scale": 1.0,
@@ -180,36 +178,19 @@
           "Required": true
         },
         {
-          "Id": "widow_stage_a",
+          "Id": "widow_stage",
           "Source": "prefab",
-          "Prefab": "bd_table_c",
+          "Prefab": "lwn_market_stage",
           "Anchor": "player",
-          "Fwd": 8.6,
-          "Right": 5.0,
+          "Fwd": 11,
+          "Right": 3.5,
           "Up": 0,
-          "Yaw": 90,
+          "Yaw": 0,
           "Scale": 1,
           "Support": "ground",
           "Footprint": [
-            1.2,
-            0.8
-          ],
-          "Required": true
-        },
-        {
-          "Id": "widow_stage_b",
-          "Source": "prefab",
-          "Prefab": "bd_table_c",
-          "Anchor": "player",
-          "Fwd": 8.6,
-          "Right": 7.4,
-          "Up": 0,
-          "Yaw": 90,
-          "Scale": 1,
-          "Support": "ground",
-          "Footprint": [
-            1.2,
-            0.8
+            6.8,
+            5.3
           ],
           "Required": true
         }
@@ -256,6 +237,12 @@
   },
   "Stages": {
     "first_meet": {
+      "Environment": {
+        "Hour": 7,
+        "Weather": "rain",
+        "Density": 0.7,
+        "SnowCover": 0
+      },
       "Layout": "gate_outer",
       "Actors": [
         "blocker",
@@ -285,15 +272,19 @@
         "butcher_barrel",
         "butcher_block",
         "pawnbroker_desk",
-        "pawnbroker_scale",
         "widow_carpet",
-        "widow_stage_a",
-        "widow_stage_b"
+        "widow_stage"
       ],
       "Opening": false,
       "Prep": {
         "SkipAllowed": true,
         "ActorReadyTimeoutSec": 5
+      },
+      "Environment": {
+        "Hour": 7,
+        "Weather": "rain",
+        "Density": 0.7,
+        "SnowCover": 0
       }
     }
   },
@@ -314,7 +305,8 @@
       "Trigger": {
         "PlayerInsideGate": false,
         "PlayerInPostZone": true,
-        "MaxPerEncounter": 2
+        "MaxPerEncounter": 2,
+        "TargetGate": "main_gate"
       },
       "Cooldown": {
         "RetrySec": 3,
@@ -325,7 +317,11 @@
         "npcId"
       ],
       "Flow": "gate_question_flow",
-      "MaxActive": 1
+      "MaxActive": 1,
+      "Members": [
+        "blocker",
+        "gate_sentry"
+      ]
     },
     "event_1": {
       "Kind": "group",
@@ -356,7 +352,7 @@
         "thug"
       ],
       "LineFallbacks": [
-        "What are you looking at? Not your business.",
+        "No use hiding. I can see you.",
         "Sir, please... he has been drinking.",
         "The money. This month's.",
         "...Here. Here it is."
@@ -369,7 +365,8 @@
         "act_bullied",
         "act_bartender_wipe"
       ],
-      "JoinNode": "event_1_join"
+      "JoinNode": "event_1_join",
+      "Placement": "standing"
     },
     "event_2": {
       "Kind": "group",
@@ -409,7 +406,8 @@
         "act_conversation_threat_point",
         "act_argue_soft_1"
       ],
-      "JoinNode": "event_2_join"
+      "JoinNode": "event_2_join",
+      "Placement": "gather"
     },
     "event_3": {
       "Kind": "group",
@@ -453,7 +451,8 @@
         "act_argue_2",
         "act_applaud_3"
       ],
-      "JoinNode": "event_3_join"
+      "JoinNode": "event_3_join",
+      "Placement": "gather"
     },
     "event_4": {
       "Kind": "group",
@@ -493,7 +492,8 @@
         "act_bullied",
         "act_beggar_idle"
       ],
-      "JoinNode": "event_4_join"
+      "JoinNode": "event_4_join",
+      "Placement": "gather"
     },
     "event_5": {
       "Kind": "group",
@@ -525,7 +525,8 @@
         "act_citizen_cleanup_idle"
       ],
       "ActionsB": [],
-      "JoinNode": "event_5_join"
+      "JoinNode": "event_5_join",
+      "Placement": "gather"
     },
     "event_6": {
       "Kind": "group",
@@ -557,7 +558,8 @@
         "act_bartender_meat"
       ],
       "ActionsB": [],
-      "JoinNode": "event_6_join"
+      "JoinNode": "event_6_join",
+      "Placement": "gather"
     }
   },
   "Flows": {
@@ -571,7 +573,8 @@
           "Atom": "dialogue_open",
           "Actor": "$questioner",
           "Args": {
-            "Dialogue": "gate_interrogation"
+            "Dialogue": "gate_interrogation",
+            "Trigger": "first_meet_auto"
           },
           "Wait": {
             "Kind": "dialogue_open",

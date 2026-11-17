@@ -25,6 +25,7 @@ namespace LivingWorldNpcs
         private float _transitionCooldown;
         private int _transitionFailures;
         private float _restoreRetryCooldown;
+        private float _journalNextTick;
 
         public override void RegisterEvents()
         {
@@ -196,6 +197,7 @@ namespace LivingWorldNpcs
             if (d.CancellationRestart)
             {
                 if (!PrologueQuestLauncher.CancelAll()) return false;
+                PrologueJournalQuest.Active?.CancelForRestart();
                 StoryProbeState.ResetAll();
                 // 整轮重开 = 通行权一并作废（令牌在背包里，不收回就会"重置了剧情却还免检进城"）。
                 StoryProbeMissionBehavior.RevokeGatePass("prologue reset");
@@ -237,6 +239,13 @@ namespace LivingWorldNpcs
         public void TickPendingTransition(float dt)
         {
             if (_opening) return;
+            _journalNextTick -= Math.Max(0f, dt);
+            if (_journalNextTick <= 0f && Campaign.Current != null
+                && Campaign.Current.SaveHandler?.IsSaving != true)
+            {
+                _journalNextTick = 0.5f;
+                PrologueJournalQuest.Tick();
+            }
             if (!float.IsNaN(dt) && !float.IsInfinity(dt) && dt > 0f)
                 _transitionCooldown = Math.Max(0f, _transitionCooldown - Math.Min(dt, 0.25f));
             try
@@ -458,7 +467,17 @@ namespace LivingWorldNpcs
                 // 🔴 人口限制必须在 Mission 打开**之前**登记：原版 AfterStart 一开始就会批量生成居民。
                 StoryPopulationGuard.Request(settlement.StringId, StoryProbeState.Phase.ToString());
                 const string OutsideSpawnTag = "sp_outside_near_town_main_gate";
-                var openedMission = encounter.CreateAndOpenMissionController(location, null, null, OutsideSpawnTag);
+                string stageId = StoryProbeState.Phase == StoryProbePhase.FirstAttempt ? "first_meet" : "second_meet";
+                if (!StoryLayoutRegistry.Published.Stages.TryGetValue(stageId, out var entryStage))
+                    throw new InvalidOperationException("entry stage unavailable: " + stageId);
+                IMission openedMission;
+                // 作用域只包本次原版入场；无论成功、拒绝或异常，都不会留下天气覆盖。
+                using (var environment = StoryEnvironment.Open(location.GetSceneName(settlement.Town.GetWallLevel()),
+                    entryStage, StoryLayoutRegistry.Published.ContentVersion))
+                {
+                    openedMission = encounter.CreateAndOpenMissionController(location, null, null, OutsideSpawnTag);
+                    environment.Attach(openedMission as Mission);
+                }
                 if (openedMission == null)
                 {
                     StoryPopulationGuard.CancelPending("mission did not open");
@@ -466,6 +485,7 @@ namespace LivingWorldNpcs
                 }
                 // 返回的 mission 才是开场回执；EnterViaOption 可能已被同步启动的 Host 消费。
                 DebugLogger.Log($"[StoryProbe] entering center of {settlement.StringId} phase={StoryProbeState.Phase}");
+                PrologueJournalQuest.EnsureStarted(settlement.StringId);
                 return true;
             }
             catch (Exception ex)

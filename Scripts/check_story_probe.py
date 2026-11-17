@@ -181,7 +181,7 @@ def check_json(module, problems):
 STAGE_ATOMS = {"player_freeze", "player_release", "camera_cut", "camera_return",
                "prop_spawn", "actor_place", "actor_action", "actor_say", "wait"}
 STAGE_ANCHORS_BUILTIN = {"player", "gate", "gate_inner"}
-TUNING_SECTIONS = ("Ambient", "Events", "Skits", "Gate", "Greeting", "Crime", "Intro", "Performance")
+TUNING_SECTIONS = ("Ambient", "Events", "Skits", "Gate", "Greeting", "Crime", "Intro", "Performance", "Noise")
 
 
 def load_data_json(path):
@@ -357,6 +357,61 @@ def check_tuning(module, problems):
                 problems.append("tuning: Gate.Layouts.%s has no outside-to-inside direction" % scene_name)
 
 
+def environment_issues(environment, path):
+    """与StoryLayoutValidator.ParseEnvironment同契约，源台本和生成物共同使用。"""
+    issues = []
+
+    def bad(field, code, message):
+        issues.append({"path": path + ("." + field if field else ""), "code": code, "message": message})
+
+    if not isinstance(environment, dict):
+        bad("", "wrong_type", "环境必须是对象")
+        return issues
+    for field in environment:
+        if field not in ("Hour", "Weather", "Density", "SnowCover"):
+            bad(field, "unknown_key", "未知环境字段")
+    for field in ("Hour", "Density", "SnowCover"):
+        if field not in environment and field == "SnowCover":
+            continue
+        value = environment.get(field)
+        if value is None and field != "SnowCover":
+            bad(field, "missing_field", "必须填写环境参数")
+        elif isinstance(value, bool) or not isinstance(value, (float, int)):
+            bad(field, "wrong_type", "必须是数字")
+        elif not math.isfinite(value):
+            bad(field, "bad_value", "必须是有限数")
+        elif value < 0 or (value >= 24 if field == "Hour" else value > 1):
+            bad(field, "bad_range", "时辰范围[0,24)，密度和积雪范围[0,1]")
+    weather = environment.get("Weather")
+    density = environment.get("Density")
+    if weather not in ("clear", "rain", "snow"):
+        bad("Weather", "unknown_weather", "Weather只接受clear、rain、snow")
+    elif isinstance(density, (float, int)) and not isinstance(density, bool) and math.isfinite(density):
+        if (weather == "clear" and density != 0) or (weather != "clear" and density <= 0):
+            bad("Density", "bad_range", "晴天密度为0，雨雪密度必须大于0")
+    return issues
+
+
+def environment_selftest():
+    valid = {"Hour": 7, "Weather": "snow", "Density": 0.7, "SnowCover": 0.75}
+    assert not environment_issues(valid, "$")
+    cases = [("Hour", -1), ("Hour", 24), ("Hour", True), ("Hour", "7"), ("Hour", float("nan")),
+             ("Weather", "typo"), ("Density", 0), ("Density", 1.1), ("Density", None),
+             ("Density", True), ("SnowCover", 2), ("SnowCover", None), ("Typo", 1), ("Weather", "clear")]
+    for field, value in cases:
+        bad = dict(valid)
+        bad[field] = value
+        assert environment_issues(bad, "$"), bad
+    for field in ("Hour", "Weather", "Density"):
+        bad = dict(valid)
+        del bad[field]
+        assert environment_issues(bad, "$"), bad
+    for weather, density in (("clear", 0), ("rain", 0.4), ("snow", 1)):
+        assert not environment_issues({"Hour": 0, "Weather": weather, "Density": density}, "$")
+    assert environment_issues(None, "$") and environment_issues([], "$")
+    print("SELFTEST OK: environment ranges/types/weather tokens and missing fields")
+
+
 def check_stage(module, problems):
     """StoryOpeningTimeline.json：原子名 / 语义位 / 必填参数。"""
     path = os.path.join(module, "ModuleData", "DesignData", "StoryOpeningTimeline.json")
@@ -368,6 +423,9 @@ def check_stage(module, problems):
         problems.append("StoryOpeningTimeline.json parse error: %s" % data["__error__"])
         return 0
 
+    if "Environment" in data:
+        for issue in environment_issues(data["Environment"], "$.Environment"):
+            problems.append("stage: %s [%s] %s" % (issue["path"], issue["code"], issue["message"]))
     anchors = set(STAGE_ANCHORS_BUILTIN) | set((data.get("Anchors") or {}).keys())
     cast = load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryProbeCast.json")) or {}
     listeners = {n.get("Id") for n in cast.get("Npcs", [])} | {"player"}
@@ -380,7 +438,8 @@ def check_stage(module, problems):
         problems.append("StoryOpeningTimeline.json: no Beats")
         return 0
 
-    for i, b in enumerate(beats):
+    # 与运行时稳定按At排序一致，同时间保持文件顺序。
+    for i, b in sorted(enumerate(beats), key=lambda item: item[1].get("At") or 0):
         cmd = b.get("Cmd")
         if cmd not in STAGE_ATOMS:
             problems.append("stage[%d]: unknown atom '%s'" % (i, cmd))
@@ -404,6 +463,13 @@ def check_stage(module, problems):
             problems.append("stage[%d]: actor_say without a distinct Listener" % i)
         if b.get("At") is None:
             problems.append("stage[%d]: missing At" % i)
+        if cmd == "prop_spawn":
+            prop_id = b.get("Id")
+            if not prop_id or prop_id in anchors:
+                problems.append("stage[%d]: prop_spawn requires a unique Id" % i)
+            else:
+                # 只接受前面已创建的道具；未来道具、自引用及循环不能作为锚点。
+                anchors.add(prop_id)
 
     return len(beats)
 
@@ -497,7 +563,9 @@ def known_prefabs(game_root, scene=None):
         if not os.path.isdir(d):
             continue
         for _, text in _iter_xml(glob.glob(os.path.join(d, "*.xml"))):
-            names.update(re.findall(r'<game_entity[^>]*name="([^"]+)"', text))
+            # 引擎仅登记根级game_entity，组合内子件不能冒充可实例化prefab。
+            root = ET.fromstring(text)
+            names.update(el.get("name") for el in root.findall("game_entity") if el.get("name"))
             tags.update(re.findall(r'<tag name="([^"]+)"', text))
     if scene:
         xscene = os.path.join(game_root, "Modules", "SandBoxCore", "SceneObj", scene, "scene.xscene")
@@ -544,23 +612,21 @@ HUMAN_SET_CACHE = {}
 
 def human_playable(game_root, module=None):
     """`monsters.xml` 写明 human 的默认 action_set = as_human_warrior ⇒ 只有这里的动作 NPC 能播。"""
-    key = ("human_plays", game_root)
+    key = ("human_plays", game_root, module)
     if key in HUMAN_SET_CACHE:
         return HUMAN_SET_CACHE[key]
     acts = set()
     path = os.path.join(game_root, "Modules", "Native", "ModuleData", "action_sets.xml")
     if os.path.exists(path):
-        text = io.open(path, encoding="utf-8-sig", errors="ignore").read()
-        blocks = re.split(r'<action_set\s+id="', text)
-        for b in blocks[1:]:
-            if b.split('"')[0] == "as_human_warrior":
-                acts = set(re.findall(r'<action\s+type="(act_[a-z0-9_]+)"', b))
-                break
+        for action_set in ET.parse(path).getroot().iter("action_set"):
+            if action_set.get("id") == "as_human_warrior":
+                acts.update(a.get("type") for a in action_set.findall("action") if a.get("type"))
     # 我们自己在 LWN 的 action_sets.xml 里追加合并进 as_human_warrior 的动作也算可播
     lwn = os.path.join(module, "ModuleData", "action_sets.xml") if module else ""
     if os.path.exists(lwn):
-        lt = io.open(lwn, encoding="utf-8-sig", errors="ignore").read()
-        acts |= set(re.findall(r'<action\s+type="(act_[a-z0-9_]+)"', lt))
+        for action_set in ET.parse(lwn).getroot().iter("action_set"):
+            if action_set.get("id") == "as_human_warrior":
+                acts.update(a.get("type") for a in action_set.findall("action") if a.get("type"))
     HUMAN_SET_CACHE[key] = acts
     return acts
 
@@ -881,6 +947,9 @@ def selftest():
         assert not single_sentence_issues("……有了。", "CN")
         assert not single_sentence_issues("...Here.", "EN")
         speech_listener_selftest(DEFAULT_MODULE)
+        stage_prop_anchor_selftest(DEFAULT_MODULE)
+        point_action_selftest(DEFAULT_MODULE)
+        environment_selftest()
         print("SELFTEST OK: authoritative references, Chinese annotations, sentence/prefix/newline regressions")
         src = os.path.join(DEFAULT_MODULE, "ExampleModVS", "ExampleMod", "ExampleMod")
         negative_cases = [
@@ -889,8 +958,8 @@ def selftest():
             ("WorldEvent/PlayerDetentionBehavior.cs", "if (_noEarlyRelease) return false;", "/* early release allowed */", "fixed sentence forbids early fine release"),
             ("WorldEvent/PlayerDetentionBehavior.cs", 'dataStore.SyncData("lwn_detention_release_day", ref releaseDay)', '/* deadline not saved */', "fixed sentence persists deadline"),
             ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "if (_firstGuardQuestioned)", "if (true)", "guard must question"),
-            ("AI/Actions/AtomicAction.cs", "AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);", "/* facing removed */", "performance must hold body and gaze"),
-            ("AI/Actions/AtomicAction.cs", "if (turnBody) AgentControlHelper.HoldFacingActor", "AgentControlHelper.HoldFacingActor", "bubble body turn must depend"),
+            ("AI/Actions/AtomicAction.cs", "_facingTracker.Tick(_brain.Owner, SpeechListener, turnBody, false, dt, OwnerToken);", "/* facing removed */", "performance must hold body and gaze"),
+            ("AI/Actions/AtomicAction.cs", "_facingTracker.Tick(_brain.Owner, SpeechListener, turnBody, false, dt, OwnerToken);", "_facingTracker.Tick(_brain.Owner, SpeechListener, true, false, dt, OwnerToken);", "bubble body turn must depend"),
             ("AI/Actions/AtomicAction.cs", "useBodyFacing: true", "useBodyFacing: false", "bubble body turn must depend"),
             ("Interaction/StoryProbe/StoryProbeMissionBehavior.cs", "StoryProbeDialogue.TickDialogueFacing(dt);", "/* formal facing removed */", "formal dialogue must track"),
             ("Interaction/StoryProbe/StoryProbeDialogue.cs", "BeginDialogueFacing(session, node);", "/* shown handoff removed */", "formal dialogue must track"),
@@ -1004,13 +1073,15 @@ def check_flow_contract(module, problems, overrides=None):
          and "_noEarlyRelease" in member(detention, "PayFineWhileDetainedOnCondition")
          and "_menuRetryDelay > 0f" in member(detention, "OnTick"),
          "fixed sentence forbids early fine release and throttles failed automatic release"),
-        ("AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);" in atomic
+        ("_facingTracker.Tick(_brain.Owner, SpeechListener, turnBody, false, dt, OwnerToken);" in atomic
+         and "HoldFacingActor(actor, target, inConversation);" in helper
          and "SetScriptedPositionAndDirection" in member(helper, "HoldFacingActor")
          and "LookAtAgent(speaker, listener)" in member(helper, "HoldFacingActor"),
          "performance must hold body and gaze toward its actual listener"),
         ("NpcSightSystem.IsTargetInViewCone(_brain.Owner, SpeechListener, useBodyFacing: true)" in atomic
-         and "if (turnBody) AgentControlHelper.HoldFacingActor(_brain.Owner, SpeechListener);" in atomic
-         and "else AgentControlHelper.LookAtAgent(_brain.Owner, SpeechListener);" in atomic
+         and "_facingTracker.Tick(_brain.Owner, SpeechListener, turnBody, false, dt, OwnerToken);" in atomic
+         and "bool write = turnBody" in helper
+         and "else if (changed) LookAtAgent(actor, target);" in helper
          and "IsTargetInViewCone(observer, target, fovDegrees)" in member(sight, "CanAgentSeeTarget")
          and "ViewConeDot(observer, target)" in member(sight, "ExplainSight"),
          "bubble body turn must depend on shared view cone while formal dialogue keeps its own facing rule"),
@@ -1021,7 +1092,8 @@ def check_flow_contract(module, problems, overrides=None):
          "street event must wait for player F and route any data-defined participant"),
         ("StoryProbeDialogue.TickDialogueFacing(dt);" in member(host, "OnMissionTick")
          and "BeginDialogueFacing(session, node);" in member(dialogue, "BuildFilteredFromDefinition")
-         and "HoldDialogueFacing(speaker, listener);" in member(dialogue, "TickDialogueFacing")
+         and "HoldDialogueFacing(speaker, listener, dt);" in member(dialogue, "TickDialogueFacing")
+         and "tracker.Tick(actor, target, true, true, dt," in member(dialogue, "HoldDialogueFacing")
          and "StoryDialogueRuntime.Current != _facingSession" in member(dialogue, "TickDialogueFacing")
          and "ReleaseDialogueFacing();" in member(dialogue, "OnConversationEnded")
          and "if (actor == Agent.Main) return;" in member(dialogue, "HoldDialogueFacing")
@@ -1146,7 +1218,7 @@ ATOM_SPECS = {
     "actor_say": (("TextKey", "Listener"), ("TextKey", "Listener"), "required", (), True),
     "wait": (("Seconds",), ("Seconds",), "none", (), False),
     "actor_move": (("To", "StopMeters"), ("To",), "required", ("arrival",), False),
-    "dialogue_open": (("Dialogue",), ("Dialogue",), "required", ("dialogue_open",), True),
+    "dialogue_open": (("Dialogue", "Trigger"), ("Dialogue", "Trigger"), "required", ("dialogue_open",), True),
     "dialogue_wait": ((), (), "required", ("dialogue_end",), True),
 }
 
@@ -1392,7 +1464,7 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
                 continue
             keys(ao, apath, ("Source", "Value", "Pick", "Required"))
             source_kind = text(ao, "Source", apath) or "tag"
-            if source_kind not in ("tag", "entity", "player"):
+            if source_kind not in ("tag", "entity", "player", "prop"):
                 bad(apath + ".Source", "bad_token", "Source 只能是 tag / entity / player，实际 '%s'" % source_kind)
             values = str_list(ao, "Value", apath, source_kind != "player")
             if source_kind == "player" and values:
@@ -1451,7 +1523,15 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
             if foot and (foot[0] <= 0 or foot[1] <= 0):
                 bad(ppath + ".Footprint", "bad_range", "占地两个分量都必须 > 0")
             boolean(po, "Required", ppath, True)
+            if (lo.get("Anchors") or {}).get(place.get("Anchor"), {}).get("Source") == "prop":
+                bad(ppath + ".Anchor", "bad_anchor", "Props must use a ground anchor")
             props[pid] = {"place": place, "yaw": yaw}
+
+        for aid, ao in (lo.get("Anchors") or {}).items():
+            if isinstance(ao, dict) and ao.get("Source") == "prop":
+                values = ao.get("Value") or []
+                if len(values) != 1 or values[0] not in props:
+                    bad(path + ".Anchors." + aid, "unknown_prop", "Prop anchor must reference one layout prop")
 
         # ── 统一点位（2026-11-16）：Points 是新写法；WorkPoints / Posts 是旧写法，全部并入同一个集合 ──
         points = set()
@@ -1604,7 +1684,10 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
         if not isinstance(so, dict):
             bad(spath, "wrong_type", "阶段必须是对象")
             continue
-        keys(so, spath, ("Layout", "Actors", "Props", "OptionalActors", "OptionalProps", "Opening", "Prep"))
+        keys(so, spath, ("Layout", "Actors", "Props", "OptionalActors", "OptionalProps", "Opening", "Prep", "Environment"))
+        if "Environment" in so:
+            for issue in environment_issues(so["Environment"], spath + ".Environment"):
+                bad(issue["path"], issue["code"], issue["message"])
         layout_id = text(so, "Layout", spath)
         if layout_id and layout_id not in resolved:
             bad(spath + ".Layout", "unknown_layout", "阶段引用的布局 '%s' 不存在" % layout_id)
@@ -1773,7 +1856,7 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
                 bad(bpath, "wrong_type", "行为规则必须是对象")
                 continue
             keys(bo, bpath, ("Kind", "Posts", "Stages", "Perception", "Trigger", "Cooldown", "Rank", "Flow", "MaxActive",
-                             "Members", "Host", "Lines", "Speakers", "Listeners", "LineFallbacks", "ActionsA", "ActionsB", "JoinNode"))
+                             "Members", "Host", "Lines", "Speakers", "Listeners", "LineFallbacks", "ActionsA", "ActionsB", "JoinNode", "Placement"))
             kind = text(bo, "Kind", bpath) or "post"
             if kind not in ("post", "group"):
                 bad(bpath + ".Kind", "bad_token", "Kind 只能是 post/group，实际 '%s'" % kind)
@@ -1807,6 +1890,20 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
                 str_list(bo, "ActionsA", bpath, False)
                 str_list(bo, "ActionsB", bpath, False)
                 text(bo, "JoinNode", bpath, required=False)
+                placement = text(bo, "Placement", bpath, required=False) or "gather"
+                if placement not in ("standing", "gather"):
+                    bad(bpath + ".Placement", "bad_token", "Placement must be standing/gather")
+                if placement == "standing":
+                    for stage_id in rule_stages:
+                        stage = stages.get(stage_id) or {}
+                        layout_id = stage.get("Layout")
+                        layout = layouts.get(layout_id) or {}
+                        standing_members = {s.get("Actor") for s in layout.get("Standing", [])
+                                            if isinstance(s, dict) and s.get("Point", s.get("Post", s.get("WorkPoint")))
+                                            in resolved.get(layout_id, {}).get("posts", set())}
+                        for member in members:
+                            if member not in standing_members:
+                                bad(bpath + ".Members", "missing_standing", "Standing member has no layout point: " + member)
             perception = bo.get("Perception")
             if isinstance(perception, dict):
                 keys(perception, bpath + ".Perception", ("RequiresSight", "RangeMeters"))
@@ -1814,7 +1911,9 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
                 num(perception, "RangeMeters", bpath + ".Perception", 12.0, 0.1, 500.0, required=True)
             trigger = bo.get("Trigger")
             if isinstance(trigger, dict):
-                keys(trigger, bpath + ".Trigger", ("PlayerInsideGate", "PlayerInPostZone", "MaxPerEncounter"))
+                keys(trigger, bpath + ".Trigger", ("PlayerInsideGate", "PlayerInPostZone", "MaxPerEncounter", "TargetPoint", "TargetGate"))
+                text(trigger, "TargetPoint", bpath + ".Trigger", required=False)
+                text(trigger, "TargetGate", bpath + ".Trigger", required=False)
                 boolean(trigger, "PlayerInsideGate", bpath + ".Trigger", True)
                 boolean(trigger, "PlayerInPostZone", bpath + ".Trigger", False)
                 integer(trigger, "MaxPerEncounter", bpath + ".Trigger", 1, 1, 16)
@@ -1841,6 +1940,23 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
                 lay = resolved.get(stage.get("Layout"))
                 if not lay:
                     continue
+                if kind == "post":
+                    target_point = (trigger or {}).get("TargetPoint")
+                    target_gate = (trigger or {}).get("TargetGate")
+                    if target_point and target_point not in lay["posts"]:
+                        bad(bpath + ".Trigger.TargetPoint", "unknown_point", "Guard target point missing")
+                    if target_gate and target_gate not in lay["gates"]:
+                        bad(bpath + ".Trigger.TargetGate", "unknown_gate", "Guard target gate missing")
+                    if (trigger or {}).get("PlayerInsideGate", True) and not target_gate:
+                        bad(bpath + ".Trigger.TargetGate", "missing_field", "Gate trigger requires its own TargetGate")
+                    members = str_list(bo, "Members", bpath, False)
+                    if len(set(members)) != len(members):
+                        bad(bpath + ".Members", "duplicate_id", "Duplicate guard member")
+                    roster = set(stage.get("Actors") or []) | set(stage.get("OptionalActors") or [])
+                    assignments = (layouts.get(stage.get("Layout")) or {}).get("Standing") or []
+                    for member in members:
+                        if member not in roster or not any(s.get("Actor") == member and s.get("Point", s.get("Post")) in posts for s in assignments):
+                            bad(bpath + ".Members", "unknown_member", "Guard member must occupy a group post")
                 for post in posts:
                     if post not in lay["posts"]:
                         bad(bpath + ".Posts", "unknown_post",
@@ -1918,6 +2034,39 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
     return issues
 
 
+def stage_prop_anchor_selftest(module):
+    """道具锚点必须先创建；与运行时的At稳定排序一致。"""
+    from copy import deepcopy
+    from unittest.mock import patch
+    original_loader = load_data_json
+    base = original_loader(os.path.join(module, "ModuleData", "DesignData", "StoryOpeningTimeline.json"))
+    for variant in ("valid", "reordered", "unknown", "future", "self", "cycle", "duplicate"):
+        data = deepcopy(base)
+        actor = next(b for b in data["Beats"] if b.get("Actor") == "thug" and b.get("Cmd") == "actor_place")
+        desk = next(b for b in data["Beats"] if b.get("Id") == "pawnbroker_desk")
+        if variant == "reordered":
+            data["Beats"].reverse()  # At不同的前置道具仍会先执行。
+        elif variant == "unknown":
+            actor["Anchor"] = "missing_prop"
+        elif variant == "future":
+            desk["At"] = actor["At"] + 1
+        elif variant == "self":
+            desk["Anchor"] = desk["Id"]
+        elif variant == "cycle":
+            other = next(b for b in data["Beats"] if b.get("Id") == "butcher_block")
+            desk["Anchor"] = other["Id"]
+            other["Anchor"] = desk["Id"]
+        elif variant == "duplicate":
+            data["Beats"].append(deepcopy(desk))
+        def fixture_loader(path):
+            return data if os.path.basename(path) == "StoryOpeningTimeline.json" else original_loader(path)
+        problems = []
+        with patch.dict(globals(), {"load_data_json": fixture_loader}):
+            check_stage(module, problems)
+        assert (not problems) == (variant in ("valid", "reordered")), (variant, problems)
+    print("SELFTEST OK: 7 timeline prop-anchor order/unknown/self/cycle/duplicate variants")
+
+
 def speech_listener_selftest(module):
     """真实正式数据的听话者变体：漏填、未知、自己、数量错均须拒绝。"""
     from copy import deepcopy
@@ -1966,6 +2115,19 @@ def speech_listener_selftest(module):
         assert not issues if want is None else any(i["code"] == want for i in issues), (listener, issues)
         count += 1
     print("SELFTEST OK: %d speech Listener group/beat/flow parser variants" % count)
+    for mode, want in (("standing", None), ("gather", None), ("teleport-anywhere", "bad_token")):
+        data = deepcopy(base)
+        data["Behaviors"][group_id]["Placement"] = mode
+        issues = stage_v2_issues(data, cast_ids, formal=True, csv_points=csv_points)
+        assert not issues if want is None else any(i["code"] == want for i in issues), (mode, issues)
+    data = deepcopy(base)
+    data["Behaviors"][group_id]["Placement"] = "standing"
+    member = data["Behaviors"][group_id]["Members"][0]
+    for stage_id in data["Behaviors"][group_id]["Stages"]:
+        lo = data["Layouts"][data["Stages"][stage_id]["Layout"]]
+        lo["Standing"] = [s for s in lo["Standing"] if s.get("Actor") != member]
+    assert any(i["code"] == "missing_standing" for i in stage_v2_issues(data, cast_ids, formal=True, csv_points=csv_points))
+    print("SELFTEST OK: 4 group placement and missing-standing variants")
 
 
 # 夹具期望：文件名 -> (是否应通过, 必须命中的错误码)
@@ -2051,6 +2213,55 @@ def check_stage_v2(module, problems):
     return positive
 
 
+def point_action_issues(data, csv_points, playable):
+    """岗位动作也必须在 NPC 实际执行的 warrior 集中；不存在或仅职业集注册均拒绝。"""
+    issues = []
+    layouts = data.get("Layouts") or {}
+    if not isinstance(layouts, dict):
+        return issues  # 结构错误由 stage_v2_issues 报告。
+    for layout_id, layout in layouts.items():
+        if not isinstance(layout, dict):
+            continue
+        csv_key = (data.get("Scene") or "") + "|" + layout_id
+        points = list(csv_points.get(csv_key, []))
+        for field in ("Points", "WorkPoints"):
+            if isinstance(layout.get(field), list):
+                points.extend(layout[field])
+        for point in points:
+            if not isinstance(point, dict):
+                continue
+            action = point.get("Action")
+            if isinstance(action, str) and action and action not in playable:
+                issues.append({"path": "Layouts.%s.Points[%s].Action" % (layout_id, point.get("Id")),
+                               "code": "unplayable_action",
+                               "message": "'%s' is not in as_human_warrior (NPC cannot play it)" % action})
+    return issues
+
+
+def point_action_selftest(module):
+    playable = human_playable(_game_root(module), module)
+    assert playable
+    data = {"Scene": "test", "Layouts": {"work": {"Points": [{"Id": "inline", "Action": "act_bartender_wipe"}]}}}
+    csv_points = {"test|work": [{"Id": "csv", "Action": "act_bartender_meat"}]}
+    assert not point_action_issues(data, csv_points, playable)
+    assert not point_action_issues({"Layouts": [None]}, {}, playable)
+    assert not point_action_issues({"Layouts": {"work": {"Points": [None, {"Action": []}]}}}, {}, playable)
+    missing = [a for a in ("act_wood_workshop_idle_part_01", "act_shipyard_worker_repair_loop",
+                           "act_no_such_work_action") if a not in playable]
+    for action in missing:
+        for point in (data["Layouts"]["work"]["Points"][0], csv_points["test|work"][0]):
+            old = point["Action"]
+            point["Action"] = action
+            assert any(i["code"] == "unplayable_action" for i in point_action_issues(data, csv_points, playable))
+            point["Action"] = old
+    # 原版职业专用集中的真实动作也不能冒充 warrior 可播。
+    exclusive = known_actions(_game_root(module)) - playable
+    if exclusive:
+        csv_points["test|work"][0]["Action"] = sorted(exclusive)[0]
+        assert point_action_issues(data, csv_points, playable)
+    print("SELFTEST OK: work actions accept registered clips and reject missing/profession-only actions")
+
+
 def check_stage_v2_formal(module, problems):
     """校验正式 `StoryScenePlan.json`（Formal 模式）：它是运行时真正发布/消费的布局，必须全绿。"""
     path = os.path.join(module, "ModuleData", "DesignData", "StoryScenePlan.json")
@@ -2065,6 +2276,20 @@ def check_stage_v2_formal(module, problems):
     csv_rows, csv_issues = load_story_points_csv(module)
     issues = list(csv_issues) + stage_v2_issues(
         data, stage_v2_cast_ids(module), formal=True, source="StoryScenePlan.json", csv_points=csv_rows)
+    issues += point_action_issues(data, csv_rows, human_playable(_game_root(module), module))
+    # 首遇与第二阶段各有唯一维护源，防止只改生成物或漏重生成。
+    design = os.path.dirname(path)
+    gate_source = load_data_json(os.path.join(design, "StoryGateSetup.json")) or {}
+    opening_source = load_data_json(os.path.join(design, "StoryOpeningTimeline.json")) or {}
+    source_environments = {sid: stage.get("Environment") for sid, stage in (gate_source.get("Stages") or {}).items()}
+    source_environments["second_meet"] = opening_source.get("Environment")
+    for sid, expected in source_environments.items():
+        actual = (data.get("Stages", {}).get(sid) or {}).get("Environment")
+        if expected is not None:
+            issues += environment_issues(expected, "source." + sid + ".Environment")
+        if actual != expected:
+            issues.append({"path": "$.Stages." + sid + ".Environment", "code": "source_mismatch",
+                           "message": "环境与维护源不同，请重跑gen_story_stage_v2.py"})
     for issue in issues[:20]:
         problems.append("stage v2 formal: %s [%s] %s" % (issue["path"], issue["code"], issue["message"]))
     return 1 if not issues else 0
@@ -2573,6 +2798,65 @@ def check_migrated_content(module, problems):
                                 % (node.get("Id"), opt.get("Id"), ", ".join(sorted(missing))))
 
 
+def journal_issues(data, en, cn, cast_ids, shown_keys):
+    errors = []
+    if not isinstance(data, dict) or set(data) != {"Entries"}:
+        return ["journal: root must contain only Entries"]
+    entries = data.get("Entries")
+    if not isinstance(entries, list) or not 1 <= len(entries) <= 64:
+        return ["journal: Entries must contain 1..64 items"]
+    ids = set()
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) - {"Id", "TextKey", "Conditions", "Actors", "SourceTextKey"}:
+            errors.append("journal: unknown entry field")
+            continue
+        eid = entry.get("Id")
+        if not isinstance(eid, str) or not re.fullmatch(r"[a-z0-9_]{1,32}", eid) or eid in ids:
+            errors.append("journal: invalid or duplicate Id " + str(eid))
+        if isinstance(eid, str): ids.add(eid)
+        text_key = entry.get("TextKey")
+        if not isinstance(text_key, str) or not text_key.startswith("LWN_") or text_key not in en or text_key not in cn:
+            errors.append("journal: TextKey missing from both languages " + str(text_key))
+        source = entry.get("SourceTextKey")
+        if source is not None and (not isinstance(source, str) or source not in shown_keys):
+            errors.append("journal: SourceTextKey must be a real dialogue sentence " + str(source))
+        actors = entry.get("Actors", [])
+        if not isinstance(actors, list) or any(not isinstance(a, str) or a not in cast_ids for a in actors):
+            errors.append("journal: invalid Actors")
+        conditions = entry.get("Conditions")
+        if not isinstance(conditions, list):
+            errors.append("journal: Conditions must be explicit")
+            continue
+        for term in conditions:
+            if not isinstance(term, str) or not term.strip():
+                errors.append("journal: invalid condition")
+                continue
+            if term in {"tutorial_lost", "sentence_started", "jail_done", "gate_opened", "goal_reached", "has_commission"}: continue
+            if term.startswith("goal:"):
+                if term[5:] not in {"enter", "asked", "quest", "tool", "done"}: errors.append("journal: unknown goal " + term)
+                continue
+            bare = term.lstrip("!")
+            name, _, arg = bare.partition(":")
+            if ">=" in bare: name, arg = bare.split(">=", 1); name += ">="
+            elif "@" in bare: name, arg = bare.split("@", 1)
+            spec = DLG_PREDICATES.get(name)
+            if spec is None or not spec[1] or (spec[0] and not arg): errors.append("journal: unknown or incomplete condition " + term)
+            if name == "phase" and arg not in {"first_meet", "jail", "second_meet", "done"}: errors.append("journal: unknown phase " + arg)
+    return errors
+
+
+def check_journal(module, problems, en, cn, cast):
+    path = os.path.join(module, "ModuleData", "DesignData", "StoryJournal.json")
+    try:
+        data = json.loads(io.open(path, encoding="utf-8").read(), object_pairs_hook=_dlg_dup_keys)
+    except (ValueError, OSError) as error:
+        problems.append("journal: " + str(error))
+        return
+    shown = {n.get("TextKey") for f in dialogue_paths(module)
+             for n in json.load(io.open(f, encoding="utf-8")).get("Nodes", [])}
+    problems.extend(journal_issues(data, en, cn, {n.get("Id") for n in (cast or {}).get("Npcs", [])}, shown))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--module", default=DEFAULT_MODULE)
@@ -2661,6 +2945,7 @@ def main():
     check_speech_format(module, problems, en, cn)
     check_dialogue_rules(module, problems, en, cn)
     check_migrated_content(module, problems)
+    check_journal(module, problems, en, cn, cast)
 
     for k in sorted(code):
         # 前缀占位形式（以 _ 结尾）跳过 —— 已按 NPC 名单展开

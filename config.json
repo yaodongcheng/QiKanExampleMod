@@ -97,7 +97,7 @@
   //   运行时切换：custom.story_probe enable|disable（本次游戏有效）；
   //               验收：custom.story_probe status / where / dialogue。
   // ══════════════════════════════════════════════════════════════
-  "StoryProbeEnabled": false,
+  "StoryProbeEnabled": true,
   "StoryProbeSettlementId": "town_ES4",
   // ══════════════════════════════════════════════════════════════
   // 顶部罗盘（MCM「显示罗盘」总开关在游戏内 Mod 选项里改，这里只配置任务图标）：

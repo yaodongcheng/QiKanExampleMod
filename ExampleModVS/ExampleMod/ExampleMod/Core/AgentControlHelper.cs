@@ -190,8 +190,24 @@ namespace LivingWorldNpcs
             ActionIndexCache actionCache = ActionIndexCache.Create(actionId);
             if (actionCache != ActionIndexCache.act_none)
             {
+                if (StoryPoseTrace.Any) StoryPoseTrace.Anim(agent, actionId, "SetPose");
                 agent.SetActionChannel(0, actionCache, ignorePriority: false, blendInPeriod: 0.2f);
             }
+        }
+
+        /// <summary>
+        /// **收掉当前姿态、回到自然站姿**（0 号通道置 act_none）。与 <see cref="PerformanceAction.ReleaseBody"/> 同一写法：
+        /// 循环动作不能靠"播完自然停"，必须显式切回 act_none，否则最后一个循环会一直挂着。
+        /// 幂等、只吞异常不抛（agent 已销毁时 SetActionChannel 会崩）。
+        /// </summary>
+        public static void ClearPose(Agent agent)
+        {
+            if (agent == null || !SafeIsActive(agent)) return;
+            try
+            {
+                agent.SetActionChannel(0, ActionIndexCache.act_none, ignorePriority: true, blendInPeriod: 0.2f);
+            }
+            catch (Exception) { }
         }
 
         /// <summary>
@@ -227,6 +243,9 @@ namespace LivingWorldNpcs
 
             ActionIndexCache actionCache = ActionIndexCache.Create(actionId);
             if (actionCache == ActionIndexCache.act_none) return;
+
+            // 表现调试（三层收口之一：动画）。
+            if (StoryPoseTrace.Any) StoryPoseTrace.Anim(agent, actionId, "ForcePlayAction");
 
             // 提前取 agentName，供日志和 catch 块使用（避免在 native 崩溃后还访问 agent.Name）
             string agentName = "?";
@@ -483,6 +502,11 @@ namespace LivingWorldNpcs
                     }
                 }
             }
+
+            // 表现调试（三层收口之一：移动）。
+            if (StoryPoseTrace.Any)
+                StoryPoseTrace.Move(agent, goal, agent.Position.Distance(goal), stopDistance,
+                    "avoid=" + (avoided ? "yes" : "no") + (blocked ? " blocked=yes" : ""));
 
             ScriptedMoveToPoint(agent, goal, run);
 
@@ -776,10 +800,11 @@ namespace LivingWorldNpcs
         ///    "不写 = 保持最后朝向"（飞行工程已实测）⇒ 朝向**归调用方**：
         ///    捆缚 = `GrappleBind`（拉紧/牵绳时写），处决 = 配对动作运行时写。
         /// </summary>
-        public static void HoldInPlace(Agent agent)
+        public static void HoldInPlace(Agent agent, bool resetScriptedMovement = true)
         {
             if (agent == null) return;
-            StopMovement(agent);
+            if (resetScriptedMovement) StopMovement(agent);
+            else agent.MovementInputVector = Vec2.Zero;
             try { agent.SetMaximumSpeedLimit(0f, false); } catch (Exception) { }
         }
 
@@ -1075,6 +1100,8 @@ namespace LivingWorldNpcs
         public static void LookAtAgent(Agent agent, Agent target)
         {
             if (agent == null) return;
+            // 表现调试（转向层收口：注视）。
+            if (StoryPoseTrace.Any) StoryPoseTrace.Turn(agent, StoryProbeDialogue.ResolveNpcId(target) ?? (target == Agent.Main ? "player" : "agent"), "gaze");
             agent.SetLookAgent(target);
         }
         public static void StopLooking(Agent agent)
@@ -1082,6 +1109,24 @@ namespace LivingWorldNpcs
             if (agent == null) return;
             agent.SetLookAgent(null);
         }
+
+        /// <summary>
+        /// **身体朝向的唯一出口（转向层收口，2026-11-16）**：任何"让 NPC 面向某方向"的代码都走这里，
+        /// 不要直接写 `agent.SetMovementDirection`——那样 trace 看不到，出问题只能猜。
+        /// </summary>
+        public static void SetBodyDirection(Agent agent, Vec2 direction)
+        {
+            if (agent == null) return;
+            if (direction.LengthSquared < 1e-6f) return;
+            // 表现调试（转向层收口：身体）。
+            if (StoryPoseTrace.Any)
+            {
+                float deg = MathF.Atan2(direction.y, direction.x) * 180f / MathF.PI;
+                StoryPoseTrace.Turn(agent, "dir(" + deg.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) + "deg)", "body");
+            }
+            agent.SetMovementDirection(direction);
+        }
+
         public static void FaceToActor(Agent turnAgent, Agent targetAgent)
         {
             if (!SafeIsActive(turnAgent) || !SafeIsActive(targetAgent) || turnAgent == targetAgent) return;
@@ -1089,7 +1134,7 @@ namespace LivingWorldNpcs
             Vec2 direction = (targetAgent.Position - turnAgent.Position).AsVec2;
             if (direction.LengthSquared < 0.0001f) return;
             direction.Normalize();
-            turnAgent.SetMovementDirection(direction);
+            SetBodyDirection(turnAgent, direction);
 
         }
 
@@ -1107,8 +1152,107 @@ namespace LivingWorldNpcs
             if (inConversation) flags = speaker.GetScriptedFlags() | Agent.AIScriptedFrameFlags.InConversation;
             speaker.SetScriptedPositionAndDirection(ref position, direction.RotationInRadians, false,
                 flags);
-            FaceToActor(speaker, listener);
             LookAtAgent(speaker, listener);
+        }
+
+        /// <summary>
+        /// 一段身体控制拥有一份记录；不把目标缓存到全局，不跨演出/会话继承。
+        /// 稳定方向只写一次；方向变化至少3°且间隔至少0.25秒才更新，不因动画偏角重建合同。
+        /// 诊断连续采样，不能以某一帧偏角接近零断言没有抖动。
+        /// </summary>
+        public sealed class FacingTracker
+        {
+            private Agent _target;
+            private Vec2 _requestedDirection;
+            private bool _hasRequest;
+            private float _sinceWrite;
+            private float _sampleTime;
+            private Vec3 _targetSamplePosition;
+            private Vec3 _actorSamplePosition;
+            private Vec2 _lastFacing;
+            private bool _hasSample;
+            private float _travelDegrees;
+            private float _targetTravel;
+            private float _actorTravel;
+            private int _lastTurnSign;
+            private int _reversals;
+            private int _writes;
+            private int _modeSwitches;
+            private bool _lastTurnBody;
+
+            public void Tick(Agent actor, Agent target, bool turnBody, bool inConversation, float dt, string owner)
+            {
+                if (!SafeIsActive(actor) || !SafeIsActive(target) || actor == target) return;
+                Vec2 direction = (target.Position - actor.Position).AsVec2;
+                Vec2 facing = actor.Frame.rotation.f.AsVec2;
+                if (direction.LengthSquared < 0.0001f || facing.LengthSquared < 0.0001f) return;
+                direction.Normalize(); facing.Normalize();
+                bool changed = _target != target;
+                if (changed)
+                {
+                    _target = target;
+                    _hasRequest = false;
+                    ResetSample(actor, target, facing);
+                }
+                _sinceWrite += Math.Max(0f, dt);
+                float error = Math.Abs(AngleDegrees(facing, direction));
+                // 合同会持续生效；动画根骨有偏角不等于合同丢失。
+                // 反复按渲染身体偏角重发同一个目标，会重新启动native转身混合。
+                bool write = turnBody && (!_hasRequest
+                    || (_sinceWrite >= 0.25f && Math.Abs(AngleDegrees(_requestedDirection, direction)) >= 3f));
+                if (write)
+                {
+                    HoldFacingActor(actor, target, inConversation);
+                    _requestedDirection = direction;
+                    _hasRequest = true;
+                    _sinceWrite = 0f;
+                    _writes++;
+                }
+                else if (changed) LookAtAgent(actor, target);
+
+                if (!Settings.Instance.ShowPerformanceFacingDebugMessages)
+                {
+                    _hasSample = false;
+                    return;
+                }
+                if (!_hasSample) ResetSample(actor, target, facing);
+                float delta = AngleDegrees(_lastFacing, facing);
+                _travelDegrees += Math.Abs(delta);
+                if (Math.Abs(delta) >= 0.2f)
+                {
+                    int sign = Math.Sign(delta);
+                    if (_lastTurnSign != 0 && _lastTurnSign != sign) _reversals++;
+                    _lastTurnSign = sign;
+                }
+                _lastFacing = facing;
+                _targetTravel = Math.Max(_targetTravel, target.Position.Distance(_targetSamplePosition));
+                _actorTravel = Math.Max(_actorTravel, actor.Position.Distance(_actorSamplePosition));
+                _sampleTime += Math.Max(0f, dt);
+                if (_lastTurnBody != turnBody) _modeSwitches++;
+                if (changed || _sampleTime >= 1f)
+                {
+                    var brain = AgentAIController.GetBrainForAgent(actor);
+                    bool oscillating = _targetTravel < 0.05f && _actorTravel < 0.05f
+                        && _reversals >= 3 && _travelDegrees >= 5f;
+                    DebugLogger.Log(FormattableString.Invariant($"[FacingTrace] owner={owner} actor={actor.Name}#{actor.Index} target={target.Name}#{target.Index} mode={(turnBody ? "body-and-gaze" : "gaze-only")} bodyErrorDeg={error:F1} targetMoveM={_targetTravel:F3} actorMoveM={_actorTravel:F3} bodyTravelDeg={_travelDegrees:F1} reversals={_reversals} bodyWrites={_writes} modeSwitches={_modeSwitches} seconds={_sampleTime:F2} controller={actor.Controller} brainAction={brain?.CurrentAction?.GetType().Name ?? "none"} flags={actor.GetScriptedFlags()} stationaryTargetOscillation={oscillating} actorPos={actor.Position} targetPos={target.Position}"));
+                    ResetSample(actor, target, facing);
+                }
+                _lastTurnBody = turnBody;
+            }
+
+            private void ResetSample(Agent actor, Agent target, Vec2 facing)
+            {
+                _sampleTime = _travelDegrees = _targetTravel = _actorTravel = 0f;
+                _writes = _reversals = _lastTurnSign = _modeSwitches = 0;
+                _targetSamplePosition = target.Position;
+                _actorSamplePosition = actor.Position;
+                _lastFacing = facing;
+                _hasSample = true;
+            }
+
+            private static float AngleDegrees(Vec2 from, Vec2 to)
+                => (float)(Math.Atan2(from.x * to.y - from.y * to.x,
+                    from.x * to.x + from.y * to.y) * 180d / Math.PI);
         }
         public static string GetPartyInfo(Hero targetHero)
         {
@@ -1624,6 +1768,127 @@ namespace LivingWorldNpcs
                 return agent.Name?.ToString() ?? "";
             string name = agent.Name?.ToString() ?? "";
             return string.IsNullOrWhiteSpace(name) ? "" : $"{name}#{agent.Index}";
+        }
+    }
+
+    /// <summary>
+    /// **表现调试探针：转向 / 移动 / 动画 三层各自的唯一收口（2026-11-16）**。
+    ///
+    /// 用法（游戏内控制台，纯 ASCII）：
+    ///   custom.story_probe trace &lt;npcId&gt;   —— 打开某个序章 NPC 的表现调试（例：trace pawnbroker）
+    ///   custom.story_probe trace list        —— 看现在开着谁
+    ///   custom.story_probe trace off         —— 全关
+    ///
+    /// 打开后，这个人的每一次转向 / 移动 / 动画都会写一行 `[Pose]` 到 StoryEngine_RuntimeLog.txt：
+    ///   [Pose] id=pawnbroker idx=1 | Anim act_bartender_wipe (ForcePlayAction)
+    ///   [Pose] id=pawnbroker idx=1 | Move goal=(455.9,415.3) dist=6.2 stop=0.6 avoid=no
+    ///   [Pose] id=pawnbroker idx=1 | Turn body -> player (SetMovementDirection)
+    ///
+    /// 纪律：**没人打开时 `Any` 是 false，三层各只有一次静态字段读**，对战斗/演出性能无影响。
+    /// 三层收口点（改这三处才能保证"看得到全部"）：
+    ///   · 动画 = <see cref="AgentControlHelper.ForcePlayAction(Agent, string, float, float, float, bool)"/> / <see cref="AgentControlHelper.SetPose"/>
+    ///   · 移动 = <see cref="AgentControlHelper.SmartMoveToPoint"/>
+    ///   · 转向 = <see cref="AgentControlHelper.SetBodyDirection"/> / <see cref="AgentControlHelper.LookAtAgent"/> / <see cref="AgentControlHelper.HoldFacingActor"/>
+    /// </summary>
+    public static class StoryPoseTrace
+    {
+        private static readonly HashSet<string> _ids = new HashSet<string>(StringComparer.Ordinal);
+
+        private struct MoveMark
+        {
+            public Vec3 Goal;
+            public float At;
+        }
+        private static readonly Dictionary<Agent, MoveMark> _move = new Dictionary<Agent, MoveMark>();
+        private static readonly Dictionary<Agent, (string Label, float At)> _turn
+            = new Dictionary<Agent, (string Label, float At)>();
+
+        private const float MoveLogMinSeconds = 1.0f;
+        private const float MoveLogMinMeters = 0.3f;
+        private const float TurnLogMinSeconds = 1.0f;
+
+        /// <summary>有人在看吗？三层收口的短路开关。</summary>
+        public static bool Any => _ids.Count > 0;
+
+        public static string Enable(string npcId)
+        {
+            if (string.IsNullOrWhiteSpace(npcId)) return "Error: npc id required.";
+            npcId = npcId.Trim();
+            if (StoryProbeDefs.GetNpc(npcId) == null && StoryProbeDefs.GetStreetLife(npcId) == null)
+                return "Error: unknown npc id '" + npcId + "'. Try: trace list";
+            _ids.Add(npcId);
+            return "OK: pose trace on for " + npcId + " (active: " + Describe() + ")";
+        }
+
+        public static string Disable(string npcId)
+        {
+            if (string.IsNullOrWhiteSpace(npcId)) return "Error: npc id required.";
+            bool removed = _ids.Remove(npcId.Trim());
+            return (removed ? "OK: pose trace off for " : "OK: was not traced: ") + npcId.Trim()
+                + " (active: " + Describe() + ")";
+        }
+
+        public static string Clear()
+        {
+            _ids.Clear();
+            _move.Clear();
+            return "OK: pose trace off (all).";
+        }
+
+        public static string Describe()
+            => _ids.Count == 0 ? "none" : string.Join(",", _ids.OrderBy(x => x, StringComparer.Ordinal));
+
+        public static bool IsOn(Agent agent)
+        {
+            if (_ids.Count == 0 || agent == null) return false;
+            return IsOn(StoryProbeDialogue.ResolveNpcId(agent));
+        }
+
+        public static bool IsOn(string npcId)
+            => _ids.Count > 0 && !string.IsNullOrEmpty(npcId) && _ids.Contains(npcId);
+
+        private static string Label(Agent agent)
+            => "id=" + (StoryProbeDialogue.ResolveNpcId(agent) ?? "?") + " idx=" + agent.Index;
+
+        /// <summary>移动层：同一个目标 0.3 米内、1 秒内不重复打（绕行时不会刷屏）。</summary>
+        public static void Move(Agent agent, Vec3 goal, float dist, float stop, string note)
+        {
+            if (!IsOn(agent)) return;
+            float now = TaleWorlds.Engine.Time.ApplicationTime;
+            if (_move.TryGetValue(agent, out var mark)
+                && now - mark.At < MoveLogMinSeconds
+                && mark.Goal.Distance(goal) < MoveLogMinMeters) return;
+            _move[agent] = new MoveMark { Goal = goal, At = now };
+            if (_move.Count > 256)
+            {
+                foreach (var dead in _move.Keys.Where(a => !AgentControlHelper.SafeIsActive(a)).ToList())
+                    _move.Remove(dead);
+            }
+            DebugLogger.Log($"[Pose] {Label(agent)} | Move goal=({goal.x:F1},{goal.y:F1}) dist={dist:F1} stop={stop:F1} {note}");
+        }
+
+        /// <summary>转向层：mode = body / gaze / frame。同一目标同一模式 1 秒内不重复打（站位帧每 0.25 秒重发一次）。</summary>
+        public static void Turn(Agent agent, string target, string mode)
+        {
+            if (!IsOn(agent)) return;
+            string label = mode + ":" + (target ?? "none");
+            float now = TaleWorlds.Engine.Time.ApplicationTime;
+            if (_turn.TryGetValue(agent, out var mark) && mark.Label == label && now - mark.At < TurnLogMinSeconds)
+                return;
+            _turn[agent] = (label, now);
+            if (_turn.Count > 256)
+            {
+                foreach (var dead in _turn.Keys.Where(a => !AgentControlHelper.SafeIsActive(a)).ToList())
+                    _turn.Remove(dead);
+            }
+            DebugLogger.Log($"[Pose] {Label(agent)} | Turn {mode} -> {target ?? "none"}");
+        }
+
+        /// <summary>动画层。</summary>
+        public static void Anim(Agent agent, string action, string source)
+        {
+            if (!IsOn(agent)) return;
+            DebugLogger.Log($"[Pose] {Label(agent)} | Anim {action} ({source})");
         }
     }
 }

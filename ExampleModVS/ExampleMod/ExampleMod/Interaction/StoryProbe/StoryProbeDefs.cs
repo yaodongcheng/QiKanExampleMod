@@ -104,6 +104,7 @@ namespace LivingWorldNpcs
         public List<string> Listeners = new List<string>(); // 与 LineKeys 平行，真实听话对象
         public string HostNpcId;        // 玩家接入时跟谁谈（= 事件节点所属 NPC）
         public string JoinNode;         // "event_<n>_join"
+        public string Placement = "gather"; // standing = 沿用布局初始点位/方向；gather = 原有聚拢
     }
 
     /// <summary>

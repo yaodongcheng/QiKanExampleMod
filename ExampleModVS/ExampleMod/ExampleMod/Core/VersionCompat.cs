@@ -41,6 +41,7 @@ namespace LivingWorldNpcs
     ///   每次新增版本或改动 API 后，必须核查以下所有位置是否仍需 #if、是否需要增删：
     ///
     ///   [override/abstract] — 基类虚方法签名跨版本不同：
+    ///     PrologueQuest.cs / PrologueJournalQuest：1.2.12重写IsSpecialQuest；1.3+重写SpecialQuestType。
     ///     SafeLordPartyComponent.cs:41        GetDefaultComponentBanner() override
     ///     CustomPartyComponent.cs:42          GetDefaultComponentBanner() override
     ///     AttackTriggerMissionLogic.cs:395    OnRegisterBlow(GameEntity→WeakGameEntity)
@@ -619,6 +620,23 @@ namespace LivingWorldNpcs
 #else
             if (agent.Controller != Agent.ControllerType.None)
                 agent.Controller = Agent.ControllerType.None;
+#endif
+        }
+
+        // ── 对话镜头关注对象（2026-11-17）────────────────────────────
+        // v1.2.12:            SetCurrentFocusedObject(IFocusable, IFocusable, bool)
+        // v1.3.0+（1.3/1.4/1.5）: 多一个 sbyte focusedObjectBoneIndex（传 -1 = 无骨骼索引）
+        // 原版 MissionConversationCameraView 每帧用它把"当前说话人"设成相机关注对象；
+        // 我们自己驱动台词时也要走同一条路，否则 MissionScreen 不会重算构图。
+
+        public static void SetConversationFocus(
+            TaleWorlds.MountAndBlade.View.MissionViews.MissionMainAgentController controller, IFocusable focus)
+        {
+            if (controller == null || focus == null) return;
+#if MB2_GE_130
+            controller.InteractionComponent.SetCurrentFocusedObject(focus, null, -1, true);
+#else
+            controller.InteractionComponent.SetCurrentFocusedObject(focus, null, true);
 #endif
         }
 
@@ -1506,6 +1524,38 @@ namespace LivingWorldNpcs
             if (!CanQueryTerrain(scene)) return false;
             scene.GetTerrainHeightAndNormal(position, out height, out normal);
             return true;
+        }
+
+        /// <summary>1.3+移除了初始化记录的独立TimeOfDay，统一通过AtmosphereOnCampaign传小时。</summary>
+        public static void SetMissionEnvironmentHour(ref MissionInitializerRecord record, float hour)
+        {
+#if !MB2_GE_130
+            record.TimeOfDay = hour;
+#endif
+            record.AtmosphereOnCampaign.TimeInfo.TimeOfDay = hour;
+        }
+
+        // 1.2.12入场创建Scene插值对象；1.3+的Mission初始化不再创建它。
+        // SetFrameForAtmosphere直接解引用该对象，不能靠同名托管API存在来判安全。
+        public static string SceneEnvironmentTimeError
+        {
+            get
+            {
+#if MB2_GE_130
+                return "NO: temporary time/set is unavailable on 1.3+ missions: initialized native atmosphere interpolation is not guaranteed. Use weather/snowcover; entry time still follows JSON.";
+#else
+                return null;
+#endif
+            }
+        }
+
+        public static void RefreshSceneEnvironmentHour(Scene scene, float hour)
+        {
+#if MB2_GE_130
+            throw new InvalidOperationException(SceneEnvironmentTimeError);
+#else
+            MBMapScene.SetFrameForAtmosphere(scene, hour * 10f, scene.LastFinalRenderCameraFrame.origin.z, true);
+#endif
         }
 
         // ── 装备槽上的武器实体帧（1.3.0 返回类型 GameEntity → WeakGameEntity 结构体）──

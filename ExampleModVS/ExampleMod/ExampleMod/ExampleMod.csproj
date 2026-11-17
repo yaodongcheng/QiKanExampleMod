@@ -305,10 +305,14 @@
     <Compile Include="Interaction\StoryProbe\StoryLayoutDefs.cs" />
     <Compile Include="Interaction\StoryProbe\StoryPopulationGuard.cs" />
     <Compile Include="Interaction\StoryProbe\StoryPopulationPatches.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryEnvironment.cs" />
     <Compile Include="Interaction\StoryProbe\StoryLineActions.cs" />
     <Compile Include="Interaction\StoryProbe\StoryGoalHud.cs" />
     <Compile Include="Interaction\StoryProbe\StoryProbeBehavior.cs" />
     <Compile Include="CampaignMode\Tools\StoryProbeCommands.cs" />
+    <Compile Include="CampaignMode\Tools\EnvironmentCommands.cs" />
+    <Compile Include="Core\SceneEnvironment.cs" />
+    <Compile Include="Core\SceneEnvironmentMissionBehavior.cs" />
     <Compile Include="Scenario\ScenarioSchema.cs" />
     <Compile Include="Scenario\ScenarioAttrStore.cs" />
     <Compile Include="Scenario\ScenarioStateStore.cs" />
@@ -334,6 +338,7 @@
     <Compile Include="AI\AiSuspendPatch.cs" />
     <Compile Include="AI\GroupStageManager.cs" />
     <Compile Include="AI\NpcSightSystem.cs" />
+    <Compile Include="AI\NpcPerception.cs" />
     <!-- AgentHUD -->
     <Compile Include="AgentHUD\AgentHudMissionView.cs" />
     <Compile Include="AgentHUD\AgentHudCollectionVM.cs" />

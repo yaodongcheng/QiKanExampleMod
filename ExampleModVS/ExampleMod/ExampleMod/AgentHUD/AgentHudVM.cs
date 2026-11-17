@@ -137,8 +137,12 @@ namespace LivingWorldNpcs
                 {
                     var brain = AgentAIController.GetBrainForAgent(TargetAgent);
                     var intent = brain?.CurrentIntent;
-                    // 空闲意图（None）不算"有内容"：啥也没干的 NPC 不显示意图文本（防满屏"空闲"）
-                    NpcIntentDebugText = (intent != null && intent.Type != NpcIntentType.None) ? intent.ToString() : "";
+                    // 空闲意图（None）不算"有内容"：啥也没干的 NPC 不显示意图文本（防满屏"空闲"）。
+                    // 🔴 2026-11-16 用户裁定：意图为空时改显示"此刻在做什么"（动作名 / 行为），
+                    //    位置不变（名字与冒泡之间那一行）——这样一眼就看得出他是在站桩还是在演。
+                    NpcIntentDebugText = (intent != null && intent.Type != NpcIntentType.None)
+                        ? intent.ToString()
+                        : DescribeCurrentAction(brain);
                 }
                 ShowIntentDebug = Settings.Instance.ShowNpcIntent
                     && !TargetAgent.IsMainAgent
@@ -574,5 +578,52 @@ namespace LivingWorldNpcs
         /// 普通属性（非 [DataSourceProperty]，参照 AlertValue 模式）：由 MissionView 每帧在
         /// AlertValue 之前注入（setter 内部触发 UpdateAlertVisuals）。</summary>
         public bool AlertTargetIsPlayer { get; set; } = true;
+
+        /// <summary>
+        /// 意图为空时显示"此刻在做什么"（2026-11-16 用户裁定：动作名显示在名字与冒泡之间那一行）。
+        /// 纯显示，不参与任何决策。玩家可见文本一律走 LWNTextHelper（铁律 13）；
+        /// 动作名本身是游戏内资源名（act_*），原样显示是有意的——它就是要说清在播哪一段。
+        /// </summary>
+        private static string DescribeCurrentAction(AgentBrain brain)
+        {
+            var action = brain?.CurrentAction;
+            if (action == null) return "";
+            switch (action)
+            {
+                case StreetIdleAction idle:
+                {
+                    string pose = idle.CurrentPose;
+                    if (string.IsNullOrEmpty(pose))
+                        return LWNTextHelper.ResolveText("LWN_hud_act_idle", "Standing by");
+                    // 动作名后面补一句人话（用户看不懂 act_* 的英文名）：
+                    // LWN_actnote_<动作名> 在语言 XML 里；查不到就只显示动作名。
+                    string note = LWNTextHelper.ResolveText("LWN_actnote_" + pose, "");
+                    return string.IsNullOrEmpty(note)
+                        ? LWNTextHelper.ResolveCompound("LWN_hud_act_pose", "Doing: {ACT}", ("ACT", pose))
+                        : LWNTextHelper.ResolveCompound("LWN_hud_act_pose_note", "Doing: {ACT} ({NOTE})",
+                            ("ACT", pose), ("NOTE", note));
+                }
+                case StoryMoveAction _:
+                case MoveToPositionAction _:
+                    return LWNTextHelper.ResolveText("LWN_hud_act_walk", "Walking");
+                case TurnToDirectionAction _:
+                    return LWNTextHelper.ResolveText("LWN_hud_act_turn", "Turning");
+                case FollowAgentAction _:
+                case VanillaFollowAction _:
+                    return LWNTextHelper.ResolveText("LWN_hud_act_follow", "Following");
+                case AlertForceConversationAction _:
+                    return LWNTextHelper.ResolveText("LWN_hud_act_confront", "Confronting");
+                case FightEnemyAction _:
+                    return LWNTextHelper.ResolveText("LWN_hud_act_fight", "Fighting");
+                case PerformanceAction _:
+                    return LWNTextHelper.ResolveText("LWN_hud_act_perform", "Performing");
+                case BoundAction _:
+                case StatusHoldAction _:
+                    return LWNTextHelper.ResolveText("LWN_hud_act_held", "Restrained");
+                default:
+                    // StayAction / PlayAnimAction / 其它：站桩不占那一行，免得每人都挂一句废话
+                    return "";
+            }
+        }
     }
 }

@@ -338,6 +338,11 @@ namespace LivingWorldNpcs
                 }
             }
             PerfProfiler.Accum(PerfSlot.AIC_BrainAll, t0); // perf: AIC_BrainAll
+
+            // 通用感知（2026-11-16）：脚步声 / 视野注视。横切层，不进脑队列，
+            // 所以必须在这里每帧驱动一次（不依赖任何演出/剧情系统在场）。
+            try { NpcPerception.Tick(dt, _brains.Values); }
+            catch (Exception ex) { DebugLogger.Log("[Perception] tick failed: " + ex.Message); }
             if (staleBrains != null)
             {
                 foreach (var idx in staleBrains)

@@ -24,6 +24,7 @@ namespace LivingWorldNpcs
             public string PointId;
             public string Action;
             public Vec3 Pos;
+            public float Facing;
             public int MaxOccupants = 1;
             public float Tolerance = 0.6f;
             public PerformanceAction Lease;
@@ -72,10 +73,8 @@ namespace LivingWorldNpcs
                 if (standing == null || string.IsNullOrEmpty(standing.Point)) continue;
                 var wp = layout.FindPoint(standing.Point);
                 if (wp == null || string.IsNullOrEmpty(wp.Action)) continue;
-                if (wp == null) continue;
-                var prop = layout.FindProp(wp.Prop);
-                if (prop == null) { _reason += "; prop missing for " + wp.Id; continue; }
-                if (_host.Prep == null || !_host.Prep.TryGetPropEntity(prop.Id, out var entity) || entity == null)
+                Vec3 position;
+                if (_host.Prep == null || !_host.Prep.TryGetStandingPosition(standing.Actor, out position))
                 {
                     _reason += "; prop entity missing for " + wp.Id;
                     continue;
@@ -85,7 +84,8 @@ namespace LivingWorldNpcs
                     ActorId = standing.Actor,
                     PointId = wp.Id,
                     Action = wp.Action,
-                    Pos = StoryPrepRunner.WorkPos(entity, prop, wp),
+                    Pos = position,
+                    Facing = wp.Facing,
                     MaxOccupants = Math.Max(1, wp.MaxOccupants),
                     Tolerance = Math.Max(0.05f, wp.ArriveTolerance),
                     State = "idle",
@@ -190,8 +190,11 @@ namespace LivingWorldNpcs
                         continue;
                     }
 
-                    var lease = PerformanceAction.TryAcquire(agent, "story-work-" + slot.PointId, r =>
+                    PerformanceAction lease = null;
+                    lease = PerformanceAction.TryAcquire(agent, "story-work-" + slot.PointId, r =>
                     {
+                        if (slot.Lease == null || !ReferenceEquals(slot.Lease, lease)) return;
+                        AddOccupant(slot.PointId, -1);
                         // 被战斗/捆缚/对话打断：租约自己收走，下一轮按状态恢复。
                         slot.Lease = null;
                         slot.State = "idle";
@@ -207,19 +210,27 @@ namespace LivingWorldNpcs
                     }
                     slot.Lease = lease;
                     AddOccupant(slot.PointId, 1);
-                    slot.State = "working";
-                    slot.Reason = "working at " + slot.PointId;
-                    PlayWorkAction(agent, slot);
-                    slot.NextActionAt = now + 8f;
+                    slot.State = "waiting-control";
+                    slot.Reason = "lease queued at " + slot.PointId;
                     continue;
                 }
 
-                if (slot.Lease.Ended || !slot.Lease.CanControl)
+                if (slot.Lease.Ended)
                 {
                     Release(slot, "lease ended", now);
                     slot.State = "idle";
                     slot.NextTryAt = now + 1f;
                     continue;
+                }
+                if (!slot.Lease.CanControl) continue;
+                if (slot.State == "waiting-control")
+                {
+                    float radians = slot.Facing * (float)Math.PI / 180f;
+                    AgentControlHelper.SetBodyDirection(agent, new Vec2((float)Math.Cos(radians), (float)Math.Sin(radians)));
+                    slot.State = "working";
+                    slot.Reason = "working at " + slot.PointId;
+                    PlayWorkAction(agent, slot);
+                    slot.NextActionAt = now + 8f;
                 }
 
                 if (dist > slot.Tolerance * 3f)
@@ -308,15 +319,17 @@ namespace LivingWorldNpcs
         private void Release(Slot slot, string reason, float now)
         {
             if (slot?.Lease == null) return;
-            try { slot.Lease.Release(reason); } catch { }
+            var lease = slot.Lease;
             slot.Lease = null;
             AddOccupant(slot.PointId, -1);
+            try { lease.Release(reason); } catch (Exception ex) { DebugLogger.Log("[StoryWork] release failed: " + ex.Message); }
             slot.NextActionAt = 0f;
         }
 
         private void PlayWorkAction(Agent agent, Slot slot)
         {
-            if (agent == null || string.IsNullOrEmpty(slot.Action)) return;
+            if (agent == null || string.IsNullOrEmpty(slot.Action) || slot.Lease?.CanControl != true) return;
+            if (AgentControlHelper.IsPlayingPose(agent, slot.Action)) return;
             try { AgentControlHelper.ForcePlayAction(agent, slot.Action, restoreAfter: false); }
             catch (Exception ex) { DebugLogger.Log("[StoryWork] action failed: " + ex.Message); }
         }

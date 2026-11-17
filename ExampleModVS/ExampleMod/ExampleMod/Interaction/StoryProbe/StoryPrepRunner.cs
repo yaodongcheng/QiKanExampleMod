@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -26,6 +26,10 @@ namespace LivingWorldNpcs
         private readonly HashSet<string> _requiredProps = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> _requiredActors = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> _placed = new HashSet<string>(StringComparer.Ordinal);
+        public Dictionary<string, Vec3> ResolvedAnchors { get; private set; }
+        public StoryLayoutDef Layout => _layout;
+        public bool IsAnchorResolved(string id) => id == "player" || _results.TryGetValue("anchor:" + id, out var result)
+            && result.StartsWith("ok", StringComparison.Ordinal);
         private bool _skipRequested;
         private StoryStageDef _stage;
         private StoryLayoutDef _layout;
@@ -69,6 +73,7 @@ namespace LivingWorldNpcs
             _failed = false;
             _reason = "";
             _props.Clear();
+            ResolvedAnchors = null;
             _standPos.Clear();
             _results.Clear();
             _requiredProps.Clear();
@@ -114,10 +119,24 @@ namespace LivingWorldNpcs
 
         private void Materialize()
         {
-            var anchors = ResolveAnchors();
+            var anchors = ResolveAnchors(_host, _layout, _results, _props);
             SpawnProps(anchors);
+            anchors = ResolveAnchors(_host, _layout, _results, _props);
+            ResolvedAnchors = anchors;
             SpawnAndPlaceActors(anchors);
             _spawnPending = false;
+            // 锚点总表（2026-11-17）：一眼看出"每个语义位实际落在场景哪一点/有没有命中"，
+            // 排查"守卫不在门口""道具长错地方"不用再猜。
+            try
+            {
+                var sb = new System.Text.StringBuilder("[StoryPrep] anchors:");
+                foreach (var kv in anchors)
+                    sb.Append(' ').Append(kv.Key).Append("=(")
+                      .Append(kv.Value.x.ToString("F1")).Append(',')
+                      .Append(kv.Value.y.ToString("F1")).Append(')');
+                DebugLogger.Log(sb.ToString());
+            }
+            catch (Exception) { }
             DebugLogger.Log("[StoryPrep] begin stage=" + _stageId + " props=" + _props.Count
                             + " actors=" + _standPos.Count + " results=" + _results.Count);
             EvaluateReadiness();
@@ -191,83 +210,85 @@ namespace LivingWorldNpcs
         ///   —— 2026-11-16 实机：第二次进城 prep 因 `gate_entity` 判缺失而整场取消，就是这一步没兜底）；
         /// ③ 再退到 tag 同名。
         /// </summary>
-        private static GameEntity FindSceneEntity(Scene scene, string name)
+        private static GameEntity FindSceneEntity(Scene scene, string name, Vec3 origin, bool nearest)
         {
             if (scene == null || string.IsNullOrWhiteSpace(name)) return null;
-            try { var e = scene.FindEntityWithName(name); if (e != null) return e; } catch { }
+            var matches = new List<GameEntity>();
+            try { var e = scene.FindEntityWithName(name); if (e != null) matches.Add(e); } catch { }
+
+            // 🔴 2026-11-17 实机修复：原先用 `GetRootEntities` + 手写递归遍历，任何一处抛异常都被外层
+            //    catch 吞掉 ⇒ 扫描半途而废，结果"场景里明明有 empire_castle_gate_outer_l2（坐标
+            //    (427.959, 422.201, 72.962)，带 CastleGate 脚本）却报 anchor 未命中"。
+            //    改用引擎自带的 `Scene.GetEntities`（一次拿全量，不依赖父子递归），并把扫描条数写进日志，
+            //    这样"未命中"才可信 —— 是"真没有"还是"没扫到"一眼能分。
+            int scanned = 0;
             try
             {
-                var roots = NativeObjectArray.Create();
-                scene.GetRootEntities(roots);
-                foreach (NativeObject obj in roots)
+                var all = new List<GameEntity>();
+                scene.GetEntities(ref all);
+                scanned = all.Count;
+                foreach (var e in all)
                 {
-                    if (!(obj is GameEntity root)) continue;
-                    var hit = FindByPrefabRecursive(root, name, 0);
-                    if (hit != null) return hit;
+                    if (e == null) continue;
+                    string prefab = null, assigned = null;
+                    try { prefab = e.GetPrefabName(); } catch { }
+                    try { assigned = e.Name; } catch { }
+                    // 两个名字都要认：展开后的 prefab 实例 `GetPrefabName()` 常为空，`entity.Name` 才是引擎给的默认名。
+                    if (string.Equals(prefab, name, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(assigned, name, StringComparison.OrdinalIgnoreCase)) matches.Add(e);
+                    if (_prefabProbe.Count < 12 && !string.IsNullOrEmpty(assigned)) _prefabProbe.Add(assigned);
                 }
             }
-            catch { }
+            catch (Exception ex) { DebugLogger.Log("[StoryPrep] scene scan failed: " + ex.Message); }
+            _prefabScanCount = scanned;
+
             try
             {
                 var list = scene.FindEntitiesWithTag(name);
                 if (list != null)
                     foreach (var e in list)
-                        if (e != null) return e;
+                        if (e != null) matches.Add(e);
             }
             catch { }
-            return null;
+            return nearest ? matches.OrderBy(e => e.GlobalPosition.Distance(origin)).FirstOrDefault() : matches.FirstOrDefault();
         }
 
-        private static GameEntity FindByPrefabRecursive(GameEntity entity, string name, int depth)
-        {
-            if (entity == null || depth > 6) return null;
-            // 🔴 两个名字都要认（2026-11-16 实机）：`GetPrefabName()` 对"场景加载后被展开的 prefab 实例"
-            //    常常返回空，而 `entity.Name` 才是引擎给实例的默认名（`StealManager` 找储物道具用的就是它）。
-            //    只比 GetPrefabName 会让 `gate_entity` 这类锚点永远 missing。
-            string prefab = null, assigned = null;
-            try { prefab = entity.GetPrefabName(); } catch { }
-            try { assigned = entity.Name; } catch { }
-            if (string.Equals(prefab, name, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(assigned, name, StringComparison.OrdinalIgnoreCase)) return entity;
-            if (_prefabProbe.Count < 12 && !string.IsNullOrEmpty(assigned)) _prefabProbe.Add(assigned);
-            int children = 0;
-            try { children = entity.ChildCount; } catch { }
-            for (int i = 0; i < children; i++)
-            {
-                GameEntity child = null;
-                try { child = entity.GetChild(i); } catch { }
-                var hit = FindByPrefabRecursive(child, name, depth + 1);
-                if (hit != null) return hit;
-            }
-            return null;
-        }
+        /// <summary>上一次全场景扫描的实体条数（0 = 扫描没跑起来，别把"未命中"当成"场景没有"）。</summary>
+        private static int _prefabScanCount;
 
         /// <summary>首次查找失败时把扫到的实体名样本写进日志，省得再猜一轮。</summary>
         private static readonly List<string> _prefabProbe = new List<string>();
 
-        private Dictionary<string, Vec3> ResolveAnchors()
+        public static Dictionary<string, Vec3> ResolveAnchors(StoryProbeMissionBehavior host, StoryLayoutDef layout, Dictionary<string, string> results = null,
+            IDictionary<string, GameEntity> props = null)
         {
+            results ??= new Dictionary<string, string>();
             var anchors = new Dictionary<string, Vec3>(StringComparer.Ordinal)
             {
-                ["player"] = _host.PlayerAnchor
+                ["player"] = host.PlayerAnchor
             };
             var scene = Mission.Current?.Scene;
-            foreach (var kv in _layout.Anchors)
+            foreach (var kv in layout.Anchors)
             {
                 var def = kv.Value;
                 if (def == null) continue;
                 if (string.Equals(def.Source, "player", StringComparison.OrdinalIgnoreCase))
                 {
-                    anchors[kv.Key] = _host.PlayerAnchor;
-                    _results["anchor:" + kv.Key] = "ok (player)";
+                    anchors[kv.Key] = host.PlayerAnchor;
+                    results["anchor:" + kv.Key] = "ok (player)";
                     continue;
                 }
                 GameEntity found = null;
-                if (string.Equals(def.Source, "entity", StringComparison.OrdinalIgnoreCase))
+                if (def.Source == "prop")
+                {
+                    if (def.Value.Length == 1 && props != null) props.TryGetValue(def.Value[0], out found);
+                }
+                else if (string.Equals(def.Source, "entity", StringComparison.OrdinalIgnoreCase))
                 {
                     foreach (string name in def.Value ?? new string[0])
                     {
-                        found = FindSceneEntity(scene, name);
+                        found = FindSceneEntity(scene, name, host.PlayerAnchor,
+                            string.Equals(def.Pick, "nearestToPlayer", StringComparison.OrdinalIgnoreCase));
                         if (found != null) break;
                     }
                 }
@@ -280,7 +301,7 @@ namespace LivingWorldNpcs
                         if (list == null) continue;
                         if (string.Equals(def.Pick, "nearestToPlayer", StringComparison.OrdinalIgnoreCase))
                             found = list.Where(e => e != null)
-                                        .OrderBy(e => e.GlobalPosition.Distance(_host.PlayerAnchor))
+                                        .OrderBy(e => e.GlobalPosition.Distance(host.PlayerAnchor))
                                         .FirstOrDefault();
                         else
                             found = list.FirstOrDefault(e => e != null);
@@ -291,31 +312,44 @@ namespace LivingWorldNpcs
                 if (found != null)
                 {
                     anchors[kv.Key] = found.GlobalPosition;
-                    _results["anchor:" + kv.Key] = "ok (" + def.Source + ")";
+                    results["anchor:" + kv.Key] = "ok (" + def.Source + ")";
                 }
                 else
                 {
-                    anchors[kv.Key] = _host.PlayerAnchor;
-                    _results["anchor:" + kv.Key] = def.Required ? "missing" : "optional-missing";
+                    anchors[kv.Key] = host.PlayerAnchor;
+                    results["anchor:" + kv.Key] = def.Required ? "missing" : "optional-missing";
                     // 缺锚点时把扫到的实体名样本写出来 —— 一眼就能看出是"名字对不上"还是"压根没扫到"。
                     if (string.Equals(def.Source, "entity", StringComparison.OrdinalIgnoreCase))
                         DebugLogger.Log($"[StoryPrep] anchor '{kv.Key}' 未命中 [{(def.Value == null ? "" : string.Join("|", def.Value))}]"
-                            + "；场景实体名样本: " + (_prefabProbe.Count == 0 ? "(扫描为空)" : string.Join(", ", _prefabProbe)));
+                            + "；已扫描实体=" + _prefabScanCount
+                            + "，样本: " + (_prefabProbe.Count == 0 ? "(扫描为空)" : string.Join(", ", _prefabProbe)));
                 }
             }
             // 与 v1 台本/老锚点语义对齐：`gate` = 守门人位（BlockerPos），不是门洞中心。
-            anchors["gate"] = _host.BlockerPos;
-            anchors["gate_inner"] = _host.GoalPos;
-            anchors["player"] = _host.PlayerAnchor;
+            if (!anchors.ContainsKey("gate")) anchors["gate"] = host.BlockerPos;
+            if (!anchors.ContainsKey("gate_inner")) anchors["gate_inner"] = host.GoalPos;
+            anchors["player"] = host.PlayerAnchor;
             return anchors;
         }
 
-        private Vec3 PointPos(Dictionary<string, Vec3> anchors, StoryPoint p)
+        public static Vec3 PointPos(StoryProbeMissionBehavior host, Dictionary<string, Vec3> anchors, StoryPoint p,
+            GameEntity propEntity = null)
         {
-            if (p == null) return _host.PlayerAnchor;
-            Vec3 origin = _host.PlayerAnchor;
+            if (p?.HasAbsolute == true) return new Vec3(p.Absolute[0], p.Absolute[1], p.Absolute[2]);
+            if (p == null) return host.PlayerAnchor;
+            Vec3 origin = host.PlayerAnchor;
             if (!string.IsNullOrEmpty(p.Anchor) && anchors.TryGetValue(p.Anchor, out var a)) origin = a;
-            var f = _host.Forward;
+            var f = host.Forward;
+            // 道具锚点的偏移跟随实体朝向；场景/玩家锚点保持入场基准。
+            if (propEntity == null && !string.IsNullOrEmpty(p.Anchor) && host.Prep?.Layout?.Anchors.TryGetValue(p.Anchor, out var anchor) == true
+                && anchor.Source == "prop" && anchor.Value.Length == 1
+                && host.Prep.TryGetPropEntity(anchor.Value[0], out var preparedProp))
+                propEntity = preparedProp;
+            if (propEntity != null)
+            {
+                var propForward = propEntity.GetGlobalFrame().rotation.f.AsVec2;
+                if (propForward.LengthSquared > 0.0001f) { propForward.Normalize(); f = propForward; }
+            }
             return origin
                    + new Vec3(f.x, f.y, 0f) * p.Fwd
                    + new Vec3(f.y, -f.x, 0f) * p.Right
@@ -352,7 +386,7 @@ namespace LivingWorldNpcs
                 }
                 try
                 {
-                    Vec3 pos = PointPos(anchors, prop.Place);
+                    Vec3 pos = PointPos(_host, anchors, prop.Place);
                     float requestedZ = pos.z;
                     if (prop.Support == "ground")
                     {
@@ -414,8 +448,18 @@ namespace LivingWorldNpcs
                 try
                 {
                     agent.TeleportToPosition(pos);
+                    // 普通地面点位的 Z 由原生贴地决定，不能把玩家入场高度当作所有岗位的地面。
+                    // 道具/平台锚点保留目标高度，让 EvaluateReadiness 继续核实实际支撑。
+                    var point = _layout.FindPoint(standing?.Point);
+                    bool propSupported = !string.IsNullOrEmpty(point?.Prop)
+                        || (!string.IsNullOrEmpty(point?.Place?.Anchor)
+                            && _layout.Anchors.TryGetValue(point.Place.Anchor, out var anchor)
+                            && anchor?.Source == "prop");
+                    if (!propSupported)
+                        _standPos[actor] = new Vec3(pos.x, pos.y, agent.Position.z);
                     _placed.Add(actor);
-                    _results["actor:" + actor] = "ok at " + pos.ToString();
+                    _results["actor:" + actor] = "ok at " + _standPos[actor].ToString();
+                    DebugLogger.Log($"[StoryPrep] actor placed: id={actor} requested={pos} standing={_standPos[actor]} actual={agent.Position} support={(propSupported ? "prop" : "ground")}");
                 }
                 catch (Exception ex)
                 {
@@ -437,7 +481,7 @@ namespace LivingWorldNpcs
             }
             return pt.Place.HasAbsolute
                 ? new Vec3(pt.Place.Absolute[0], pt.Place.Absolute[1], pt.Place.Absolute[2])
-                : PointPos(anchors, pt.Place);
+                : PointPos(_host, anchors, pt.Place);
         }
 
         /// <summary>工作点站位 = 家具位置 + 按家具朝向旋转的侧向偏移。</summary>
@@ -500,6 +544,22 @@ namespace LivingWorldNpcs
                 return a != null && AgentControlHelper.SafeIsActive(a) && a.Health > 0f
                        && AgentAIController.GetBrainForAgent(a) != null;
             });
+            // 原生脚底实测偏离工作点时不能冒充摆位成功，尤其是有高度的戏台。
+            bool supportOk = _requiredActors.All(id =>
+            {
+                var agent = _host.GetAgent(id);
+                if (agent == null || !_standPos.TryGetValue(id, out var desired)) return false;
+                var point = _layout.FindPoint(_layout.Standing.FirstOrDefault(s => s.Actor == id)?.Point);
+                if (!string.IsNullOrEmpty(point?.Place?.Anchor) && _layout.Anchors.ContainsKey(point.Place.Anchor)
+                    && !IsAnchorResolved(point.Place.Anchor))
+                { _results["support:" + id] = "anchor_unresolved:" + point.Place.Anchor; return false; }
+                if (point == null || string.IsNullOrEmpty(point.Place.Anchor)
+                    || !_layout.Anchors.TryGetValue(point.Place.Anchor, out var anchor) || anchor.Source != "prop") return true;
+                float error = Math.Abs(agent.Position.z - desired.z);
+                _results["support:" + id] = (error <= 0.20f ? "ok" : "footing_mismatch")
+                    + " targetZ=" + desired.z.ToString("F2") + " actualZ=" + agent.Position.z.ToString("F2");
+                return error <= 0.20f;
+            });
             // R7 支撑/空间：道具 support/footprint 合法；演员站位之间不重叠
             bool spaceOk = true;
             foreach (var prop in _layout.Props)
@@ -518,7 +578,7 @@ namespace LivingWorldNpcs
                         { spaceOk = false; break; }
             }
 
-            if (anchorsOk && propsOk && actorsOk && placedOk && controlOk && spaceOk)
+            if (anchorsOk && propsOk && actorsOk && placedOk && controlOk && spaceOk && supportOk)
             {
                 _ready = true;
                 DebugLogger.Log("[StoryPrep] ready stage=" + _stageId + " elapsed=" + _elapsed.ToString("F1"));
@@ -531,7 +591,7 @@ namespace LivingWorldNpcs
                 _reason = "timeout after " + _elapsed.ToString("F1") + "s"
                         + " anchorsOk=" + anchorsOk + " propsOk=" + propsOk
                         + " actorsOk=" + actorsOk + " placedOk=" + placedOk
-                        + " controlOk=" + controlOk + " spaceOk=" + spaceOk
+                        + " controlOk=" + controlOk + " spaceOk=" + spaceOk + " supportOk=" + supportOk
                         + " skipRequested=" + _skipRequested
                         // 失败时把每个锚点的解算结果打出来（缺哪个一眼可见，不用再猜）
                         + " | anchors: " + string.Join(", ", _layout.Anchors.Keys.Select(k =>

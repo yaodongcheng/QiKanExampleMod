@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -22,10 +22,10 @@ namespace LivingWorldNpcs
         private static readonly HashSet<string> Known =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "enable", "disable", "city", "status", "enter", "intro", "phase", "where", "spawn",
+                "enable", "disable", "city", "status", "crime", "quests", "enter", "intro", "phase", "where", "spawn",
                 "check", "roll", "learn", "resolve", "strip", "restore", "reset", "talk", "goal",
                 "life", "event", "dialogue", "goto", "abort", "money", "stage", "atom", "action", "reload", "hud",
-                "script", "population", "layout", "intercept", "work", "group", "persona", "gate", "help",
+                "script", "population", "layout", "intercept", "work", "group", "persona", "gate", "trace", "scene", "environment", "help",
             };
 
         [CommandLineFunctionality.CommandLineArgumentFunction("story_probe", "custom")]
@@ -69,6 +69,21 @@ namespace LivingWorldNpcs
                              + " || mission=" + (StoryProbeMissionBehavior.Current?.Active == true
                                  ? "active(" + StoryProbeMissionBehavior.Current.Phase + ")"
                                  : "none");
+
+                    case "quests":
+                        return PrologueQuestLauncher.Describe();
+
+                    case "environment":
+                        return EnvironmentCommands.Execute(args.Skip(used).ToList());
+
+                    case "crime":
+                    {
+                        string townId = StoryProbeState.Data.StorySettlementId;
+                        var town = Settlement.Find(string.IsNullOrEmpty(townId) ? StoryProbeSettings.SettlementId : townId);
+                        var faction = town?.MapFaction;
+                        return faction == null ? "NO: story town faction unavailable."
+                            : FormattableString.Invariant($"OK: faction={faction.StringId} crimeRating={faction.MainHeroCrimeRating:F2}; sentence: {PlayerDetentionBehavior.DescribeSentence(StoryProbeState.Data.DetentionOwnerId)}");
+                    }
 
                     case "enter":
                         StoryProbeBehavior.EnterTownCenter();
@@ -329,6 +344,39 @@ namespace LivingWorldNpcs
                     case "life":
                         return HandleLife(Arg(args, used, 0), Arg(args, used, 1), Arg(args, used, 2));
 
+                    case "trace":
+                    {
+                        // Presentation trace (three layers: turn / move / anim). ASCII only, npc id only.
+                        //   custom.story_probe trace pawnbroker   -> on for that npc
+                        //   custom.story_probe trace list         -> who is traced
+                        //   custom.story_probe trace off          -> all off
+                        string a = (Arg(args, used, 0) ?? "").Trim();
+                        if (string.IsNullOrEmpty(a))
+                        {
+                            var ids = new List<string>();
+                            foreach (var n in StoryProbeDefs.Npcs) ids.Add(n.Id);
+                            return "Usage: custom.story_probe trace <npcId> | trace list | trace off. ids: "
+                                   + string.Join(",", ids);
+                        }
+                        if (a.Equals("off", StringComparison.OrdinalIgnoreCase)) return StoryPoseTrace.Clear();
+                        if (a.Equals("list", StringComparison.OrdinalIgnoreCase))
+                            return "OK: pose trace active = " + StoryPoseTrace.Describe();
+
+                        // Tolerant first arg: a bare number is read as the agent index shown in the log (Idx=N).
+                        if (int.TryParse(a, out int agentIndex))
+                        {
+                            foreach (var kv in StoryProbeMissionBehavior.Current?.AllAgents
+                                     ?? new List<KeyValuePair<string, Agent>>())
+                            {
+                                if (kv.Value != null && kv.Value.Index == agentIndex)
+                                    return StoryPoseTrace.Enable(kv.Key);
+                            }
+                            return "Error: no story npc with agent index " + agentIndex
+                                   + " (try custom.story_probe trace list).";
+                        }
+                        return StoryPoseTrace.Enable(NormalizeNpcArg(a));
+                    }
+
                     case "stage":
                         return HandleStage(Arg(args, used, 0), Arg(args, used, 1), Arg(args, used, 2), Arg(args, used, 3));
 
@@ -373,8 +421,11 @@ namespace LivingWorldNpcs
                         StoryStageDefs.ClearCache();
                         // P0-D.5：新格式对话定义（*.dialog.json）整批重载；坏文件保留旧版
                         string dialogueReload = StoryDialogueLoader.ReloadAll();
+                        string journalReload = PrologueJournalQuest.Reload();
+                        StoryV2Data.Reload();
                         return $"OK: reloaded StoryProbeCast/Tuning/Stage/Dialogues -- npcs={StoryProbeDefs.Npcs.Count} " +
-                               $"events={StoryProbeDefs.Events.Count}; dialogue defs: {dialogueReload}; run 'stage begin' to replay.";
+                               $"events={StoryProbeDefs.Events.Count}; dialogue defs: {dialogueReload}; {journalReload}; layout rules: {StoryV2Data.Report}; " +
+                               "active dialogue sessions retain their definitions; deferred layouts require reload on the map before the next entry.";
 
                     case "action":
                     {
@@ -400,6 +451,10 @@ namespace LivingWorldNpcs
 
                     case "layout":
                         return HandleLayout(Arg(args, used, 0));
+
+                    case "scene":
+                        // 场景实体清单：锚点（gate_entity / guard_spawn）找不到时，直接在游戏里看场景里有什么。
+                        return HandleScene(Arg(args, used, 0), Arg(args, used, 1));
 
                     case "intercept":
                         return HandleIntercept(Arg(args, used, 0));
@@ -531,7 +586,7 @@ namespace LivingWorldNpcs
             {
                 case "list":
                     return "OK: " + string.Join(" ; ", StoryProbeDefs.Events.Select(e =>
-                        $"#{e.Index} {e.ActorA}{(e.TwoPerson ? "+" + e.ActorB : "")} host={e.HostNpcId} node={e.JoinNode}"));
+                        $"#{e.Index} {e.ActorA}{(e.TwoPerson ? "+" + e.ActorB : "")} host={e.HostNpcId} node={e.JoinNode} placement={e.Placement}"));
 
                 case "force":
                 {
@@ -898,6 +953,71 @@ namespace LivingWorldNpcs
         // P3/P4 诊断（2026-11-15）：布局 / 岗位选人 / 工作点 / 群组
         // ═══════════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// **场景实体清单**（2026-11-17）：锚点（`gate_entity` / `guard_spawn`）在场景里找不到时，
+        /// 用它直接在游戏里看"这个场景到底有哪些实体、名字叫什么、带什么 tag、在哪个坐标"。
+        /// 用法：`custom.story_probe scene list [filter]` —— 过滤词同时匹配 实体名 / prefab 名 / tag。
+        /// 全部实体写进模块的 `Debug\scene_entities.txt`（制表符分隔，可直接用 Excel 打开），
+        /// 控制台只回"总数 + 匹配数 + 前 12 条"，避免刷屏。
+        /// 只读：不移动、不生成、不改配置/剧情/财物。
+        /// </summary>
+        private static string HandleScene(string action, string arg)
+        {
+            string sub = (action ?? "").Trim().ToLowerInvariant();
+            if (sub.Length > 0 && sub != "list" && sub != "find")
+                return "Usage: custom.story_probe scene list [filter]";
+
+            var scene = Mission.Current?.Scene;
+            if (scene == null) return "Error: no mission scene (enter the town center first).";
+
+            var entities = new List<TaleWorlds.Engine.GameEntity>();
+            try { scene.GetEntities(ref entities); }
+            catch (Exception ex) { return "Error: cannot enumerate scene entities: " + ex.Message; }
+
+            string filter = (arg ?? "").Trim();
+            bool Match(string s) => !string.IsNullOrEmpty(s)
+                && s.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
+
+            var lines = new List<string> { "name\tprefab\tx,y,z\ttags" };
+            var preview = new List<string>();
+            int matched = 0;
+            foreach (var e in entities)
+            {
+                if (e == null) continue;
+                string name = "", prefab = "";
+                string[] tags = new string[0];
+                Vec3 pos = Vec3.Zero;
+                try { name = e.Name ?? ""; } catch { }
+                try { prefab = e.GetPrefabName() ?? ""; } catch { }
+                try { tags = e.Tags ?? new string[0]; } catch { }
+                try { pos = e.GlobalPosition; } catch { }
+
+                if (filter.Length > 0 && !(Match(name) || Match(prefab) || tags.Any(Match))) continue;
+                matched++;
+                lines.Add(name + "\t" + prefab + "\t"
+                          + pos.x.ToString("F1") + "," + pos.y.ToString("F1") + "," + pos.z.ToString("F1")
+                          + "\t" + string.Join(" ", tags));
+                if (preview.Count < 12) preview.Add(name + (prefab.Length == 0 ? "" : "[" + prefab + "]"));
+            }
+
+            string file;
+            try
+            {
+                string dllPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string moduleRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(dllPath), "..", ".."));
+                string debugDir = Path.Combine(moduleRoot, "Debug");
+                if (!Directory.Exists(debugDir)) Directory.CreateDirectory(debugDir);
+                file = Path.Combine(debugDir, "scene_entities.txt");
+                File.WriteAllText(file, string.Join(Environment.NewLine, lines), new System.Text.UTF8Encoding(false));
+            }
+            catch (Exception ex) { return "Error: cannot write dump: " + ex.Message; }
+
+            string head = preview.Count == 0
+                ? "(none)"
+                : string.Join(" ; ", preview) + (matched > preview.Count ? " ..." : "");
+            return "OK: entities=" + entities.Count + " matched=" + matched + " file=" + file + " ; " + head;
+        }
+
         private static string HandleLayout(string a0)
         {
             string sub = (a0 ?? "").Trim().ToLowerInvariant();
@@ -1058,7 +1178,7 @@ namespace LivingWorldNpcs
                 return "Usage: custom.story_probe group status";
             var host = StoryProbeMissionBehavior.Current;
             if (host == null) return "OK: no active story mission.";
-            return host.Director?.Describe() ?? "Error: director not created yet.";
+            return (host.Director?.Describe() ?? "Street groups inactive.") + "\nGuard groups:\n" + (host.Posts?.Describe() ?? "none");
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -1300,14 +1420,14 @@ namespace LivingWorldNpcs
 
         private static string HelpText()
         {
-            return "custom.story_probe <sub> -- subs: enable | disable | city [id] | status | enter | intro | " +
+            return "custom.story_probe <sub> -- subs: enable | disable | city [id] | status | crime | quests | enter | intro | " +
                    "phase first|second | where | persona [actorId] | spawn | check <ability> | roll <ability> <0-100> | " +
                    "learn <ability> | resolve <ability> | strip | restore | reset | talk <npc> | goal <0..4> | " +
                    "gate [grant|revoke] | " +
-                   "life status|list|force|say <speaker> <listener>|facing <npc>|release <npc>|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +
+                   "life debug on|off|status|list|force|say <speaker> <listener>|facing <npc>|release <npc>|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +
                    "stage list|only <n>|begin|skip|reload|status|anchor | atom <name> <args> | action <npc> <act> | " +
                    "script list|status|validate [file] | population status|verify | " +
-                   "layout list|verify|snapshot|prep|lint-file | intercept status | work status|list|force <npc> | group status | reload | help";
+                   "layout list|verify|snapshot|prep|lint-file | environment status|time|weather|snowcover|set|reset|help | intercept status | work status|list|force <npc> | group status | reload | help";
         }
     }
 }
