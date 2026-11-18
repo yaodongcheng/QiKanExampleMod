@@ -4,6 +4,9 @@
     <tag language="English" />
   </tags>
   <strings>
+    <string id="LWN_facing_trace_call" text="[Facing API] {NPC}: {DETAIL}" />
+    <string id="LWN_facing_trace_sample" text="[Facing sample] {NPC}: {DETAIL}" />
+    <string id="LWN_facing_trace_overflow" text="[Facing trace limits] {NPC}: {DETAIL}" />
     <string id="LWN_performance_facing_debug" text="[Performance debug] {SPEAKER} -> {LISTENER}: body turn and gaze requested; body error {ANGLE} degrees (0 = facing the listener)." />
     <string id="LWN_dialogue_facing_debug" text="[Dialogue debug] {SPEAKER} -> {LISTENER}: body error {ANGLE} degrees (0 = facing the listener); gaze requested." />
     <string id="LWN_performance_cone_debug" text="[Performance debug] {SPEAKER} -> {LISTENER}: {MODE}; body error {ANGLE} degrees; gaze requested." />

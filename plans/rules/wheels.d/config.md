@@ -164,8 +164,10 @@ GameDatabase.LoadTablesFromPath(path);        // 内容包注入入口（TaikouC
 ## 日志 — `Debug/DebugLogger.cs`
 
 ```csharp
-DebugLogger.Log("消息");   // 线程安全，落盘到 Configs/StoryEngine_RuntimeLog.txt
+DebugLogger.Log("消息");   // 线程安全，落盘到模块根 Debug/StoryEngine_RuntimeLog.txt
 ```
+
+`Debug/DisplayMessageLoggerPatch.cs`为已有屏幕消息镜像（2026-11-18恢复）：Harmony Postfix监听`InformationManager.DisplayMessage(InformationMessage)`，以`[DisplayMessage]`保存本地化后的消息原文；不改显示、不依赖ShowDebugMessages，不用会被`InformationManager.Clear()`清掉的事件订阅。`[Cmd]`只记录控制台调用，不能替代屏幕消息镜像。历史加入`f4c37bf8`、瘦身删除`deed8dc6`；排查消息漏日志时先确认该文件仍登记csproj及补丁未禁用。
 
 
 ---

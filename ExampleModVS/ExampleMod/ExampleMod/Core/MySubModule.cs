@@ -47,6 +47,7 @@ namespace LivingWorldNpcs
 
             //harmony测试，屏蔽掉F的交互
             var harmony = new Harmony("com.ydc.LivingWorldNpcs");
+            AgentFacingTrace.Install(); // 无目标时短路；启动期挂载，防设置方法提前内联后漏诊。
 
             // ── 🔴🔴 临时诊断（2026-09-23）：逐类挂载，替代 harmony.PatchAll() ——
             //   ① config.json 的 DisabledPatchClasses（逗号分隔类名）里的补丁类**不挂** →

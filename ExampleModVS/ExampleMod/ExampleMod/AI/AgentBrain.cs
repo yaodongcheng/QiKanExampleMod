@@ -1639,6 +1639,7 @@ namespace LivingWorldNpcs
             bool hadActions = _currentAction != null || _actionQueue.Count > 0;
             DebugLogger.Log($"[Brain-Clear] {Owner.Name}(Idx={Owner.Index}) 清空动作 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | hadActions={hadActions}");
 
+            NpcPerception.ReleaseGaze(Owner);
             if (_currentAction != null) _currentAction.OnEnd(Owner);
             // 排队尚未 OnStart 的动作没有 OnEnd：分别撤销租约和拦问回执，不能悬空。
             _performance?.Finish("queue-cleared");
@@ -1675,6 +1676,7 @@ namespace LivingWorldNpcs
         /// 🔴 **它关的是"哪一半"要说清楚**（2026-10-09 补注；名字容易让人以为它管的是"整个原版 AI"）：
         /// 这里动的是 **SandBox 的日常行为层**（`AgentNavigator` / `DailyBehaviorGroup` —— 逛荡、巡逻、坐椅子、
         /// 用物件）+ 一个 Harmony 前缀（<see cref="AiSuspendPatch"/>）拦住 `RefreshBehaviorGroups` 每秒复活它。
+        /// 原版兴趣点张望由独立的<see cref="VanillaLookSuspendPatch"/>按岗位控制权让位；本函数本身不管它。
         /// **它碰不到 native 的战斗层**（`HumanAIComponent`：选敌、攻击、格挡、编队）—— 城镇里看着"原版 AI 让位了"，
         /// 是因为城镇那套原生 AI 本来就不打架。
         ///
@@ -2736,6 +2738,7 @@ var streetDef = StoryProbeDefs.GetStreetLife(StoryProbeDialogue.ResolveNpcId(Own
             {
                 _currentAction = _actionQueue.Dequeue();
                 DebugLogger.Log($"[Brain-Tick] {Owner.Name}(Idx={Owner.Index}) 开始执行 {_currentAction.GetType().Name} | 队列剩余={_actionQueue.Count}");
+                NpcPerception.ReleaseGaze(Owner);
                 _currentAction.OnStart(Owner);
                 // 🔴 经历旁白（2026-08-11）：出队 = 动作真正开始执行 → 白名单翻译记录（无幽灵）
                 RecordActionNarration(_currentAction);
@@ -2756,6 +2759,7 @@ var streetDef = StoryProbeDefs.GetStreetLife(StoryProbeDialogue.ResolveNpcId(Own
                 if (_currentAction != null && _currentAction.IsFinished(Owner))
                 {
                     DebugLogger.Log($"[Brain-Tick] {Owner.Name}(Idx={Owner.Index}) 完成 {_currentAction.GetType().Name}");
+                    NpcPerception.ReleaseGaze(Owner);
                     _currentAction.OnEnd(Owner);
                     _currentAction = null; // 下一帧会取新的
 

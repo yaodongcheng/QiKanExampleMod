@@ -1074,6 +1074,12 @@ namespace LivingWorldNpcs
         [CommandLineFunctionality.CommandLineArgumentFunction("look", "custom")]
         public static string ExecuteLook(List<string> args)
         {
+            // 通用诊断先分派：无主角时仍可查询／关闭；兼容首参占位，不进入旧摆拍设置链。
+            int traceAt = args != null && args.Count > 0 && string.Equals(args[0], "trace", StringComparison.OrdinalIgnoreCase) ? 0
+                : args != null && args.Count > 1 && string.Equals(args[1], "trace", StringComparison.OrdinalIgnoreCase) ? 1 : -1;
+            if (traceAt >= 0 && args.Any(arg => arg != null && arg.Any(ch => ch > 127)))
+                return "Error: ASCII arguments only. Trace selection unchanged.";
+            if (traceAt >= 0) return AgentFacingTrace.HandleCommand(args.Skip(traceAt + 1).ToList());
             if (Mission.Current == null || Agent.Main == null)
             {
                 return "error: enter a mission first.";
@@ -1081,7 +1087,7 @@ namespace LivingWorldNpcs
 
             if (args.Count == 0)
             {
-                return "usage: mount, npc [name], camera, or reset";
+                return "usage: custom.look mount|npc <name>|camera|reset|trace help";
             }
 
             string targetType = args[0].ToLower();
@@ -1143,7 +1149,7 @@ namespace LivingWorldNpcs
                 return "performed: look reset, free control restored.";
             }
 
-            return "unknown command. usage: mount, npc [name], camera, reset";
+            return "unknown command. usage: custom.look mount|npc <name>|camera|reset|trace help";
         }
 
         // 🪦 2026-10-05 阶段 0：`custom.cam_face` / `custom.cam_reset` 两条**裸建相机**命令已删

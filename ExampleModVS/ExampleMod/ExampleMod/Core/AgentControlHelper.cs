@@ -1107,7 +1107,22 @@ namespace LivingWorldNpcs
         public static void StopLooking(Agent agent)
         {
             if (agent == null) return;
+            NpcPerception.ReleaseGaze(agent);
             agent.SetLookAgent(null);
+        }
+
+        /// <summary>更新眼部兴趣点坐标，不创建SetLookAgent的持续对象跟踪；身体仍归当前动作。</summary>
+        public static void LookAtPointOfInterest(Agent agent, Agent target)
+        {
+            if (!SafeIsActive(agent) || !SafeIsActive(target) || agent == target) return;
+            agent.SetLookToPointOfInterest(target.GetEyeGlobalPosition());
+        }
+
+        /// <summary>清理原生兴趣点注视；与对象注视独立，不能用SetLookAgent(null)代替。</summary>
+        public static void StopLookingAtPointOfInterest(Agent agent)
+        {
+            if (!SafeIsActive(agent)) return;
+            agent.DisableLookToPointOfInterest();
         }
 
         /// <summary>
@@ -1832,6 +1847,7 @@ namespace LivingWorldNpcs
         {
             _ids.Clear();
             _move.Clear();
+            _turn.Clear();
             return "OK: pose trace off (all).";
         }
 

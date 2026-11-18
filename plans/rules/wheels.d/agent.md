@@ -55,6 +55,74 @@ bool ok = agent.IsCrouchingAllowed();  // ⚠️ 1.2.12 无此 API（MB2_GE_130+
 
 ---
 
+<a id="daily-perception-facing"></a>
+
+## NPC日常感知、头眼注视与单人朝向诊断（2026-11-18，问题17用户已验证）
+
+**解决什么问题**：日常NPC看到近处玩家时注视，身体保持岗位或声源方向，让玩家能够无声绕背；提供只观察一名NPC的真实朝向调用和身体记录。后续同类需求复用本层与Helper，不再自行用半径驱动身体跟随。
+
+**适用范围**：有真实Brain及职责点、当前闲站的NPC，包括无Hero的模板人物；普通空闲、StreetIdle及没有指定注视对象且未击晕的Stay。原版NPC不由本层接管；正式对话、演出、移动／转身、战斗、拦问、绑缚、击晕和特殊状态服从原控制。没有人物／剧情ID特判。
+
+### 日常规则与真实入口
+
+- **头眼**：普通人仅在身体前方120°扇形内、5米以内逐帧更新玩家眼睛坐标；敌对者注视距离10米。判断使用身体Frame，不用头部朝向充当身体扇形。出扇形／超距／控制权让位时释放本层兴趣点。
+- **身体**：按初始岗位方向、实际声音坐标及保持结束后的回岗方向请求；日常取得注视不写身体方向。普通人只回应身体扇形外2米内的重跑步脚步声，慢走不引起身体回头，蹲着无脚步声；敌对者保留走路6米／跑步15米听觉。开门、撞物等通用声源按自身传播半径处理，默认声源方向保持6秒。
+- **配置单一来源**：当前读`ModuleData/DesignData/StoryProbeTuning.json`的`Noise`段；环境自言自语的`Ambient.ListenerRadiusMeters=10`独立，不随5米注视距离缩短。通用感知源码在`AI/NpcPerception.cs`，诊断不依赖StoryProbe人物表。
+
+```csharp
+// 已由AgentAIController.OnMissionTick统一调用，不要再加第二个驱动者。
+NpcPerception.Tick(dt, brains); // 签名：Tick(float, IEnumerable<AgentBrain>)
+// 可复用的声音入口：世界坐标与传播半径（米）。
+NpcPerception.Hear(soundPosition, radiusMeters); // 签名：Hear(Vec3, float)
+// 当前动作在设置岗位方向前，可查询仍保持的声源方向。
+bool heard = NpcPerception.TryGetHeardDirection(agent, out Vec2 direction);
+
+// Helper提供原生能力；调用者必须已持有当前人物的注视控制权。
+AgentControlHelper.LookAtPointOfInterest(agent, target);
+// 内部调用agent.SetLookToPointOfInterest(target.GetEyeGlobalPosition())，每帧更新坐标。
+AgentControlHelper.StopLookingAtPointOfInterest(agent);
+// 内部调用agent.DisableLookToPointOfInterest()；仅清坐标兴趣点。
+AgentControlHelper.StopLooking(agent);
+// 先ReleaseGaze清本层拥有的兴趣点，再SetLookAgent(null)清对象注视。
+AgentControlHelper.SetBodyDirection(agent, direction);
+// 单次SetMovementDirection请求；不能当成持续锁身保证。
+```
+
+**两类注视不能混用**：`SetLookAgent(target)`保存持续对象目标，本次实机在该目标存在时身体持续跟转，单次身体方向及日常站位合同均未阻止。日常改用眼睛坐标兴趣点；对象注视取消是`SetLookAgent(null)`，坐标兴趣点取消是`DisableLookToPointOfInterest()`。日志`player#0`是玩家Agent编号0，表示仍在看玩家；取消对象目标显示`gaze=none`。
+
+### 所有权与原版让位
+
+- `NpcPerception`按Agent实例登记自己的兴趣点；`ReleaseGaze(Agent)`仅释放登记在本层的兴趣点，不清其他动作的对象目标。直接调用Helper不会自动取得本层登记，调用者自行持有和归还控制权；不能用ReleaseGaze替外部动作清理它自己的兴趣点。
+- Brain清空动作、开始下一动作、结束当前动作时，在对应OnStart／OnEnd交接前先ReleaseGaze；日常待机清理遗留的玩家对象目标。StreetIdle只停步并设置初始身体方向，后续停步不反复清移动合同；结束时归还停步和注视。
+- 删除回调使用内部`NpcPerception.Forget(Agent)`只丢托管引用；退场`Reset()`及换Mission只清缓存，禁止访问销毁中的旧native Agent。不能把同一Agent编号当成跨场景身份。
+- `AI/AiSuspendPatch.cs`的`VanillaLookSuspendPatch`对原版`MissionAgentLookHandler.OnMissionTick`做Harmony Transpiler，在唯一`Agent.IsActive()`资格检查处让已接管岗位NPC退出原版张望，接管时清一次原版残留兴趣点。匹配真实Brain.Owner、HasDutyPoint、非战斗及互动总闸；归还后原版恢复。它独立于DailyBehaviorGroup，不能认为SuspendVanillaAI已经关了张望。
+- 只改原版该循环的检查，不补丁全局Agent.IsActive，不跳整个MissionTick，不冻结原生战斗AI。目标结构改变明确拒挂，清理异常放行原版并记日志；正式对话、演出的既有控制保留。
+
+### 单人诊断与复验
+
+唯一入口是`Debug/MyCommands.cs`的`custom.look trace`，底层为`Diagnostics/AgentFacingTrace.cs`。真实Harmony被动监听设置／取消、值、调用方和次数，同来源每秒汇总；每2秒记录实际身体朝向与累计转角。**身体采样只观察，不发起转身。**
+
+| 完整命令 | 使用方式与效果 |
+|---|---|
+| `custom.look trace aimed` | 靠近并聚焦一名NPC后，只选择这一实例观察；使用现有交互焦点，无焦点保留原目标，不回落到玩家。只改变临时诊断选择，不改位置、AI、配置、剧情或财物。 |
+| `custom.look trace list` | 只读列出当前NPC编号与英文Character StringId；不输出本地化姓名，不改变监听或游戏状态。 |
+| `custom.look trace #17` | 17是示例，使用list查到的本场景实际编号；只替换临时监听对象，其他状态不变。 |
+| `custom.look trace id <characterId>` | 用list中的英文ID替换参数；只接受唯一实例，同模板多实例拒绝自动选人，查不到保留原目标。只改临时诊断选择。 |
+| `custom.look trace status` | 只读当前目标、接口挂载数量、缺失入口及原版兴趣点闸门状态。 |
+| `custom.look trace off` | 只停止观察，不清人物注视、不解除控制、不改变正常感知或其他游戏状态。 |
+
+控制台输入、返回与命令数据保持英文／ASCII，非ASCII参数拒绝且不改目标；DisplayMessage走标准中英本地化。已有屏幕消息镜像及日志规则见[config卷](config.md)，运行日志为模块根`Debug/StoryEngine_RuntimeLog.txt`。
+
+日常预期：对象`gaze=none`，扇形内本层`headPointTarget=player`，兴趣点来源为NpcPerception；退出后headPointTarget=none，并有DisableLookToPointOfInterest。`vanillaPoi=blocked/unblocked/unpatched`是实际原版闸门记录。`bodyRequest`只表示最后的感知方向请求；身体到位看`bodyYaw/delta/travel`。`managedCalls=0`不代表原生层没有持续行为，目标回读也不是眼睛画面测量。
+
+### 已验证证据与禁止回退
+
+问题17已由用户2026-11-18明确确认归档。1.2.12实机19:30:00～12，顾长生7次采样身体始终−1°、累计转角0；期间本层兴趣点262次更新、3次释放，扇形内2.6米仍注视且身体不跟转。19:15旧方案在同一原版闸门blocked条件下8秒仍转276.6°；此前离线替身假设站位合同优先于对象目标，已被实机否定并纠正。**不得恢复日常SetLookAgent或HoldBodyDirection，也不能凭离线通过代替实机。**完整原反馈、失败方案、原因及证据见[归档问题17](../../逆水寒511/用户反馈的问题清单-已解决归档.md#feedback-17)。
+
+验证入口：`Scripts/test_story_perception.py --selftest`覆盖78项真实感知／待机／Helper检查及5个回退反例；其他工作交接、正式朝向与单人Harmony探针回归保留。三个真实安装1.2.12／1.3.15／Steam1.5.7隔离编译0错误0警告，原版闸门及诊断挂载检查通过；本次身体画面证据来自1.2.12，不把其他版本的编译等同于其画面已验收。
+
+---
+
 ## AgentBrain 行为队列 — `AI/`
 
 每个 NPC 一个 `AgentBrain`（按 `Agent.Index` 存于 `AgentAIController`），用 `IAtomicAction` 队列做行为链。

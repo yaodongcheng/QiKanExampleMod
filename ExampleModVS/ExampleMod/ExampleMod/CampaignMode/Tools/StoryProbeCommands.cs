@@ -358,21 +358,37 @@ namespace LivingWorldNpcs
 
                     case "trace":
                     {
+                        if (args.Any(arg => arg != null && arg.Any(ch => ch > 127)))
+                            return "Error: ASCII arguments only. Trace selection unchanged.";
                         // Presentation trace (three layers: turn / move / anim). ASCII only, npc id only.
                         //   custom.story_probe trace pawnbroker   -> on for that npc
                         //   custom.story_probe trace list         -> who is traced
                         //   custom.story_probe trace off          -> all off
                         string a = (Arg(args, used, 0) ?? "").Trim();
+                        string traceMode = (Arg(args, used, 1) ?? "").Trim();
+                        if (a.Equals("screen", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (traceMode.Equals("off", StringComparison.OrdinalIgnoreCase))
+                            {
+                                return AgentFacingTrace.HandleCommand(new[] { "off" });
+                            }
+                            return AgentFacingTrace.HandleCommand(new[] { "status" })
+                                + ". General entry: custom.look trace help";
+                        }
                         if (string.IsNullOrEmpty(a))
                         {
                             var ids = new List<string>();
                             foreach (var n in StoryProbeDefs.Npcs) ids.Add(n.Id);
-                            return "Usage: custom.story_probe trace <npcId> | trace list | trace off. ids: "
+                            return "Usage: custom.story_probe trace <npcId> [screen] | trace screen off | trace list | trace off. ids: "
                                    + string.Join(",", ids);
                         }
-                        if (a.Equals("off", StringComparison.OrdinalIgnoreCase)) return StoryPoseTrace.Clear();
+                        if (a.Equals("off", StringComparison.OrdinalIgnoreCase))
+                        {
+                            AgentFacingTrace.Stop(); // 保留旧入口的同时关闭语义；通用监听不依赖序章。
+                            return StoryPoseTrace.Clear();
+                        }
                         if (a.Equals("list", StringComparison.OrdinalIgnoreCase))
-                            return "OK: pose trace active = " + StoryPoseTrace.Describe();
+                            return "OK: pose trace active = " + StoryPoseTrace.Describe() + "; screen = " + AgentFacingTrace.Describe();
 
                         // Tolerant first arg: a bare number is read as the agent index shown in the log (Idx=N).
                         if (int.TryParse(a, out int agentIndex))
@@ -381,12 +397,16 @@ namespace LivingWorldNpcs
                                      ?? new List<KeyValuePair<string, Agent>>())
                             {
                                 if (kv.Value != null && kv.Value.Index == agentIndex)
-                                    return StoryPoseTrace.Enable(kv.Key);
+                                    return traceMode.Equals("screen", StringComparison.OrdinalIgnoreCase)
+                                        ? AgentFacingTrace.Enable(kv.Value) : StoryPoseTrace.Enable(kv.Key);
                             }
                             return "Error: no story npc with agent index " + agentIndex
                                    + " (try custom.story_probe trace list).";
                         }
-                        return StoryPoseTrace.Enable(NormalizeNpcArg(a));
+                        string traceId = NormalizeNpcArg(a);
+                        return traceMode.Equals("screen", StringComparison.OrdinalIgnoreCase)
+                            ? AgentFacingTrace.Enable(StoryProbeMissionBehavior.Current?.GetAgent(traceId))
+                            : StoryPoseTrace.Enable(traceId);
                     }
 
                     case "stage":

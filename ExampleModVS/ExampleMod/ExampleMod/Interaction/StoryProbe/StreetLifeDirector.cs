@@ -994,7 +994,6 @@ namespace LivingWorldNpcs
         private float _holdAt;
         private string _currentPose;
         private Vec3 _stayPos;
-        private bool _bodyHeld;
         private bool _interrupted;
 
         public StreetIdleAction(string npcId, StreetLifeDef def, Vec2? dutyDir = null)
@@ -1019,10 +1018,11 @@ namespace LivingWorldNpcs
         {
             _t = 0f;
             _poseEndsAt = -1f;
-            _bodyHeld = false;
             _stayPos = agent.Position;
             // 接回日常时释放上个动作/原版会话留下的对象注视；其引用不会随距离自动失效。
             AgentControlHelper.StopLooking(agent);
+            // 只停步；日常头眼注视用兴趣点，不建立带动身体的对象跟踪。
+            AgentControlHelper.HoldInPlace(agent);
             var amb = StoryProbeTuning.Current.Ambient;
             float lo = Math.Max(0.5f, amb.FirstDelayMinSec);
             float hi = Math.Max(lo, amb.FirstDelayMaxSec);
@@ -1033,10 +1033,9 @@ namespace LivingWorldNpcs
             if (_dutyDir.HasValue)
             {
                 Vec2 want = _dutyDir.Value;
-                // 即使画面已对齐，也要给原生层一个独立的身体方向意图。
-                // 未写的零方向会允许原生层跟随 look；动画朝向不能代替方向意图。
                 AgentControlHelper.SetBodyDirection(agent, want);
             }
+            else AgentControlHelper.SetBodyDirection(agent, agent.Frame.rotation.f.AsVec2);
         }
 
         public void OnTick(Agent agent, float dt)
@@ -1044,12 +1043,11 @@ namespace LivingWorldNpcs
             _t += dt;
 
             // 钉在原地：与 PerformanceAction.HoldBody 同一套（清移动输入 + 速度上限 0），
-            // 不用 StayAction 的 SetScriptedPosition —— 姿态动画在那个合同下会被引擎压掉。
+            // 只更新停步，不添加会话或带方向的移动合同，不打断日常姿态。
             if (_t >= _holdAt)
             {
                 _holdAt = _t + 0.2f;
-                AgentControlHelper.HoldInPlace(agent, resetScriptedMovement: !_bodyHeld);
-                _bodyHeld = true;
+                AgentControlHelper.HoldInPlace(agent, resetScriptedMovement: false);
             }
 
             // 「听到声音转头 / 看到人注视」由通用感知层 NpcPerception 统一处理，这里不再自己判玩家距离。
@@ -1107,7 +1105,9 @@ namespace LivingWorldNpcs
         public void OnEnd(Agent agent)
         {
             try { AgentControlHelper.ClearPose(agent); } catch (Exception) { }
-            try { agent?.SetLookAgent(null); } catch (Exception) { }
+            try { AgentControlHelper.StopLooking(agent); } catch (Exception) { }
+            // 清理待机停步状态；头眼兴趣点也由StopLooking释放。
+            try { AgentControlHelper.StopMovement(agent); } catch (Exception) { }
         }
     }
 }

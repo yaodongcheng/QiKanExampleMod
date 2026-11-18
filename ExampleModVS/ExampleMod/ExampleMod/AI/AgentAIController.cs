@@ -264,6 +264,8 @@ namespace LivingWorldNpcs
 
         public override void OnAgentDeleted(Agent agent)
         {
+            NpcPerception.Forget(agent);
+            VanillaLookSuspendPatch.Forget(agent); // 仅撤托管记录，销毁阶段不调Agent原生方法。
             // 🔴 2026-08-26 击杀崩溃修复（玩家反馈 10:47:45）：brain 移除最先执行——
             // 引擎 Mission.OnAgentDeleted 的 foreach(MissionBehaviors) 回调链无异常保护，
             // 前序 behavior 或下方任一清理步骤抛异常都会跳过/中断本方法 → brain 残留 →
@@ -368,6 +370,7 @@ namespace LivingWorldNpcs
             long t4 = PerfProfiler.Now();          // perf: AIC_SpeechChannel
             SpeechChannel.TickAll(dt);
             PerfProfiler.Accum(PerfSlot.AIC_SpeechChannel, t4); // perf: AIC_SpeechChannel
+            AgentFacingTrace.Tick(dt);
         }
 
         // 🔴 2026-08-12：玩家武器切换事件源（lazy 挂载：Agent.Main 就绪后一次性挂 OnMainAgentWieldedItemChange——
@@ -404,6 +407,9 @@ namespace LivingWorldNpcs
 
         public override void OnRemoveBehavior()
         {
+            AgentFacingTrace.Stop(); // 退场只撤托管探针，不访问Agent原生状态。
+            VanillaLookSuspendPatch.Reset();
+            NpcPerception.Reset(); // 仅清托管缓存，退场不访问旧人物的兴趣点。
             // 🔴 2026-08-16（方案 G3②）：犯罪主动评论（40%，Mission 销毁前）——只读 C# 缓存
             //（_presentPartyMembers），OnRemoveBehavior 阶段禁止访问 Agent native（项目纪律）。
             // 顺序在 FinalizePendingWorldEvent 之前：有目击犯罪才评论（PendingWorldEvent 激活过）。

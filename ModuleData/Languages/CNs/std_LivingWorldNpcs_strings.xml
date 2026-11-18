@@ -4,6 +4,9 @@
     <tag language="简体中文" />
   </tags>
   <strings>
+    <string id="LWN_facing_trace_call" text="[朝向调用] {NPC}：{DETAIL}" />
+    <string id="LWN_facing_trace_sample" text="[身体采样] {NPC}：{DETAIL}" />
+    <string id="LWN_facing_trace_overflow" text="[朝向调试限频] {NPC}：{DETAIL}" />
     <string id="LWN_performance_facing_debug" text="[演出调试] {SPEAKER} → {LISTENER}：已调用身体转向和注视；当前身体偏角 {ANGLE} 度（0 度为正对听话者）。" />
     <string id="LWN_dialogue_facing_debug" text="[对话调试] {SPEAKER} → {LISTENER}：当前身体偏角 {ANGLE} 度（0 度为正对听话者）；已请求注视。" />
     <string id="LWN_performance_cone_debug" text="[冒泡调试] {SPEAKER} → {LISTENER}：{MODE}；当前身体偏角 {ANGLE} 度；已请求注视。" />

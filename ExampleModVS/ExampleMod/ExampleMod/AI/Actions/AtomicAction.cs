@@ -1569,7 +1569,7 @@ namespace LivingWorldNpcs
         public void OnEnd(Agent agent)
         {
             // 结束时不需要做特殊清理
-            agent.SetLookAgent(null);
+            AgentControlHelper.StopLooking(agent);
             AgentControlHelper.StopAndReset(agent);
         }
     }
