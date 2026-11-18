@@ -87,7 +87,11 @@ namespace LivingWorldNpcs
 					return null;
 				}
 				sound.SetPosition(position);
-				sound.Play();
+				if (!sound.Play())
+				{
+					sound.Release();
+					return null;
+				}
 				LogAttenuationOnce(name, sound);
 				return sound;
 			}

@@ -1,7 +1,7 @@
 {
   "_comment": "P3/P4 正式数据（2026-11-15）：首遇双岗的布局、岗位、候选规则与质问流程。改这里 = 改谁站哪、谁有资格问、先问谁、开窗后等多久，不需要改 C#。几何坐标仍待实机快照复核（V06），当前锚点来自场景 tag。",
   "Schema": "story_stage/2",
-  "ContentVersion": 13,
+  "ContentVersion": 15,
   "Scene": "empire_town_m",
   "WallLevel": "2",
   "Layouts": {
@@ -165,8 +165,8 @@
           "Source": "prefab",
           "Prefab": "bd_chest_c",
           "Anchor": "player",
-          "Fwd": 2.6,
-          "Right": -9.6,
+          "Fwd": 4.243934,
+          "Right": -8.642835,
           "Up": 0,
           "Yaw": 0,
           "Scale": 0.5,
@@ -546,7 +546,7 @@
       ],
       "LineFallbacks": [
         "Three times... and not a coin more.",
-        "Where does it all go."
+        "This is barely enough to eat on."
       ],
       "ActionsA": [
         "act_bar_talk_to_2",
@@ -630,6 +630,15 @@
           "OnInterrupt": "end"
         }
       ]
+    }
+  },
+  "ActionPresentations": {
+    "act_play_celtic_harp_stand": {
+      "Instrument": "harp",
+      "Sounds": [
+        "event:/music/musicians/sturgia/04"
+      ],
+      "Speed": 0.625
     }
   }
 }

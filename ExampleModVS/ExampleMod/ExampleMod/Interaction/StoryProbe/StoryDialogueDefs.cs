@@ -194,6 +194,7 @@ namespace LivingWorldNpcs
     {
         public string Tactic;     // 旧手段词供兼容；正式玩法按Capability取属性
         public string Capability; // 已登记的玩家能力；能力决定三属性归属
+        public int MinimumGrowth; // 该属性须先通过真实玩法获得的最低训练收益
         public string Target;     // 参与者角色名或实名演员 id
         public string Success;    // 成功节点（必填）
         public string Fail;       // 失败节点（可空 = 关闭）
@@ -511,11 +512,12 @@ namespace LivingWorldNpcs
             if (token == null || token.Type == JTokenType.Null) return null;
             if (!(token is JObject co)) { errors.Add(new StoryDialogueIssue(path + ".Check", "wrong_type", "Check 必须是对象")); return null; }
             string cpath = path + ".Check";
-            Keys(co, cpath, new[] { "Tactic", "Capability", "Target", "Success", "Fail" }, errors);
+            Keys(co, cpath, new[] { "Tactic", "Capability", "Target", "Success", "Fail", "MinimumGrowth" }, errors);
             var check = new StoryDialogueCheck
             {
                 Tactic = Str(co, "Tactic", cpath, errors, true),
                 Capability = Str(co, "Capability", cpath, errors, false),
+                MinimumGrowth = Int(co, "MinimumGrowth", cpath, errors, 0, 0, 100),
                 Target = Str(co, "Target", cpath, errors, false),
                 Success = Str(co, "Success", cpath, errors, true),
                 Fail = Str(co, "Fail", cpath, errors, false)
@@ -525,6 +527,8 @@ namespace LivingWorldNpcs
                     "检定手段必须是已注册的NegotiationTactic：" + check.Tactic));
             if (!string.IsNullOrEmpty(check.Capability) && !StoryProbeDefs.TryGetCapability(check.Capability, out _))
                 errors.Add(new StoryDialogueIssue(cpath + ".Capability", "bad_token", "Unknown player capability: " + check.Capability));
+            if (check.MinimumGrowth > 0 && string.IsNullOrEmpty(check.Capability))
+                errors.Add(new StoryDialogueIssue(cpath + ".MinimumGrowth", "bad_value", "Training prerequisite requires a Capability"));
             return check;
         }
 

@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_debtor",
-  "ContentVersion": 7,
+  "ContentVersion": 8,
   "EntryOption": "LWN_story_debtor_entry",
   "EntryOptionZh": "[说两句] 你就是码头帮管账的收数人？",
   "SkipVanillaOpening": true,
@@ -53,28 +53,16 @@
       "Trigger": "player_talk",
       "Conditions": [],
       "Priority": 70,
-      "Node": "debtor_intro_line1"
+      "Node": "debtor_intro"
     }
   ],
   "Nodes": [
-    {
-      "Id": "debtor_intro_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_debtor_intro_line1",
-      "TextKeyZh": "今天不还，明天利钱翻倍。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "debtor_intro",
-      "Options": []
-    },
     {
       "Id": "debtor_intro",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_debtor_intro",
-      "TextKeyZh": "……不对，我账本上没你这张脸，你找谁？",
+      "TextKeyZh": "交钱的先把名字报上来，等等，账上没你，你找谁？",
       "LineActions": [
         "act_conversation_closed_negative"
       ],
@@ -92,7 +80,7 @@
         {
           "Id": "ask",
           "PlayerKey": "LWN_story_debtor_opt_ask",
-          "PlayerKeyZh": "[打听] 你手里这本账册，记的都是谁的账？",
+          "PlayerKeyZh": "你手里这本账册，记的都是谁的账？",
           "HintKey": "LWN_story_hint_debtor_opt_ask",
           "HintKeyZh": "打听收数人的账册。",
           "Requires": [
@@ -108,14 +96,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "debtor_talk_line1",
+          "NextNode": "debtor_talk",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "collect",
           "PlayerKey": "LWN_story_debtor_opt_collect",
-          "PlayerKeyZh": "[逼债] 老周的三笔死账，一百二十第纳尔，今天连本带利吐出来。",
+          "PlayerKeyZh": "[逼债] 你欠老周的一百二十第纳尔，今天就还给他。",
           "HintKey": "LWN_story_hint_debtor_opt_collect",
           "HintKeyZh": "向收数人追讨120第纳尔债款。",
           "Requires": [
@@ -136,8 +124,8 @@
           "Check": {
             "Tactic": "Coerce",
             "Target": "debtor",
-            "Success": "debtor_collect_line1",
-            "Fail": "debtor_refuse_line1",
+            "Success": "debtor_collect",
+            "Fail": "debtor_refuse",
             "Capability": "Intimidate"
           },
           "Speaker": "player",
@@ -146,7 +134,7 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_debtor_opt_fight",
-          "PlayerKeyZh": "[动手] 既然嘴上讨不回来，那就打到你掏钱为止。",
+          "PlayerKeyZh": "既然嘴上讨不回来，那就打到你掏钱为止。",
           "HintKey": "LWN_story_hint_debtor_opt_fight",
           "HintKeyZh": "直接与收数人开战。",
           "Requires": [],
@@ -167,7 +155,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -183,7 +171,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_debtor_hub",
-      "TextKeyZh": "还有什么账要算？",
+      "TextKeyZh": "哪笔账，你说清楚。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -192,7 +180,7 @@
         {
           "Id": "ask",
           "PlayerKey": "LWN_story_debtor_opt_ask",
-          "PlayerKeyZh": "[打听] 你手里这本账册，记的都是谁的账？",
+          "PlayerKeyZh": "你手里这本账册，记的都是谁的账？",
           "HintKey": "LWN_story_hint_debtor_opt_ask",
           "HintKeyZh": "打听收数人的账册。",
           "Requires": [
@@ -208,14 +196,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "debtor_talk_line1",
+          "NextNode": "debtor_talk",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "collect",
           "PlayerKey": "LWN_story_debtor_opt_collect",
-          "PlayerKeyZh": "[逼债] 老周的三笔死账，一百二十第纳尔，今天连本带利吐出来。",
+          "PlayerKeyZh": "[逼债] 你欠老周的一百二十第纳尔，今天就还给他。",
           "HintKey": "LWN_story_hint_debtor_opt_collect",
           "HintKeyZh": "向收数人追讨120第纳尔债款。",
           "Requires": [
@@ -236,8 +224,8 @@
           "Check": {
             "Tactic": "Coerce",
             "Target": "debtor",
-            "Success": "debtor_collect_line1",
-            "Fail": "debtor_refuse_line1",
+            "Success": "debtor_collect",
+            "Fail": "debtor_refuse",
             "Capability": "Intimidate"
           },
           "Speaker": "player",
@@ -246,7 +234,7 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_debtor_opt_fight",
-          "PlayerKeyZh": "[动手] 既然嘴上讨不回来，那就打到你掏钱为止。",
+          "PlayerKeyZh": "既然嘴上讨不回来，那就打到你掏钱为止。",
           "HintKey": "LWN_story_hint_debtor_opt_fight",
           "HintKeyZh": "直接与收数人开战。",
           "Requires": [],
@@ -267,7 +255,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -279,23 +267,11 @@
       ]
     },
     {
-      "Id": "debtor_talk_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_debtor_talk_line1",
-      "TextKeyZh": "这本子上记的，全是城门口欠码头帮例钱的铺户。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "debtor_talk",
-      "Options": []
-    },
-    {
       "Id": "debtor_talk",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_debtor_talk",
-      "TextKeyZh": "只有我向别人讨债的份，还没人敢向我讨债。",
+      "TextKeyZh": "我替码头帮收各家的例钱，账不齐他们先来找我，可别当我日子好过。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -304,7 +280,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -316,35 +292,11 @@
       ]
     },
     {
-      "Id": "debtor_collect_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_debtor_collect_line1",
-      "TextKeyZh": "……老周连借据上的墨迹都还留着？",
-      "LineActions": [
-        "act_conversation_closed_negative"
-      ],
-      "NextNode": "debtor_collect_line2",
-      "Options": []
-    },
-    {
-      "Id": "debtor_collect_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_debtor_collect_line2",
-      "TextKeyZh": "算你狠。",
-      "LineActions": [
-        "act_conversation_closed_negative"
-      ],
-      "NextNode": "debtor_collect",
-      "Options": []
-    },
-    {
       "Id": "debtor_collect",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_debtor_collect",
-      "TextKeyZh": "一百二十第纳尔拿去，回去告诉他，咱们两清了。",
+      "TextKeyZh": "借据还在就没法赖，一百二十你拿去，回去让老周把那笔划掉。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -364,7 +316,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_debtor_opt_collect_leave",
-          "PlayerKeyZh": "[收钱] 钱点清了，以后少去当铺耍赖。",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_debtor_opt_collect_leave",
           "HintKeyZh": "带着收回的债款离开，回老周处交差。",
           "Requires": [],
@@ -376,23 +328,11 @@
       ]
     },
     {
-      "Id": "debtor_refuse_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_debtor_refuse_line1",
-      "TextKeyZh": "凭你两句话就想让我掏一百二十第纳尔？",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "debtor_refuse",
-      "Options": []
-    },
-    {
       "Id": "debtor_refuse",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_debtor_refuse",
-      "TextKeyZh": "回去告诉老周，钱在我怀里，有本事拿拳头来取！",
+      "TextKeyZh": "老周想要钱就自己来，我今天收的钱还得交上去，不能听你一句话就掏。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -401,7 +341,7 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_debtor_opt_fight",
-          "PlayerKeyZh": "[动手] 既然嘴上讨不回来，那就打到你掏钱为止。",
+          "PlayerKeyZh": "既然嘴上讨不回来，那就打到你掏钱为止。",
           "HintKey": "LWN_story_hint_debtor_opt_fight",
           "HintKeyZh": "直接与收数人开战。",
           "Requires": [],
@@ -422,7 +362,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -438,7 +378,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_debtor_fight",
-      "TextKeyZh": "敬酒不吃吃罚酒，动手！",
+      "TextKeyZh": "要动手讨账，那就看你拿不拿得走！",
       "LineActions": [
         "act_conversation_closed_very_negative"
       ],
@@ -447,7 +387,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],

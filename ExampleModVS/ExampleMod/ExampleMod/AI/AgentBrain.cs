@@ -1852,7 +1852,7 @@ namespace LivingWorldNpcs
 var streetDef = StoryProbeDefs.GetStreetLife(StoryProbeDialogue.ResolveNpcId(Owner));
                 if (streetDef != null)
                 {
-                    // 岗位朝向（绝对角度）交给待机动作自己维持；-1 = 无固定朝向（只听声音转头）。
+                    // 岗位朝向是绝对角度；-1 = −1°/359°，之后身体只响应声音。
                     Vec2? dutyDir = TryResolveDutyDirection(out var idleDir) ? (Vec2?)idleDir : null;
                     EnqueueAction(new StreetIdleAction(streetDef.NpcId, streetDef, dutyDir));
                     return;

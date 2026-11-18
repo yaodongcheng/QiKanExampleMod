@@ -5,8 +5,8 @@ pawnbroker_work,empire_town_m,market_square,work,pawnbroker_desk,1.05,0,0,180,ac
 butcher_work,empire_town_m,market_square,work,butcher_block,1.05,0,0,180,act_bartender_meat,1,0.6
 widow_work,empire_town_m,market_square,work,widow_stage,0,0,0.572,180,act_play_celtic_harp_stand,1,0.6
 blocker_spot,empire_town_m,market_square,spot,gate,0,0,0,-1,,,
-debtor_spot,empire_town_m,market_square,spot,player,1,-12,0,-1,,,
-outlaw_spot,empire_town_m,market_square,spot,player,-2,-16,0,-1,,,
+debtor_spot,empire_town_m,market_square,spot,player,8.74747,-8.5524,0,-1,,,
+outlaw_spot,empire_town_m,market_square,spot,player,-3.70016,-6.24881,0,-1,,,
 rival_spot,empire_town_m,market_square,spot,player,9,11,0,-1,,,
 son_spot,empire_town_m,market_square,spot,player,3,-8,0,-1,,,
 thug_spot,empire_town_m,market_square,spot,pawnbroker_desk,-1.05,0,0,0,,,

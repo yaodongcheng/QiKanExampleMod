@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_pawnbroker",
-  "ContentVersion": 8,
+  "ContentVersion": 9,
   "EntryOption": "LWN_story_pawnbroker_entry",
   "EntryOptionZh": "[说两句] 老板，生意不错。",
   "SkipVanillaOpening": true,
@@ -57,7 +57,7 @@
         "quest_turned"
       ],
       "Priority": 90,
-      "Node": "pawnbroker_chat_line1"
+      "Node": "pawnbroker_chat"
     },
     {
       "Id": "player_hub",
@@ -73,7 +73,7 @@
       "Trigger": "player_talk",
       "Conditions": [],
       "Priority": 70,
-      "Node": "pawnbroker_intro_line1"
+      "Node": "pawnbroker_intro"
     },
     {
       "Id": "join_1",
@@ -96,47 +96,11 @@
   ],
   "Nodes": [
     {
-      "Id": "pawnbroker_intro_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_intro_line1",
-      "TextKeyZh": "买东西？",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_intro_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_intro_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_intro_line2",
-      "TextKeyZh": "当东西？",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_intro_line3",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_intro_line3",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_intro_line3",
-      "TextKeyZh": "还是找门路？",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_intro",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_intro",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_intro",
-      "TextKeyZh": "看你这身土——不像来当东西的。",
+      "TextKeyZh": "要当东西就放在柜台上，想找人就说说长什么样，我替你翻翻当票。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -154,7 +118,7 @@
         {
           "Id": "self",
           "PlayerKey": "LWN_story_pawnbroker_opt_self",
-          "PlayerKeyZh": "[搭话] 先说说你自己吧。",
+          "PlayerKeyZh": "先说说你自己吧。",
           "HintKey": "LWN_story_hint_pawnbroker_opt_self",
           "HintKeyZh": "打听老周的身世。",
           "Requires": [
@@ -170,14 +134,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_ask_self_line1",
+          "NextNode": "pawnbroker_ask_self",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "sister",
           "PlayerKey": "LWN_story_pawnbroker_opt_sister",
-          "PlayerKeyZh": "[打听] 三个月前，见过一个穿青布的姑娘吗？",
+          "PlayerKeyZh": "三个月前，见过一个穿青布的姑娘吗？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_sister",
           "HintKeyZh": "打听青布姑娘的当票。",
           "Requires": [
@@ -201,14 +165,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_ask_sister_line1",
+          "NextNode": "pawnbroker_ask_sister",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "gang",
           "PlayerKey": "LWN_story_pawnbroker_opt_gang",
-          "PlayerKeyZh": "[打听] 守门那个人，怎么才能过去？",
+          "PlayerKeyZh": "守门那个人，怎么才能过去？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_gang",
           "HintKeyZh": "打听过城门的门路。",
           "Requires": [
@@ -224,14 +188,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_ask_gang_line1",
+          "NextNode": "pawnbroker_ask_gang",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "errand",
           "PlayerKey": "LWN_story_pawnbroker_opt_errand",
-          "PlayerKeyZh": "[零活] 你这铺子里有跑腿打杂的活吗？",
+          "PlayerKeyZh": "你这铺子里有跑腿打杂的活吗？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_errand",
           "HintKeyZh": "跑这趟腿可得50第纳尔；下次零活要等一个小时。",
           "Requires": [
@@ -257,7 +221,7 @@
         {
           "Id": "deal",
           "PlayerKey": "LWN_story_pawnbroker_opt_deal",
-          "PlayerKeyZh": "[求门路] 我手头空，你这儿有什么赚钱的门路？",
+          "PlayerKeyZh": "我手头空，你这儿有什么赚钱的门路？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_deal",
           "HintKeyZh": "打听赚钱门路和委托条件。",
           "Requires": [
@@ -266,14 +230,14 @@
             "asked:ask_gang"
           ],
           "Effects": [],
-          "NextNode": "pawnbroker_deal_line1",
+          "NextNode": "pawnbroker_deal",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "chat",
           "PlayerKey": "LWN_story_pawnbroker_opt_chat",
-          "PlayerKeyZh": "[叙旧] 老周，近来摊子上还安生？",
+          "PlayerKeyZh": "老周，这两天生意怎么样？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_chat",
           "HintKeyZh": "打听当铺近况。",
           "Requires": [
@@ -281,14 +245,14 @@
             "asked:ask_gang"
           ],
           "Effects": [],
-          "NextNode": "pawnbroker_chat_line1",
+          "NextNode": "pawnbroker_chat",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "money",
           "PlayerKey": "LWN_story_pawnbroker_opt_money",
-          "PlayerKeyZh": "[递钱] 这点意思，您收着。",
+          "PlayerKeyZh": "这点意思，您收着。",
           "HintKey": "LWN_story_hint_pawnbroker_opt_money",
           "HintKeyZh": "问老周买消息的价钱。",
           "Requires": [
@@ -308,14 +272,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_money_covert_line1",
+          "NextNode": "pawnbroker_money_covert",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "reward",
           "PlayerKey": "LWN_story_pawnbroker_opt_help_reward",
-          "PlayerKeyZh": "[酬谢] 刚才替你挡了那一下，咱们也算相识了。",
+          "PlayerKeyZh": "刚才我替你拦住了他，你没事吧？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_help_reward",
           "HintKeyZh": "收下老周的50第纳尔谢礼。",
           "Requires": [
@@ -349,7 +313,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -365,7 +329,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_hub",
-      "TextKeyZh": "还有事？",
+      "TextKeyZh": "你还想打听什么？",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -374,7 +338,7 @@
         {
           "Id": "self",
           "PlayerKey": "LWN_story_pawnbroker_opt_self",
-          "PlayerKeyZh": "[搭话] 先说说你自己吧。",
+          "PlayerKeyZh": "先说说你自己吧。",
           "HintKey": "LWN_story_hint_pawnbroker_opt_self",
           "HintKeyZh": "打听老周的身世。",
           "Requires": [
@@ -390,14 +354,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_ask_self_line1",
+          "NextNode": "pawnbroker_ask_self",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "sister",
           "PlayerKey": "LWN_story_pawnbroker_opt_sister",
-          "PlayerKeyZh": "[打听] 三个月前，见过一个穿青布的姑娘吗？",
+          "PlayerKeyZh": "三个月前，见过一个穿青布的姑娘吗？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_sister",
           "HintKeyZh": "打听青布姑娘的当票。",
           "Requires": [
@@ -421,14 +385,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_ask_sister_line1",
+          "NextNode": "pawnbroker_ask_sister",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "gang",
           "PlayerKey": "LWN_story_pawnbroker_opt_gang",
-          "PlayerKeyZh": "[打听] 守门那个人，怎么才能过去？",
+          "PlayerKeyZh": "守门那个人，怎么才能过去？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_gang",
           "HintKeyZh": "打听过城门的门路。",
           "Requires": [
@@ -444,14 +408,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_ask_gang_line1",
+          "NextNode": "pawnbroker_ask_gang",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "errand",
           "PlayerKey": "LWN_story_pawnbroker_opt_errand",
-          "PlayerKeyZh": "[零活] 你这铺子里有跑腿打杂的活吗？",
+          "PlayerKeyZh": "你这铺子里有跑腿打杂的活吗？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_errand",
           "HintKeyZh": "跑这趟腿可得50第纳尔；下次零活要等一个小时。",
           "Requires": [
@@ -477,7 +441,7 @@
         {
           "Id": "deal",
           "PlayerKey": "LWN_story_pawnbroker_opt_deal",
-          "PlayerKeyZh": "[求门路] 我手头空，你这儿有什么赚钱的门路？",
+          "PlayerKeyZh": "我手头空，你这儿有什么赚钱的门路？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_deal",
           "HintKeyZh": "打听赚钱门路和委托条件。",
           "Requires": [
@@ -486,14 +450,14 @@
             "asked:ask_gang"
           ],
           "Effects": [],
-          "NextNode": "pawnbroker_deal_line1",
+          "NextNode": "pawnbroker_deal",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "redeem",
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_redeem",
-          "PlayerKeyZh": "[赎当] 那只银镯，我替她赎回来。",
+          "PlayerKeyZh": "那只银镯，我替她赎回来。",
           "HintKey": "LWN_story_hint_pawnbroker_opt_sister_redeem",
           "HintKeyZh": "先问赎镯的价钱，再决定要不要赎。",
           "Requires": [
@@ -504,14 +468,14 @@
             "can_redeem_keepsake"
           ],
           "Effects": [],
-          "NextNode": "pawnbroker_sister_redeem_line1",
+          "NextNode": "pawnbroker_sister_redeem",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "chat",
           "PlayerKey": "LWN_story_pawnbroker_opt_chat",
-          "PlayerKeyZh": "[叙旧] 老周，近来摊子上还安生？",
+          "PlayerKeyZh": "老周，这两天生意怎么样？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_chat",
           "HintKeyZh": "打听当铺近况。",
           "Requires": [
@@ -519,14 +483,14 @@
             "asked:ask_gang"
           ],
           "Effects": [],
-          "NextNode": "pawnbroker_chat_line1",
+          "NextNode": "pawnbroker_chat",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "money",
           "PlayerKey": "LWN_story_pawnbroker_opt_money",
-          "PlayerKeyZh": "[递钱] 这点意思，您收着。",
+          "PlayerKeyZh": "这点意思，您收着。",
           "HintKey": "LWN_story_hint_pawnbroker_opt_money",
           "HintKeyZh": "问老周买消息的价钱。",
           "Requires": [
@@ -546,14 +510,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_money_covert_line1",
+          "NextNode": "pawnbroker_money_covert",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "reward",
           "PlayerKey": "LWN_story_pawnbroker_opt_help_reward",
-          "PlayerKeyZh": "[酬谢] 刚才替你挡了那一下，咱们也算相识了。",
+          "PlayerKeyZh": "刚才我替你拦住了他，你没事吧？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_help_reward",
           "HintKeyZh": "收下老周的50第纳尔谢礼。",
           "Requires": [
@@ -587,7 +551,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -599,23 +563,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_ask_self_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_self_line1",
-      "TextKeyZh": "我姓周，街坊都叫老周。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_ask_self",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_ask_self",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_ask_self",
-      "TextKeyZh": "这铺子开了二十三年——后十三年，是给别人开的。",
+      "TextKeyZh": "我姓周，铺子开了二十三年，如今挣的钱大半得交给码头帮。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -624,7 +576,7 @@
         {
           "Id": "stay",
           "PlayerKey": "LWN_story_pawnbroker_opt_self_stay",
-          "PlayerKeyZh": "[追问] 被压榨成这样，你怎么不走？",
+          "PlayerKeyZh": "被压榨成这样，你怎么不走？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_self_stay",
           "HintKeyZh": "打听老周不离开的原因。",
           "Requires": [
@@ -640,14 +592,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_ask_stay_line1",
+          "NextNode": "pawnbroker_ask_stay",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "know",
           "PlayerKey": "LWN_story_pawnbroker_opt_self_know",
-          "PlayerKeyZh": "[接话] 所以这城门口的事，你都门儿清？",
+          "PlayerKeyZh": "所以这城门口的事，你都门儿清？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_self_know",
           "HintKeyZh": "打听老周了解城门口消息的缘由。",
           "Requires": [
@@ -663,14 +615,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_ask_know_line1",
+          "NextNode": "pawnbroker_ask_know",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -680,37 +632,13 @@
           "Listener": "npc"
         }
       ]
-    },
-    {
-      "Id": "pawnbroker_ask_stay_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_stay_line1",
-      "TextKeyZh": "走去哪。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_ask_stay_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_ask_stay_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_stay_line2",
-      "TextKeyZh": "我这岁数出了城门，就是路边的死人。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_ask_stay",
-      "Options": []
     },
     {
       "Id": "pawnbroker_ask_stay",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_ask_stay",
-      "TextKeyZh": "人啊，不是不想走，是走不动。",
+      "TextKeyZh": "走了也没亲人投靠，这间铺子好歹能让我吃上饭。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -719,7 +647,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -729,25 +657,13 @@
           "Listener": "npc"
         }
       ]
-    },
-    {
-      "Id": "pawnbroker_ask_know_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_know_line1",
-      "TextKeyZh": "城门口的当铺，进出的东西比人还杂。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_ask_know",
-      "Options": []
     },
     {
       "Id": "pawnbroker_ask_know",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_ask_know",
-      "TextKeyZh": "谁手头紧、谁刚发横财，翻翻当票就一清二楚。",
+      "TextKeyZh": "有人来当首饰，有人来当刀，过几天有没有钱赎，我都得记着。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -756,7 +672,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -768,47 +684,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_ask_sister_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_sister_line1",
-      "TextKeyZh": "三个月前，青布衣裳，女的。",
-      "LineActions": [
-        "act_conversation_closed_negative"
-      ],
-      "NextNode": "pawnbroker_ask_sister_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_ask_sister_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_sister_line2",
-      "TextKeyZh": "……有了。",
-      "LineActions": [
-        "act_conversation_closed_negative"
-      ],
-      "NextNode": "pawnbroker_ask_sister_line3",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_ask_sister_line3",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_sister_line3",
-      "TextKeyZh": "「银镯一只，押三十，赎期三日」。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_ask_sister",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_ask_sister",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_ask_sister",
-      "TextKeyZh": "人没来赎。",
+      "TextKeyZh": "找着了，三个月前有个穿青布的姑娘押了一只银镯，借了三十第纳尔，后来没回来赎。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -817,7 +697,7 @@
         {
           "Id": "where",
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_where",
-          "PlayerKeyZh": "[追问] 她当完镯子，往哪去了？",
+          "PlayerKeyZh": "她当完镯子，往哪去了？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_sister_where",
           "HintKeyZh": "打听姑娘当镯子后的去向。",
           "Requires": [
@@ -841,14 +721,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_sister_where_line1",
+          "NextNode": "pawnbroker_sister_where",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "redeem",
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_redeem",
-          "PlayerKeyZh": "[赎当] 那只银镯，我替她赎回来。",
+          "PlayerKeyZh": "那只银镯，我替她赎回来。",
           "HintKey": "LWN_story_hint_pawnbroker_opt_sister_redeem",
           "HintKeyZh": "先问赎镯的价钱，再决定要不要赎。",
           "Requires": [
@@ -856,14 +736,14 @@
             "!clue:sister_3"
           ],
           "Effects": [],
-          "NextNode": "pawnbroker_sister_redeem_line1",
+          "NextNode": "pawnbroker_sister_redeem",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "why",
           "PlayerKey": "LWN_story_pawnbroker_opt_sister_why",
-          "PlayerKeyZh": "[追问] 三个月前的当票，你怎么记得这么清？",
+          "PlayerKeyZh": "三个月前的当票，你怎么记得这么清？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_sister_why",
           "HintKeyZh": "打听老周记得当票的缘由。",
           "Requires": [
@@ -879,14 +759,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_sister_why_line1",
+          "NextNode": "pawnbroker_sister_why",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -896,49 +776,13 @@
           "Listener": "npc"
         }
       ]
-    },
-    {
-      "Id": "pawnbroker_sister_where_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_sister_where_line1",
-      "TextKeyZh": "那天她后头跟着个人。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_sister_where_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_sister_where_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_sister_where_line2",
-      "TextKeyZh": "穿水靠，站在门外没进来。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_sister_where_line3",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_sister_where_line3",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_sister_where_line3",
-      "TextKeyZh": "码头帮的。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_sister_where",
-      "Options": []
     },
     {
       "Id": "pawnbroker_sister_where",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_sister_where",
-      "TextKeyZh": "押完镯子，她就跟人走了。",
+      "TextKeyZh": "门外等着个穿水手衣服的男人，她一出来就跟着他走了，我认得那身打扮，是码头帮的人。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -947,7 +791,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -957,37 +801,13 @@
           "Listener": "npc"
         }
       ]
-    },
-    {
-      "Id": "pawnbroker_sister_why_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_sister_why_line1",
-      "TextKeyZh": "这行当靠的就是记。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_sister_why_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_sister_why_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_sister_why_line2",
-      "TextKeyZh": "记错一笔，摊子就完了。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_sister_why",
-      "Options": []
     },
     {
       "Id": "pawnbroker_sister_why",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_sister_why",
-      "TextKeyZh": "你妹妹那只镯子，是我三个月里唯一一只没人来赎的。",
+      "TextKeyZh": "她一直问三十够不够，连当票都忘了拿，我追到门口才塞给她。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -996,7 +816,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1008,35 +828,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_sister_redeem_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_sister_redeem_line1",
-      "TextKeyZh": "三十第纳尔。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_sister_redeem_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_sister_redeem_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_sister_redeem_line2",
-      "TextKeyZh": "赎期过了，按规矩该加二成。",
-      "LineActions": [
-        "act_conversation_closed_negative"
-      ],
-      "NextNode": "pawnbroker_sister_redeem",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_sister_redeem",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_sister_redeem",
-      "TextKeyZh": "……算了，就收你三十。",
+      "TextKeyZh": "已经过期了，本来得多收利息，看在你急着找人的份上，还是给三十吧。",
       "LineActions": [
         "act_conversation_closed_negative"
       ],
@@ -1045,7 +841,7 @@
         {
           "Id": "pay30",
           "PlayerKey": "LWN_story_pawnbroker_opt_pay30",
-          "PlayerKeyZh": "[付钱] 三十第纳尔，数好了。（30 第纳尔）",
+          "PlayerKeyZh": "三十第纳尔，数好了。（30 第纳尔）",
           "HintKey": "LWN_story_hint_pawnbroker_opt_pay30",
           "HintKeyZh": "付30第纳尔，赎回银镯。",
           "Requires": [
@@ -1089,14 +885,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_sister_got_line1",
+          "NextNode": "pawnbroker_sister_got",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "hold",
           "PlayerKey": "LWN_story_pawnbroker_opt_hold",
-          "PlayerKeyZh": "[暂缓] 先替我留着，我凑够钱再来赎。",
+          "PlayerKeyZh": "先替我留着，我凑够钱再来赎。",
           "HintKey": "LWN_story_hint_back_no_trade",
           "HintKeyZh": "先放下这桩买卖，聊聊别的。",
           "Requires": [],
@@ -1108,47 +904,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_sister_got_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_sister_got_line1",
-      "TextKeyZh": "镯子拿好。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_sister_got_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_sister_got_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_sister_got_line2",
-      "TextKeyZh": "内侧刻着个「宁」字，没让人碰过。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_sister_got_line3",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_sister_got_line3",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_sister_got_line3",
-      "TextKeyZh": "这城里丢过的人比丢过的钱多。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_sister_got",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_sister_got",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_sister_got",
-      "TextKeyZh": "往码头找，别一个人去。",
+      "TextKeyZh": "镯子内侧刻着个“宁”字，你收好，码头帮的事别一个人去问。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1157,7 +917,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1169,7 +929,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1181,47 +941,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_ask_gang_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_gang_line1",
-      "TextKeyZh": "守门那个叫铁头。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_ask_gang_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_ask_gang_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_gang_line2",
-      "TextKeyZh": "贪，见钱就抬眼皮。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_ask_gang_line3",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_ask_gang_line3",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_gang_line3",
-      "TextKeyZh": "但他不怕横的——你亮刀子，他真敢捅你。",
-      "LineActions": [
-        "act_conversation_closed_very_negative"
-      ],
-      "NextNode": "pawnbroker_ask_gang",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_ask_gang",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_ask_gang",
-      "TextKeyZh": "给钱，或者……",
+      "TextKeyZh": "守门的叫罗铁，大家叫他铁头，他肯收钱，可你要拔刀，他也真敢动手。",
       "LineActions": [
         "act_conversation_closed_very_negative"
       ],
@@ -1230,7 +954,7 @@
         {
           "Id": "how",
           "PlayerKey": "LWN_story_pawnbroker_opt_gang_how",
-          "PlayerKeyZh": "[追问] 或者怎么样？",
+          "PlayerKeyZh": "除了给钱，还有别的办法吗？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_gang_how",
           "HintKeyZh": "打听其他进城办法。",
           "Requires": [
@@ -1254,14 +978,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_ask_gang_2_line1",
+          "NextNode": "pawnbroker_ask_gang_2",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "price",
           "PlayerKey": "LWN_story_pawnbroker_opt_gang_price",
-          "PlayerKeyZh": "[问价] 打点他要多少第纳尔？",
+          "PlayerKeyZh": "给他多少钱才肯放人？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_gang_price",
           "HintKeyZh": "打听守卫的打点报价。",
           "Requires": [
@@ -1285,14 +1009,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_ask_gang_3_line1",
+          "NextNode": "pawnbroker_ask_gang_3",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1302,37 +1026,13 @@
           "Listener": "npc"
         }
       ]
-    },
-    {
-      "Id": "pawnbroker_ask_gang_2_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_gang_2_line1",
-      "TextKeyZh": "……或者，换身有头脸的行头，别让他认出你。",
-      "LineActions": [
-        "act_conversation_closed_negative"
-      ],
-      "NextNode": "pawnbroker_ask_gang_2_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_ask_gang_2_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_gang_2_line2",
-      "TextKeyZh": "你这张脸，城门海捕文书上贴着呢。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_ask_gang_2",
-      "Options": []
     },
     {
       "Id": "pawnbroker_ask_gang_2",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_ask_gang_2",
-      "TextKeyZh": "虽然画得糙。",
+      "TextKeyZh": "戏台那边有体面衣裳，不过你这张脸已经贴在门上，换衣裳也得小心说话。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1341,7 +1041,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1351,37 +1051,13 @@
           "Listener": "npc"
         }
       ]
-    },
-    {
-      "Id": "pawnbroker_ask_gang_3_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_gang_3_line1",
-      "TextKeyZh": "一百第纳尔。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_ask_gang_3_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_ask_gang_3_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_ask_gang_3_line2",
-      "TextKeyZh": "这数我心里有。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_ask_gang_3",
-      "Options": []
     },
     {
       "Id": "pawnbroker_ask_gang_3",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_ask_gang_3",
-      "TextKeyZh": "少一个子儿，他能在门槛上跟你磨到天黑。",
+      "TextKeyZh": "一百第纳尔，我见他收过这价，少了他肯不肯通融，我可不敢保。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1390,7 +1066,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1402,35 +1078,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_deal_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_deal_line1",
-      "TextKeyZh": "码头帮有个收数的，欠我三笔死账，拖了半年。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_deal_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_deal_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_deal_line2",
-      "TextKeyZh": "把钱给我收回来——不用见血。",
-      "LineActions": [
-        "act_conversation_closed_very_negative"
-      ],
-      "NextNode": "pawnbroker_deal",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_deal",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_deal",
-      "TextKeyZh": "办妥了我给你酬劳。",
+      "TextKeyZh": "钱三顺欠我一百二十第纳尔，你替我收回来，我给你三十作跑腿费。",
       "LineActions": [
         "act_conversation_closed_very_negative"
       ],
@@ -1439,19 +1091,19 @@
         {
           "Id": "job",
           "PlayerKey": "LWN_story_opt_take_job",
-          "PlayerKeyZh": "[应下] 这活我接了。",
+          "PlayerKeyZh": "这活我接了。",
           "HintKey": "LWN_story_hint_opt_take_job",
           "HintKeyZh": "接下这桩差事，办成后回来领报酬。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "pawnbroker_quest_accept_line1",
+          "NextNode": "pawnbroker_quest_accept",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "why",
           "PlayerKey": "LWN_story_pawnbroker_opt_deal_why",
-          "PlayerKeyZh": "[反问] 收账这事，你怎么不自己去？",
+          "PlayerKeyZh": "收账这事，你怎么不自己去？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_deal_why",
           "HintKeyZh": "打听老周请你收账的原因。",
           "Requires": [
@@ -1467,66 +1119,30 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_deal_why_line1",
+          "NextNode": "pawnbroker_deal_why",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "refuse",
           "PlayerKey": "LWN_story_pawnbroker_opt_refuse",
-          "PlayerKeyZh": "[缓一缓] 我只想找人，暂时不想惹码头帮。",
+          "PlayerKeyZh": "我只想找人，暂时不想惹码头帮。",
           "HintKey": "LWN_story_hint_defer_job",
           "HintKeyZh": "暂不接这桩差事。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "pawnbroker_deal_refuse_line1",
+          "NextNode": "pawnbroker_deal_refuse",
           "Speaker": "player",
           "Listener": "npc"
         }
       ]
     },
     {
-      "Id": "pawnbroker_deal_why_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_deal_why_line1",
-      "TextKeyZh": "我去？",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_deal_why_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_deal_why_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_deal_why_line2",
-      "TextKeyZh": "我这把老骨头，去了就是躺着回来。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_deal_why_line3",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_deal_why_line3",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_deal_why_line3",
-      "TextKeyZh": "我这辈子只跟算盘打交道。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_deal_why",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_deal_why",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_deal_why",
-      "TextKeyZh": "拳脚的事，我不碰。",
+      "TextKeyZh": "我去讨过两回，他把我赶出了巷子，借据还在，可我一个老头拿他没办法。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1535,19 +1151,19 @@
         {
           "Id": "job",
           "PlayerKey": "LWN_story_opt_take_job",
-          "PlayerKeyZh": "[应下] 这活我接了。",
+          "PlayerKeyZh": "这活我接了。",
           "HintKey": "LWN_story_hint_opt_take_job",
           "HintKeyZh": "接下这桩差事，办成后回来领报酬。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "pawnbroker_quest_accept_line1",
+          "NextNode": "pawnbroker_quest_accept",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1559,35 +1175,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_deal_refuse_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_deal_refuse_line1",
-      "TextKeyZh": "也对。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_deal_refuse_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_deal_refuse_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_deal_refuse_line2",
-      "TextKeyZh": "那伙人，惹上一个躺一个。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_deal_refuse",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_deal_refuse",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_deal_refuse",
-      "TextKeyZh": "不过我把话撂这儿——你要找的姑娘，也是他们带走的。",
+      "TextKeyZh": "你怕惹麻烦，我懂，借据先留在我这儿，改了主意再来。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1596,7 +1188,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1608,35 +1200,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_quest_accept_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_quest_accept_line1",
-      "TextKeyZh": "那收数人每天午后在西边巷口蹲着。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_quest_accept_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_quest_accept_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_quest_accept_line2",
-      "TextKeyZh": "一百二十第纳尔，一分不能少。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_quest_accept",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_quest_accept",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_quest_accept",
-      "TextKeyZh": "别闹出人命。",
+      "TextKeyZh": "钱三顺在西边巷口，要回一百二十就回来找我，别为这笔账弄出人命。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1654,7 +1222,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1666,7 +1234,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1691,63 +1259,39 @@
         {
           "Id": "ok",
           "PlayerKey": "LWN_story_pawnbroker_opt_turnin_ok",
-          "PlayerKeyZh": "[交差] 一百二十第纳尔都在这儿，没闹出人命。",
+          "PlayerKeyZh": "一百二十第纳尔都在这儿，没闹出人命。",
           "HintKey": "LWN_story_hint_turnin_debt",
           "HintKeyZh": "把收回的120第纳尔交给老周，领取30第纳尔报酬、旧账本和技能经验。",
           "Requires": [
             "!resolution:force"
           ],
           "Effects": [],
-          "NextNode": "pawnbroker_turnin_ok_line1",
+          "NextNode": "pawnbroker_turnin_ok",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "trouble",
           "PlayerKey": "LWN_story_pawnbroker_opt_turnin_trouble",
-          "PlayerKeyZh": "[实话] 钱拿回来了，不过动手揍了他一顿。",
+          "PlayerKeyZh": "钱拿回来了，不过动手揍了他一顿。",
           "HintKey": "LWN_story_hint_turnin_debt",
           "HintKeyZh": "把收回的120第纳尔交给老周，领取30第纳尔报酬、旧账本和技能经验。",
           "Requires": [
             "resolution:force"
           ],
           "Effects": [],
-          "NextNode": "pawnbroker_turnin_trouble_line1",
+          "NextNode": "pawnbroker_turnin_trouble",
           "Speaker": "player",
           "Listener": "npc"
         }
       ]
     },
     {
-      "Id": "pawnbroker_turnin_trouble_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_turnin_trouble_line1",
-      "TextKeyZh": "……你把人打成那样，明天码头帮就得堵我门。",
-      "LineActions": [
-        "act_conversation_closed_negative"
-      ],
-      "NextNode": "pawnbroker_turnin_trouble_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_turnin_trouble_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_turnin_trouble_line2",
-      "TextKeyZh": "算了，账清了就好。",
-      "LineActions": [
-        "act_conversation_closed_negative"
-      ],
-      "NextNode": "pawnbroker_turnin_trouble",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_turnin_trouble",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_turnin_trouble",
-      "TextKeyZh": "这三十第纳尔跟旧账本你拿走。",
+      "TextKeyZh": "账是清了，可你把人打成这样，我还得提防他那些同伙，这三十和旧账本你收着。",
       "LineActions": [
         "act_conversation_closed_negative"
       ],
@@ -1765,7 +1309,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1777,7 +1321,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1789,35 +1333,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_turnin_ok_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_turnin_ok_line1",
-      "TextKeyZh": "干净利索。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_turnin_ok_line2",
-      "Options": []
-    },
-    {
-      "Id": "pawnbroker_turnin_ok_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_turnin_ok_line2",
-      "TextKeyZh": "这三十第纳尔归你，旧账本也送你参详。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_turnin_ok",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_turnin_ok",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_turnin_ok",
-      "TextKeyZh": "对了，你要不想给铁头送钱，还有条路子。",
+      "TextKeyZh": "钱收回来了，这三十是说好的酬劳，旧账本也给你，里头有些门口的往来。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1835,19 +1355,19 @@
         {
           "Id": "why",
           "PlayerKey": "LWN_story_pawnbroker_opt_turnin_why",
-          "PlayerKeyZh": "[追问] 还有什么路子？",
+          "PlayerKeyZh": "还有什么路子？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_turnin_why",
           "HintKeyZh": "打听其他进城门路。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "pawnbroker_turnin_why_line1",
+          "NextNode": "pawnbroker_turnin_why",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1859,7 +1379,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1871,23 +1391,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_turnin_why_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_turnin_why_line1",
-      "TextKeyZh": "戏台那边的寡妇有一箱富贵人家的行头。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_turnin_why",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_turnin_why",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_turnin_why",
-      "TextKeyZh": "帮她摆平对台的纠纷，她能教你装得像个有头脸的人。",
+      "TextKeyZh": "去问戏班的宋玉娘吧，她正为抢客的事发愁，或许肯拿箱里的戏服答谢你。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1896,7 +1404,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1908,7 +1416,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1920,23 +1428,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_chat_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_chat_line1",
-      "TextKeyZh": "来了？",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_chat",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_chat",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_chat",
-      "TextKeyZh": "有你替我出过那一回，那帮人今天见我都绕着走。",
+      "TextKeyZh": "钱三顺今天没来躲账，我总算能把这几笔记清了。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1945,7 +1441,7 @@
         {
           "Id": "visit",
           "PlayerKey": "LWN_story_pawnbroker_opt_visit",
-          "PlayerKeyZh": "[打听] 进城之后，码头那边有什么风声？",
+          "PlayerKeyZh": "进城之后，码头那边有什么风声？",
           "HintKey": "LWN_story_hint_pawnbroker_opt_visit",
           "HintKeyZh": "打听城内码头风声。",
           "Requires": [
@@ -1961,14 +1457,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "pawnbroker_chat_2_line1",
+          "NextNode": "pawnbroker_chat_2",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "work",
           "PlayerKey": "LWN_story_pawnbroker_opt_work",
-          "PlayerKeyZh": "[收住] 我再问问别的事。",
+          "PlayerKeyZh": "我再问问别的事。",
           "HintKey": "LWN_story_hint_back_no_trade",
           "HintKeyZh": "先放下这桩买卖，聊聊别的。",
           "Requires": [],
@@ -1980,7 +1476,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1992,23 +1488,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_chat_2_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_chat_2_line1",
-      "TextKeyZh": "城西码头最近夜里总有船靠岸，下货从不点灯。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_chat_2",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_chat_2",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_chat_2",
-      "TextKeyZh": "你要是进了城往那边摸，千万留个神。",
+      "TextKeyZh": "我早起开铺时见过西码头的船，卸货不点灯，你进去打听人时留心些。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -2017,7 +1501,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -2029,7 +1513,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -2066,7 +1550,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -2078,7 +1562,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -2118,7 +1602,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_event1_join",
-      "TextKeyZh": "客官，您别掺和……钱我这就给。",
+      "TextKeyZh": "你别管这事，钱我马上给他。",
       "LineActions": [
         "act_conversation_closed_negative"
       ],
@@ -2127,7 +1611,7 @@
         {
           "Id": "pay",
           "PlayerKey": "LWN_story_event1_opt_pay",
-          "PlayerKeyZh": "[替他交] 他欠多少？我替他付。（80 第纳尔）",
+          "PlayerKeyZh": "他欠多少？我替他付。（80 第纳尔）",
           "HintKey": "LWN_story_hint_event1_opt_pay",
           "HintKeyZh": "替老周付这次的80第纳尔保护费。",
           "Requires": [
@@ -2180,7 +1664,7 @@
         {
           "Id": "walk",
           "PlayerKey": "LWN_story_event1_opt_walk",
-          "PlayerKeyZh": "[走开] 不关我的事。",
+          "PlayerKeyZh": "不关我的事。",
           "HintKey": "LWN_story_hint_leave_event",
           "HintKeyZh": "离开，让他们自己解决。",
           "Requires": [],
@@ -2208,7 +1692,7 @@
       "Speaker": "thug",
       "Listener": "npc",
       "TextKey": "LWN_story_event1_paid_line2",
-      "TextKeyZh": "你要是还想当善人，接着掏。",
+      "TextKeyZh": "你下个月还想帮他，就接着掏钱。",
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
@@ -2220,7 +1704,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_event1_paid",
-      "TextKeyZh": "……客官，你这又是何苦。",
+      "TextKeyZh": "谢谢你替我付这钱，可他下个月还会来，也不知道还能撑多久。",
       "LineActions": [
         "act_conversation_closed_negative"
       ],
@@ -2247,7 +1731,7 @@
         {
           "Id": "followup",
           "PlayerKey": "LWN_story_event_opt_followup",
-          "PlayerKeyZh": "[跟他说两句]",
+          "PlayerKeyZh": "我还有件事想问你。",
           "HintKey": "LWN_story_hint_event_opt_followup",
           "HintKeyZh": "留下聊聊别的。",
           "Requires": [],
@@ -2259,7 +1743,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -2287,7 +1771,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_event1_win_line2",
-      "TextKeyZh": "三年了。",
+      "TextKeyZh": "他来收钱收了三年。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -2326,7 +1810,7 @@
         {
           "Id": "followup",
           "PlayerKey": "LWN_story_event_opt_followup",
-          "PlayerKeyZh": "[跟他说两句]",
+          "PlayerKeyZh": "我还有件事想问你。",
           "HintKey": "LWN_story_hint_event_opt_followup",
           "HintKeyZh": "留下聊聊别的。",
           "Requires": [],
@@ -2338,7 +1822,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -2354,7 +1838,7 @@
       "Speaker": "thug",
       "Listener": "player",
       "TextKey": "LWN_story_event1_lose_line1",
-      "TextKeyZh": "就这点斤两，也敢多管闲事？",
+      "TextKeyZh": "连我都打不过，还敢管别人的事？",
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
@@ -2396,7 +1880,7 @@
         {
           "Id": "followup",
           "PlayerKey": "LWN_story_event_opt_followup",
-          "PlayerKeyZh": "[跟他说两句]",
+          "PlayerKeyZh": "我还有件事想问你。",
           "HintKey": "LWN_story_hint_event_opt_followup",
           "HintKeyZh": "留下聊聊别的。",
           "Requires": [],
@@ -2408,7 +1892,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -2424,7 +1908,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_event5_join_line1",
-      "TextKeyZh": "三笔死账……一笔都没收回来。",
+      "TextKeyZh": "这三笔欠账，一笔都没收回来。",
       "LineActions": [
         "act_conversation_closed_negative"
       ],
@@ -2436,7 +1920,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_event5_join",
-      "TextKeyZh": "客官，你是来当东西，还是来找门路的？",
+      "TextKeyZh": "你是来当东西，还是想找挣钱的活？",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -2445,7 +1929,7 @@
         {
           "Id": "ask",
           "PlayerKey": "LWN_story_event5_opt_ask",
-          "PlayerKeyZh": "[搭话] 我找门路进城，咱们聊聊。",
+          "PlayerKeyZh": "我找门路进城，咱们聊聊。",
           "HintKey": "LWN_story_hint_event5_opt_ask",
           "HintKeyZh": "留下问老周，怎么才能进城。",
           "Requires": [],
@@ -2457,7 +1941,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -2469,23 +1953,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_money_covert_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_money_covert_line1",
-      "TextKeyZh": "客官，我这铺子做的是明面买卖，塞私钱我不能接。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_money_covert",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_money_covert",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_money_covert",
-      "TextKeyZh": "你要是花八十第纳尔「买」条老旧消息——那我卖。",
+      "TextKeyZh": "钱别往袖子里塞，要买消息就按买卖算，八十第纳尔，我告诉你守门人怕什么。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -2494,7 +1966,7 @@
         {
           "Id": "buy",
           "PlayerKey": "LWN_story_pawnbroker_opt_money_buy",
-          "PlayerKeyZh": "[买消息] 八十第纳尔，买门口那人的底细。",
+          "PlayerKeyZh": "八十第纳尔，买门口那人的底细。",
           "HintKey": "LWN_story_hint_pawnbroker_opt_money_buy",
           "HintKeyZh": "付80第纳尔，买老周手里的消息。",
           "Requires": [
@@ -2508,14 +1980,14 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "pawnbroker_money_dealt_line1",
+          "NextNode": "pawnbroker_money_dealt",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -2527,23 +1999,11 @@
       ]
     },
     {
-      "Id": "pawnbroker_money_dealt_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_pawnbroker_money_dealt_line1",
-      "TextKeyZh": "守门那个铁头，欠了地下赌坊三个月的印子钱。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "pawnbroker_money_dealt",
-      "Options": []
-    },
-    {
       "Id": "pawnbroker_money_dealt",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_pawnbroker_money_dealt",
-      "TextKeyZh": "他怕丢这趟看门肥差，比怕挨刀子还甚。",
+      "TextKeyZh": "赌坊的人来问过他三回，他怕欠账的事闹到上司那里，丢了守门这份差事。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -2552,7 +2012,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -2564,7 +2024,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -2589,7 +2049,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -2601,7 +2061,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],

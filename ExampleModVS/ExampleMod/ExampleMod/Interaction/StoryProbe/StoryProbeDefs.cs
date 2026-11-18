@@ -37,6 +37,11 @@ namespace LivingWorldNpcs
         public string BackgroundKey, BackgroundFallback;
         public string TemperamentKey, TemperamentFallback;
         public string SpecialtyKey, SpecialtyFallback;
+        public string GoalKey, GoalFallback;
+        public string TroubleKey, TroubleFallback;
+        public string PlayerHelpKey, PlayerHelpFallback;
+        // 已交差的真实委托提供的训练收益；从完成记录推导，不能反复领取。
+        public Dictionary<string, int> AttributeRewards;
         public string ReactiveRole;
         public ReactivePersonality Personality;
         public string Faction;          // StoryFactionDef.Id
@@ -83,6 +88,21 @@ namespace LivingWorldNpcs
         public string NpcId;
         public string Listener;
         public string[] Actions;
+        public string[] LineKeys;
+        public string[] LineFallbacks;
+        public List<StreetSpeechDef> Speech = new List<StreetSpeechDef>();
+        public float SpeechRadiusMeters = 10f;
+        public float SpeechFirstDelayMinSec = 2f;
+        public float SpeechFirstDelayMaxSec = 8f;
+        public float SpeechGapMinSec = 12f;
+        public float SpeechGapMaxSec = 20f;
+    }
+
+    /// <summary>日常发话的状态分支；没有Listener表示自言自语，不建立注视目标。</summary>
+    public sealed class StreetSpeechDef
+    {
+        public List<string> Requires = new List<string>();
+        public string Listener;
         public string[] LineKeys;
         public string[] LineFallbacks;
     }
@@ -200,11 +220,11 @@ namespace LivingWorldNpcs
                     case StoryAbility.Force:
                         // Vigor + Control（各 1..10）→ 0..100
                         return MathF.Clamp((hero.GetAttributeValue(DefaultCharacterAttributes.Vigor)
-                                          + hero.GetAttributeValue(DefaultCharacterAttributes.Control)) * 5f, 5f, 100f);
+                                          + hero.GetAttributeValue(DefaultCharacterAttributes.Control)) * 5f + PlayerGrowth(ability), 5f, 100f);
                     case StoryAbility.Guile:
-                        return MathF.Clamp(hero.GetSkillValue(DefaultSkills.Roguery), 5f, 100f);
+                        return MathF.Clamp(hero.GetSkillValue(DefaultSkills.Roguery) + PlayerGrowth(ability), 5f, 100f);
                     case StoryAbility.Charm:
-                        return MathF.Clamp(hero.GetSkillValue(DefaultSkills.Charm), 5f, 100f);
+                        return MathF.Clamp(hero.GetSkillValue(DefaultSkills.Charm) + PlayerGrowth(ability), 5f, 100f);
                 }
             }
             catch (Exception ex)
@@ -225,6 +245,19 @@ namespace LivingWorldNpcs
                 default: return def.Charm;
             }
         }
+
+        public static int PlayerGrowth(StoryAbility ability)
+        {
+            int total = 0;
+            foreach (var npc in Npcs)
+                if (StoryProbeState.IsQuestTurnedIn(npc.Id) && npc.AttributeRewards != null
+                    && npc.AttributeRewards.TryGetValue(AbilityId(ability), out int gain))
+                    total += Math.Max(0, gain);
+            return Math.Min(100, total);
+        }
+
+        public static bool MeetsCheckRequirement(string capability, int minimumGrowth)
+            => minimumGrowth <= 0 || (TryGetCapability(capability, out var ability) && PlayerGrowth(ability) >= minimumGrowth);
 
         private static readonly Dictionary<string, StoryAbility> DialogueCapabilities =
             new Dictionary<string, StoryAbility>(StringComparer.Ordinal)
@@ -253,7 +286,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>纯查询：正式能力取三属性，旧定义保持技能口径；共用SimpleChance，不掷骰。</summary>
-        public static StoryRoll PreviewDialogueCheck(string npcId, NegotiationTactic tactic, string capability = null)
+        public static StoryRoll PreviewDialogueCheck(string npcId, NegotiationTactic tactic, string capability = null, int minimumGrowth = 0)
         {
             var host = StoryProbeMissionBehavior.Current;
             var agent = host?.GetAgent(npcId);
@@ -264,11 +297,13 @@ namespace LivingWorldNpcs
                 if (!TryGetCapability(capability, out var ability)) return null;
                 float pa = PlayerAttr(ability);
                 float na = NpcAttr(npcId, ability);
-                float chance = SingleRollResolver.SimpleChance(pa, na);
+                bool eligible = MeetsCheckRequirement(capability, minimumGrowth);
+                float chance = eligible ? SingleRollResolver.SimpleChance(pa, na) : 0f;
                 return new StoryRoll
                 {
                     Ability = ability, Capability = capability, NpcId = npcId, Tactic = tactic.ToString(),
-                    PlayerAttr = pa, NpcAttr = na, Chance = chance, Threshold = 1f - chance
+                    PlayerAttr = pa, NpcAttr = na, Chance = chance, Threshold = 1f - chance,
+                    Eligible = eligible, MinimumGrowth = minimumGrowth, Growth = PlayerGrowth(ability)
                 };
             }
             var context = new IntentContext(agent, speaker: hero);
@@ -286,10 +321,11 @@ namespace LivingWorldNpcs
             };
         }
 
-        public static StoryRoll RollDialogueCheck(string npcId, NegotiationTactic tactic, string capability = null)
+        public static StoryRoll RollDialogueCheck(string npcId, NegotiationTactic tactic, string capability = null, int minimumGrowth = 0)
         {
-            var result = PreviewDialogueCheck(npcId, tactic, capability);
+            var result = PreviewDialogueCheck(npcId, tactic, capability, minimumGrowth);
             if (result == null) return null;
+            if (!result.Eligible) return result; // 资格不足不掷骰，也不消费调试覆盖值。
             // 沿用原有三类覆盖命令，但实际概率和技能完全取共享对话轮子。
             string legacy = result.Capability != null ? AbilityId(result.Ability) : result.Skill == DefaultSkills.Charm ? "charm"
                 : result.Skill == DefaultSkills.Roguery ? "guile" : null;
@@ -492,6 +528,8 @@ namespace LivingWorldNpcs
         public float Threshold;   // 门槛 = 1 − 成功率（铁律 17：只播报掷点 vs 门槛）
         public float Roll;
         public bool Success;
+        public bool Eligible = true;
+        public int MinimumGrowth, Growth;
 
         public string Describe()
             => $"{NpcId}/{Tactic ?? Ability.ToString()} capability={Capability ?? "legacy"} attribute={Ability} skill={Skill?.StringId ?? "attribute"} player={PlayerAttr:F0} npc={NpcAttr:F0} chance={Chance:P0} " +

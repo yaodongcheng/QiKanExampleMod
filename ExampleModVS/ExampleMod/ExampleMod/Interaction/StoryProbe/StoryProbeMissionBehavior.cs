@@ -1244,12 +1244,7 @@ namespace LivingWorldNpcs
             // 随从 + 3 句
             EnsureCompanion();
 
-            // 同上：剧情旁白不受调试开关门控
-            InformationManager.DisplayMessage(new InformationMessage(
-                LWNTextHelper.ResolveText("LWN_story_narr_second_enter",
-                    "The gate again. Nothing has changed — except you have nothing left to lose.")));
-            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText(
-                "LWN_story_gate_finish_notice", "Finish any outstanding jobs before stepping inside. Entering ends this chapter.")));
+            // 回忆、观察目标与跳过选择由台本 inquiry 原子呈现。
         }
 
         /// <summary>
@@ -2188,7 +2183,12 @@ namespace LivingWorldNpcs
                 if (!string.IsNullOrEmpty(def.IdentityKey))
                     memory._profile.IdentityOverride = LWNTextHelper.ResolveText(def.IdentityKey, def.IdentityFallback);
                 if (!string.IsNullOrEmpty(def.BackgroundKey))
-                    memory.BackgroundStory = LWNTextHelper.ResolveText(def.BackgroundKey, def.BackgroundFallback);
+                    memory.BackgroundStory = string.Join("\n", new[] {
+                        LWNTextHelper.ResolveText(def.BackgroundKey, def.BackgroundFallback),
+                        LWNTextHelper.ResolveText(def.GoalKey, def.GoalFallback),
+                        LWNTextHelper.ResolveText(def.TroubleKey, def.TroubleFallback),
+                        LWNTextHelper.ResolveText(def.PlayerHelpKey, def.PlayerHelpFallback)
+                    }.Where(s => !string.IsNullOrEmpty(s)));
                 if (!string.IsNullOrEmpty(def.TemperamentKey))
                     memory.Personality = LWNTextHelper.ResolveText(def.TemperamentKey, def.TemperamentFallback);
                 if (!string.IsNullOrEmpty(def.SpecialtyKey))
@@ -2327,15 +2327,16 @@ namespace LivingWorldNpcs
         }
 
         public void SayOnAgent(Agent agent, string key, string fallback, SpeechPriority priority = SpeechPriority.Chat,
-            Agent listener = null, bool forwardToNearby = false)
+            Agent listener = null, bool forwardToNearby = false, bool selfTalk = false)
         {
             if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
             try
             {
-                listener = listener ?? Agent.Main;
-                if (!AgentControlHelper.SafeIsActive(listener) || listener == agent || listener.Health <= 0f) return;
+                listener = selfTalk ? null : listener ?? Agent.Main;
+                if (!selfTalk && (!AgentControlHelper.SafeIsActive(listener) || listener == agent || listener.Health <= 0f)) return;
                 SpeechChannel.Say(agent, LWNTextHelper.ResolveText(key, fallback), priority,
-                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), listener, "story", null, listener),
+                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), listener,
+                        selfTalk ? "story-self-talk" : "story", null, listener),
                     0f, forwardToNearby);
 
             }

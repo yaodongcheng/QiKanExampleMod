@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_son",
-  "ContentVersion": 9,
+  "ContentVersion": 10,
   "EntryOption": "LWN_story_son_entry",
   "EntryOptionZh": "[说两句] 这墙头是你的地盘？",
   "SkipVanillaOpening": true,
@@ -57,7 +57,7 @@
         "quest_turned"
       ],
       "Priority": 90,
-      "Node": "son_chat_line1"
+      "Node": "son_chat"
     },
     {
       "Id": "player_hub",
@@ -73,7 +73,7 @@
       "Trigger": "player_talk",
       "Conditions": [],
       "Priority": 70,
-      "Node": "son_intro_line1"
+      "Node": "son_intro"
     },
     {
       "Id": "join_4",
@@ -87,35 +87,11 @@
   ],
   "Nodes": [
     {
-      "Id": "son_intro_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_intro_line1",
-      "TextKeyZh": "别踩那块碎瓦，我耳朵还没聋。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_intro_line2",
-      "Options": []
-    },
-    {
-      "Id": "son_intro_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_intro_line2",
-      "TextKeyZh": "你盯了半天城门，怎么，守门的也不肯给你让路？",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_intro",
-      "Options": []
-    },
-    {
       "Id": "son_intro",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_intro",
-      "TextKeyZh": "要问路就蹲过来，站那儿跟替人望风似的。",
+      "TextKeyZh": "别踩我旁边的箱子，我这只手还肿着，挪不开它，你找我有什么事？",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -135,7 +111,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_methods",
-          "PlayerKeyZh": "[请教] 正门堵着，教我几样绕过去的本事。",
+          "PlayerKeyZh": "正门堵着，教我几样绕过去的本事。",
           "HintKey": "LWN_story_hint_son_learn_methods",
           "HintKeyZh": "请教潜行、扒窃和工具的用途。",
           "Requires": [],
@@ -147,7 +123,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_business",
-          "PlayerKeyZh": "[帮忙] 你手伤着，有什么活能交给我。",
+          "PlayerKeyZh": "你手伤着，要是需要帮忙，就跟我说。",
           "HintKey": "LWN_story_hint_son_learn_business",
           "HintKeyZh": "了解他的处境与工具差事。",
           "Requires": [],
@@ -157,7 +133,7 @@
         {
           "Id": "sister",
           "PlayerKey": "LWN_story_son_opt_sister",
-          "PlayerKeyZh": "[打听] 你整天蹲在墙头，见过一个穿青布的姑娘吗？",
+          "PlayerKeyZh": "你整天蹲在墙头，见过一个穿青布的姑娘吗？",
           "HintKey": "LWN_story_hint_son_opt_sister",
           "HintKeyZh": "打听小贼见到的青布姑娘。",
           "Requires": [
@@ -181,14 +157,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "son_ask_sister_line1",
+          "NextNode": "son_ask_sister",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -215,7 +191,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_methods",
-          "PlayerKeyZh": "[请教] 正门堵着，教我几样绕过去的本事。",
+          "PlayerKeyZh": "正门堵着，教我几样绕过去的本事。",
           "HintKey": "LWN_story_hint_son_learn_methods",
           "HintKeyZh": "请教潜行、扒窃和工具的用途。",
           "Requires": [],
@@ -227,7 +203,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_business",
-          "PlayerKeyZh": "[帮忙] 你手伤着，有什么活能交给我。",
+          "PlayerKeyZh": "你手伤着，要是需要帮忙，就跟我说。",
           "HintKey": "LWN_story_hint_son_learn_business",
           "HintKeyZh": "了解他的处境与工具差事。",
           "Requires": [],
@@ -237,7 +213,7 @@
         {
           "Id": "sister",
           "PlayerKey": "LWN_story_son_opt_sister",
-          "PlayerKeyZh": "[打听] 你整天蹲在墙头，见过一个穿青布的姑娘吗？",
+          "PlayerKeyZh": "你整天蹲在墙头，见过一个穿青布的姑娘吗？",
           "HintKey": "LWN_story_hint_son_opt_sister",
           "HintKeyZh": "打听小贼见到的青布姑娘。",
           "Requires": [
@@ -261,14 +237,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "son_ask_sister_line1",
+          "NextNode": "son_ask_sister",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -280,23 +256,11 @@
       ]
     },
     {
-      "Id": "son_ask_wall_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_ask_wall_line1",
-      "TextKeyZh": "看谁身上带了沉钱袋，看谁走的是背光巷子。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_ask_wall",
-      "Options": []
-    },
-    {
       "Id": "son_ask_wall",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_ask_wall",
-      "TextKeyZh": "我娘在那边戏台唱戏，我在这儿替夜行会盯梢。",
+      "TextKeyZh": "我替夜行会看着这条街，有钱袋也得有动手的机会，如今手伤着，只能在这儿等。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -305,7 +269,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -317,35 +281,11 @@
       ]
     },
     {
-      "Id": "son_ask_climb_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_ask_climb_line1",
-      "TextKeyZh": "瞧见城门上方那根横梁没有？",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_ask_climb_line2",
-      "Options": []
-    },
-    {
-      "Id": "son_ask_climb_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_ask_climb_line2",
-      "TextKeyZh": "钩住能承重的地方再上去，手一滑，三丈高的墙可不会接住你。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_ask_climb",
-      "Options": []
-    },
-    {
       "Id": "son_ask_climb",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_ask_climb",
-      "TextKeyZh": "可惜我那副好钩子，昨天让一伙野贼给抢了。",
+      "TextKeyZh": "门上那根梁能挂钩子，不过我的钩索让墙根那伙人抢了，没拿回工具我也教不了你用。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -354,7 +294,7 @@
         {
           "Id": "climb2",
           "PlayerKey": "LWN_story_son_opt_climb2",
-          "PlayerKeyZh": "[追问] 谁敢抢夜行会的东西？",
+          "PlayerKeyZh": "谁敢抢夜行会的东西？",
           "HintKey": "LWN_story_hint_son_opt_climb2",
           "HintKeyZh": "打听抢走飞钩的人。",
           "Requires": [
@@ -370,14 +310,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "son_ask_climb_2_line1",
+          "NextNode": "son_ask_climb_2",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -389,23 +329,11 @@
       ]
     },
     {
-      "Id": "son_ask_climb_2_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_ask_climb_2_line1",
-      "TextKeyZh": "那帮野贼不守夜行会的规矩，硬抢东西还掰伤了我一根手指。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_ask_climb_2",
-      "Options": []
-    },
-    {
       "Id": "son_ask_climb_2",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_ask_climb_2",
-      "TextKeyZh": "我要不是手伤了，早去把场子找回来了。",
+      "TextKeyZh": "他们抢东西时掰伤了我这根手指，连绳子都攥不住，哪还翻得了墙。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -414,7 +342,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -426,23 +354,11 @@
       ]
     },
     {
-      "Id": "son_ask_sister_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_ask_sister_line1",
-      "TextKeyZh": "上个月半夜，我见码头帮两个人架着个穿青布的女子走后巷。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_ask_sister",
-      "Options": []
-    },
-    {
       "Id": "son_ask_sister",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_ask_sister",
-      "TextKeyZh": "嘴里堵着布，走得急，我蹲在瓦上没敢往下看。",
+      "TextKeyZh": "上个月夜里，我在屋顶见过两个码头帮的人带着个穿青布的姑娘，嘴里塞着布。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -451,7 +367,7 @@
         {
           "Id": "sister2",
           "PlayerKey": "LWN_story_son_opt_sister2",
-          "PlayerKeyZh": "[追问] 那天夜里他们把人押去哪了？",
+          "PlayerKeyZh": "那天夜里他们把人押去哪了？",
           "HintKey": "LWN_story_hint_son_opt_sister2",
           "HintKeyZh": "打听姑娘被押走的方向。",
           "Requires": [
@@ -467,14 +383,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "son_ask_sister_2_line1",
+          "NextNode": "son_ask_sister_2",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -486,23 +402,11 @@
       ]
     },
     {
-      "Id": "son_ask_sister_2_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_ask_sister_2_line1",
-      "TextKeyZh": "那天我正摸进绸缎庄顺东西，出声我自己也得折进去。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_ask_sister_2",
-      "Options": []
-    },
-    {
       "Id": "son_ask_sister_2",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_ask_sister_2",
-      "TextKeyZh": "不过他们去的方向，肯定是大西门里头的私仓。",
+      "TextKeyZh": "我当时正偷东西，没敢出声，只看见他们往大西门里的私仓走。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -511,7 +415,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -523,35 +427,11 @@
       ]
     },
     {
-      "Id": "son_deal_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_deal_line1",
-      "TextKeyZh": "想要飞钩翻墙？",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_deal_line2",
-      "Options": []
-    },
-    {
-      "Id": "son_deal_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_deal_line2",
-      "TextKeyZh": "东西可以归你，但你得替我出这口气。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_deal",
-      "Options": []
-    },
-    {
       "Id": "son_deal",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_deal",
-      "TextKeyZh": "那伙野贼就窝在西墙根塌马厩那儿，去把他们打发走。",
+      "TextKeyZh": "你替我让墙根那伙人停手，我把备用钩索和撬锁包给你，这只手没好之前我也用不上。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -560,19 +440,19 @@
         {
           "Id": "job",
           "PlayerKey": "LWN_story_opt_take_job",
-          "PlayerKeyZh": "[应下] 这活我接了。",
+          "PlayerKeyZh": "这活我接了。",
           "HintKey": "LWN_story_hint_opt_take_job",
           "HintKeyZh": "接下这桩差事，办成后回来领报酬。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "son_quest_accept_line1",
+          "NextNode": "son_quest_accept",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "why",
           "PlayerKey": "LWN_story_son_opt_why",
-          "PlayerKeyZh": "[反问] 你自己的场子，怎么不自己去找回来？",
+          "PlayerKeyZh": "这是你的地方，怎么不自己把东西要回来？",
           "HintKey": "LWN_story_hint_son_opt_why",
           "HintKeyZh": "打听小贼请你出面的原因。",
           "Requires": [
@@ -588,42 +468,30 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "son_deal_why_line1",
+          "NextNode": "son_deal_why",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "refuse",
           "PlayerKey": "LWN_story_son_opt_refuse",
-          "PlayerKeyZh": "[缓一缓] 我不替小偷打架。",
+          "PlayerKeyZh": "我不替小偷打架。",
           "HintKey": "LWN_story_hint_defer_job",
           "HintKeyZh": "暂不接这桩差事。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "son_deal_refuse_line1",
+          "NextNode": "son_deal_refuse",
           "Speaker": "player",
           "Listener": "npc"
         }
       ]
     },
     {
-      "Id": "son_deal_why_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_deal_why_line1",
-      "TextKeyZh": "我这根手指肿成这样，哪还敢去找他们？",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_deal_why",
-      "Options": []
-    },
-    {
       "Id": "son_deal_why",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_deal_why",
-      "TextKeyZh": "让那领头的别再抢我的买卖，备用钩索和撬锁包全归你。",
+      "TextKeyZh": "手肿得握不住钩子，他们人又多，我再去就是把另一只手也搭上。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -632,19 +500,19 @@
         {
           "Id": "job",
           "PlayerKey": "LWN_story_opt_take_job",
-          "PlayerKeyZh": "[应下] 这活我接了。",
+          "PlayerKeyZh": "这活我接了。",
           "HintKey": "LWN_story_hint_opt_take_job",
           "HintKeyZh": "接下这桩差事，办成后回来领报酬。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "son_quest_accept_line1",
+          "NextNode": "son_quest_accept",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -656,23 +524,11 @@
       ]
     },
     {
-      "Id": "son_deal_refuse_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_deal_refuse_line1",
-      "TextKeyZh": "不干拉倒。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_deal_refuse",
-      "Options": []
-    },
-    {
       "Id": "son_deal_refuse",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_deal_refuse",
-      "TextKeyZh": "没我的飞钩，你就慢慢在城门底下跟铁头耗着吧。",
+      "TextKeyZh": "那算了，我再找别人，你要问别的事就问。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -681,7 +537,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -693,23 +549,11 @@
       ]
     },
     {
-      "Id": "son_quest_accept_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_quest_accept_line1",
-      "TextKeyZh": "野贼头子就在西边墙根转悠。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_quest_accept",
-      "Options": []
-    },
-    {
       "Id": "son_quest_accept",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_quest_accept",
-      "TextKeyZh": "拆穿他的底细也好，打一顿也好，让他收手，回来拿钩子。",
+      "TextKeyZh": "领头的在粮仓外，让他不再抢我的东西就行，谈妥了回来取工具。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -727,7 +571,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -739,7 +583,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -764,47 +608,23 @@
         {
           "Id": "ok",
           "PlayerKey": "LWN_story_son_opt_turnin_ok",
-          "PlayerKeyZh": "[交差] 墙根那伙野贼已经打发了。",
+          "PlayerKeyZh": "墙根那伙野贼已经打发了。",
           "HintKey": "LWN_story_hint_son_opt_turnin_ok",
           "HintKeyZh": "办妥差事后，领取钩索绳、铁钩、撬锁包及技能经验。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "son_turnin_ok_line1",
+          "NextNode": "son_turnin_ok",
           "Speaker": "player",
           "Listener": "npc"
         }
       ]
     },
     {
-      "Id": "son_turnin_ok_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_turnin_ok_line1",
-      "TextKeyZh": "够爷们！",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_turnin_ok_line2",
-      "Options": []
-    },
-    {
-      "Id": "son_turnin_ok_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_turnin_ok_line2",
-      "TextKeyZh": "这副钩索绳、铁钩还有撬锁包，我擦了一宿，全归你。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_turnin_ok",
-      "Options": []
-    },
-    {
       "Id": "son_turnin_ok",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_turnin_ok",
-      "TextKeyZh": "趁守门那家伙转头时往梁上勾，千万别当着他的面飞。",
+      "TextKeyZh": "那我能安心养这只手了，钩索和撬锁包给你，翻墙前先找准能挂牢的地方。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -822,7 +642,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -834,7 +654,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -846,35 +666,11 @@
       ]
     },
     {
-      "Id": "son_chat_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_chat_line1",
-      "TextKeyZh": "来了？",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_chat_line2",
-      "Options": []
-    },
-    {
-      "Id": "son_chat_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_chat_line2",
-      "TextKeyZh": "我娘今天又拧我耳朵，骂我跟生人鬼混。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_chat",
-      "Options": []
-    },
-    {
       "Id": "son_chat",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_chat",
-      "TextKeyZh": "我说你替我把工具的事办妥了，她才没再追着问。",
+      "TextKeyZh": "我娘听说你帮我拿回了工具，还说让我少跟你学那些危险的事。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -883,7 +679,7 @@
         {
           "Id": "work",
           "PlayerKey": "LWN_story_son_opt_work",
-          "PlayerKeyZh": "[请教] 除了钩索翻墙，过门还有什么巧办法？",
+          "PlayerKeyZh": "除了钩索翻墙，过门还有什么巧办法？",
           "HintKey": "LWN_story_hint_son_opt_work",
           "HintKeyZh": "打听钩索之外的过门办法。",
           "Requires": [
@@ -899,14 +695,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "son_chat_2_line1",
+          "NextNode": "son_chat_2",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -918,7 +714,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -930,23 +726,11 @@
       ]
     },
     {
-      "Id": "son_chat_2_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_chat_2_line1",
-      "TextKeyZh": "铁头腰上那把佩刀松得很，你从背后摸过去就能顺下来。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_chat_2",
-      "Options": []
-    },
-    {
       "Id": "son_chat_2",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_chat_2",
-      "TextKeyZh": "要是手底下利索，蹲着贴墙根也能趁他转头溜进去。",
+      "TextKeyZh": "蹲着走到他身后，等他看向别处再过门，要摸他的刀也得先看看有没有别人盯着。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -955,7 +739,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -967,7 +751,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1007,7 +791,7 @@
       "Speaker": "npc",
       "Listener": "pawnbroker",
       "TextKey": "LWN_story_event4_join_line3",
-      "TextKeyZh": "冤枉啊周掌柜！",
+      "TextKeyZh": "周掌柜，真不是我拿的！",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1019,7 +803,7 @@
       "Speaker": "npc",
       "Listener": "pawnbroker",
       "TextKey": "LWN_story_event4_join",
-      "TextKeyZh": "我今天连你摊子三尺内都没进过！",
+      "TextKeyZh": "我今天连你的柜台都没靠近！",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1028,7 +812,7 @@
         {
           "Id": "defend",
           "PlayerKey": "LWN_story_event4_opt_defend",
-          "PlayerKeyZh": "[劝解] 掌柜的先摸摸账本底下，当街冤枉人可坏名声。",
+          "PlayerKeyZh": "[劝解] 先看看账本下面，东西还没找清楚，别急着怪他。",
           "HintKey": "LWN_story_hint_event4_opt_defend",
           "HintKeyZh": "试着替小贼澄清偷窃指控；也可能惹上嫌疑。",
           "Requires": [
@@ -1057,7 +841,7 @@
         {
           "Id": "ask",
           "PlayerKey": "LWN_story_event4_opt_ask",
-          "PlayerKeyZh": "[插话] 慢着，到底丢了什么东西？",
+          "PlayerKeyZh": "慢着，到底丢了什么东西？",
           "HintKey": "LWN_story_hint_event4_opt_ask",
           "HintKeyZh": "听听双方怎么说偷窃指控。",
           "Requires": [],
@@ -1069,7 +853,7 @@
         {
           "Id": "walk",
           "PlayerKey": "LWN_story_event4_opt_walk",
-          "PlayerKeyZh": "[走开] 抓贼的事我不掺和。",
+          "PlayerKeyZh": "抓贼的事我不掺和。",
           "HintKey": "LWN_story_hint_leave_event",
           "HintKeyZh": "离开，让他们自己解决。",
           "Requires": [],
@@ -1085,7 +869,7 @@
       "Speaker": "pawnbroker",
       "Listener": "player",
       "TextKey": "LWN_story_event4_ask_line1",
-      "TextKeyZh": "柜角一袋散碎铜子不见了，刚才就这小子从檐下溜过去！",
+      "TextKeyZh": "柜台角上那袋零钱不见了，刚才只有这小子从门前走过！",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1106,7 +890,7 @@
         {
           "Id": "defend",
           "PlayerKey": "LWN_story_event4_opt_defend",
-          "PlayerKeyZh": "[劝解] 掌柜的先摸摸账本底下，当街冤枉人可坏名声。",
+          "PlayerKeyZh": "[劝解] 先看看账本下面，东西还没找清楚，别急着怪他。",
           "HintKey": "LWN_story_hint_event4_opt_defend",
           "HintKeyZh": "试着替小贼澄清偷窃指控；也可能惹上嫌疑。",
           "Requires": [
@@ -1135,7 +919,7 @@
         {
           "Id": "walk",
           "PlayerKey": "LWN_story_event4_opt_walk",
-          "PlayerKeyZh": "[走开] 抓贼的事我不掺和。",
+          "PlayerKeyZh": "抓贼的事我不掺和。",
           "HintKey": "LWN_story_hint_leave_event",
           "HintKeyZh": "离开，让他们自己解决。",
           "Requires": [],
@@ -1163,7 +947,7 @@
       "Speaker": "pawnbroker",
       "Listener": "npc",
       "TextKey": "LWN_story_event4_win_line2",
-      "TextKeyZh": "算我老眼昏花，莫怪。",
+      "TextKeyZh": "是我看错了，刚才不该怪你。",
       "LineActions": [
         "act_conversation_closed_negative"
       ],
@@ -1175,7 +959,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_event4_win",
-      "TextKeyZh": "谢了兄弟，要不是你拦着，我这只手又得挨顿拧。",
+      "TextKeyZh": "多谢你拦着，不然他又得抓着我的伤手不放。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1202,7 +986,7 @@
         {
           "Id": "followup",
           "PlayerKey": "LWN_story_event_opt_followup",
-          "PlayerKeyZh": "[跟他说两句]",
+          "PlayerKeyZh": "我还有件事想问你。",
           "HintKey": "LWN_story_hint_event_opt_followup",
           "HintKeyZh": "留下聊聊别的。",
           "Requires": [],
@@ -1214,7 +998,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1272,7 +1056,7 @@
         {
           "Id": "followup",
           "PlayerKey": "LWN_story_event_opt_followup",
-          "PlayerKeyZh": "[跟他说两句]",
+          "PlayerKeyZh": "我还有件事想问你。",
           "HintKey": "LWN_story_hint_event_opt_followup",
           "HintKeyZh": "留下聊聊别的。",
           "Requires": [],
@@ -1284,7 +1068,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1296,23 +1080,11 @@
       ]
     },
     {
-      "Id": "son_money_open_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_money_open_line1",
-      "TextKeyZh": "还是你懂夜行会的规矩。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_money_open",
-      "Options": []
-    },
-    {
       "Id": "son_money_open",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_money_open",
-      "TextKeyZh": "四十第纳尔拿来，你想知道哪条暗道？",
+      "TextKeyZh": "四十第纳尔，我给你指出梁上能挂钩的地方，别拿绳子往烂木头上搭。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1321,7 +1093,7 @@
         {
           "Id": "pay",
           "PlayerKey": "LWN_story_son_opt_pay",
-          "PlayerKeyZh": "[数出四十第纳尔] 门上那根梁，到底哪截结实？",
+          "PlayerKeyZh": "门上那根梁，到底哪截结实？",
           "HintKey": "LWN_story_hint_son_opt_pay",
           "HintKeyZh": "付40第纳尔，打听横梁。",
           "Requires": [
@@ -1335,14 +1107,14 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "son_money_taken_line1",
+          "NextNode": "son_money_taken",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1354,23 +1126,11 @@
       ]
     },
     {
-      "Id": "son_money_taken_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_money_taken_line1",
-      "TextKeyZh": "城门上那根横梁，西头朽了，正中那一截最结实。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "NextNode": "son_money_taken",
-      "Options": []
-    },
-    {
       "Id": "son_money_taken",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_money_taken",
-      "TextKeyZh": "挑他转头的时候动手，梁结实，可保不了你不被看见。",
+      "TextKeyZh": "梁西头的木头坏了，钩子挂正中，动手前再看看守门的脸朝哪边。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1379,7 +1139,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1391,7 +1151,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1407,7 +1167,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_methods_hub",
-      "TextKeyZh": "门口有眼睛，身上有刀，墙上有横梁，你想先对付哪一样？",
+      "TextKeyZh": "你想绕过他的眼睛，摸走他的刀，还是从墙上进去？",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1417,9 +1177,9 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_sneak",
-          "PlayerKeyZh": "[潜行] 先教我从他眼皮底下绕过去。",
+          "PlayerKeyZh": "先教我从他眼皮底下绕过去。",
           "HintKey": "LWN_story_hint_son_learn_sneak",
-          "HintKeyZh": "请教蹲行、声音与守卫视线；真正通过仍需现场行动。",
+          "HintKeyZh": "向小六请教怎么偷偷绕过守卫。",
           "Requires": [
             "!asked:lesson_sneak"
           ],
@@ -1440,9 +1200,9 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_steal",
-          "PlayerKeyZh": "[扒窃] 那把刀，我想让它换个主人。",
+          "PlayerKeyZh": "我想把他身上的刀偷走。",
           "HintKey": "LWN_story_hint_son_learn_steal",
-          "HintKeyZh": "请教扒窃装备与钱袋的区别，有被发现的风险。",
+          "HintKeyZh": "向小六请教怎么偷走守卫的武器。",
           "Requires": [
             "!asked:lesson_steal"
           ],
@@ -1463,9 +1223,9 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_tools",
-          "PlayerKeyZh": "[工具] 说说你那些钩子和开锁的家伙。",
+          "PlayerKeyZh": "说说你那些钩子和开锁的家伙。",
           "HintKey": "LWN_story_hint_son_learn_tools",
-          "HintKeyZh": "了解钩索和撬锁工具的不同用途。",
+          "HintKeyZh": "向小六请教钩索和开锁工具的用法。",
           "Requires": [],
           "Effects": [],
           "NextNode": "son_tools_hub"
@@ -1475,7 +1235,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_back_top",
-          "PlayerKeyZh": "[收住] 我还有别的事。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_son_learn_back_top",
           "HintKeyZh": "回到眼前的其他事情。",
           "Requires": [],
@@ -1489,7 +1249,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_learn_sneak_1",
-      "TextKeyZh": "站在人背后只能躲眼睛，脚下踩得跟打鼓似的，谁还不知道你来了。",
+      "TextKeyZh": "在背后他看不见你，可你走得重，他一样会回头。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1501,7 +1261,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_learn_sneak_2",
-      "TextKeyZh": "贴墙蹲着走，等他的脸转开再穿过去，别把一声咳嗽当成他睡着了。",
+      "TextKeyZh": "蹲着慢慢走，等他转开脸再过，他只是回头看别处，可不是睡着了。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1511,7 +1271,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_back_methods",
-          "PlayerKeyZh": "[收住] 说说别的进城办法。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_son_learn_back_methods",
           "HintKeyZh": "回到进城办法的话题。",
           "Requires": [],
@@ -1521,7 +1281,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1537,7 +1297,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_learn_steal_1",
-      "TextKeyZh": "绕到他背后再摸，刀是刀，钱袋是钱袋，摸走一样可不会替你把另一样也装进袖子。",
+      "TextKeyZh": "从背后看好你要摸的东西再伸手，别只顾着盯钱袋，忘了他身上还有刀。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1549,7 +1309,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_learn_steal_2",
-      "TextKeyZh": "手不稳就收回来，被他抓个现行，才该想拿什么话收场。",
+      "TextKeyZh": "拿不准就收手，他一察觉就可能抓你，钱袋没到手，人先被押走了。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1559,7 +1319,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_disarm",
-          "PlayerKeyZh": "[追问] 摸走他的刀，就能大摇大摆进门？",
+          "PlayerKeyZh": "摸走他的刀，就能大摇大摆进门？",
           "HintKey": "LWN_story_hint_son_learn_disarm",
           "HintKeyZh": "打听卸走武器能给交涉带来什么筹码。",
           "Requires": [],
@@ -1571,7 +1331,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_back_methods",
-          "PlayerKeyZh": "[收住] 说说别的进城办法。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_son_learn_back_methods",
           "HintKeyZh": "回到进城办法的话题。",
           "Requires": [],
@@ -1581,7 +1341,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1597,7 +1357,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_learn_disarm",
-      "TextKeyZh": "刀没了也不等于他答应放你，先看他还藏没藏别的家伙，再当面谈。",
+      "TextKeyZh": "摸走一把刀不等于他肯放行，先看看他有没有别的武器，再当面跟他谈。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1607,7 +1367,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_back_methods",
-          "PlayerKeyZh": "[收住] 说说别的进城办法。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_son_learn_back_methods",
           "HintKeyZh": "回到进城办法的话题。",
           "Requires": [],
@@ -1617,7 +1377,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1633,7 +1393,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_tools_hub",
-      "TextKeyZh": "飞钩帮你上去，细铁片帮你进去，拿错了家伙可别怪墙和锁不讲理。",
+      "TextKeyZh": "钩索用来翻墙，细铁片用来开锁，你想先学哪个？",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1641,9 +1401,9 @@
         {
           "Id": "climb",
           "PlayerKey": "LWN_story_son_opt_climb",
-          "PlayerKeyZh": "[打听] 正门被堵死了，怎么才能翻进去？",
+          "PlayerKeyZh": "正门被堵死了，怎么才能翻进去？",
           "HintKey": "LWN_story_hint_son_opt_climb",
-          "HintKeyZh": "打听翻墙办法和钩索。",
+          "HintKeyZh": "向小六打听翻墙进城的办法。",
           "Requires": [
             "!asked:ask_climb"
           ],
@@ -1657,7 +1417,7 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "son_ask_climb_line1",
+          "NextNode": "son_ask_climb",
           "Speaker": "player",
           "Listener": "npc"
         },
@@ -1666,9 +1426,9 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_locks",
-          "PlayerKeyZh": "[撬锁] 我还没摆弄过锁，先教我门道。",
+          "PlayerKeyZh": "我没开过锁，先教我怎么用这些工具。",
           "HintKey": "LWN_story_hint_son_learn_locks",
-          "HintKeyZh": "请教锁芯与撬锁工具的使用，有被发现的风险。",
+          "HintKeyZh": "向小六请教开锁工具的用法。",
           "Requires": [
             "!asked:lesson_lock"
           ],
@@ -1689,9 +1449,9 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_practice_opt_try",
-          "PlayerKeyZh": "[试手] 找把旧锁，让我试试？",
+          "PlayerKeyZh": "找把旧锁，让我试试？",
           "HintKey": "LWN_story_hint_son_practice_try",
-          "HintKeyZh": "请小六借一把旧锁练手。",
+          "HintKeyZh": "请小六找把旧锁，让你练习开锁。",
           "Requires": [
             "asked:lesson_lock",
             "!asked:lesson_lock_done"
@@ -1704,9 +1464,9 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_practice_opt_done",
-          "PlayerKeyZh": "[回话] 你那把旧锁，我打开了。",
+          "PlayerKeyZh": "你那把旧锁，我打开了。",
           "HintKey": "LWN_story_hint_son_practice_done",
-          "HintKeyZh": "向小六说说开锁练习的结果。",
+          "HintKeyZh": "告诉小六，你已经打开了练习用的锁。",
           "Requires": [
             "asked:lesson_lock_done",
             "!asked:lesson_lock_reviewed"
@@ -1717,9 +1477,9 @@
         {
           "Id": "money",
           "PlayerKey": "LWN_story_son_learn_opt_beam_price",
-          "PlayerKeyZh": "[买消息] 梁上哪截能承重，你给我指个准处。",
+          "PlayerKeyZh": "梁上哪一段能挂住钩子，给我指一下。",
           "HintKey": "LWN_story_hint_son_opt_money",
-          "HintKeyZh": "问小贼买消息的价钱。",
+          "HintKeyZh": "请小六说明横梁上哪里能挂住钩子。",
           "Requires": [
             "asked:ask_climb",
             "!asked:son_money"
@@ -1734,7 +1494,7 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "son_money_open_line1",
+          "NextNode": "son_money_open",
           "Speaker": "player",
           "Listener": "npc"
         },
@@ -1743,7 +1503,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_back_methods",
-          "PlayerKeyZh": "[收住] 说说别的进城办法。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_son_learn_back_methods",
           "HintKeyZh": "回到进城办法的话题。",
           "Requires": [],
@@ -1757,7 +1517,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_learn_lock_1",
-      "TextKeyZh": "先看锁芯有几层，再下细铁片，手快不等于开得稳。",
+      "TextKeyZh": "先试出锁里有几层，稳住一层再拨下一层，别只顾着使劲。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1769,7 +1529,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_learn_lock_2",
-      "TextKeyZh": "锁开了还得看里头有什么，主人的眼睛又不是锁住了。",
+      "TextKeyZh": "开别人的锁会惹麻烦，先拿我这口旧箱练，别跑到人家柜上试。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1779,7 +1539,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_back_methods",
-          "PlayerKeyZh": "[收住] 说说别的进城办法。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_son_learn_back_methods",
           "HintKeyZh": "回到进城办法的话题。",
           "Requires": [],
@@ -1789,7 +1549,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1805,7 +1565,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_business_hub",
-      "TextKeyZh": "手指让人掰伤了，连旧钩子也落在别人手里，倒真有件事想托人。",
+      "TextKeyZh": "这手指还疼，墙根那伙人又在抢我的东西，你愿意帮我跑一趟吗？",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1813,7 +1573,7 @@
         {
           "Id": "wall",
           "PlayerKey": "LWN_story_son_opt_wall",
-          "PlayerKeyZh": "[搭话] 你天天蹲在这墙根底下看什么？",
+          "PlayerKeyZh": "你天天蹲在这墙根底下看什么？",
           "HintKey": "LWN_story_hint_son_opt_wall",
           "HintKeyZh": "打听墙根盯梢的事。",
           "Requires": [
@@ -1829,14 +1589,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "son_ask_wall_line1",
+          "NextNode": "son_ask_wall",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "deal",
           "PlayerKey": "LWN_story_son_opt_deal",
-          "PlayerKeyZh": "[求门路] 把你的飞钩借我用用。",
+          "PlayerKeyZh": "把你的飞钩借我用用。",
           "HintKey": "LWN_story_hint_son_opt_deal",
           "HintKeyZh": "打听借飞钩的条件。",
           "Requires": [
@@ -1844,21 +1604,21 @@
             "!quest_turned"
           ],
           "Effects": [],
-          "NextNode": "son_deal_line1",
+          "NextNode": "son_deal",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "chat",
           "PlayerKey": "LWN_story_son_opt_chat",
-          "PlayerKeyZh": "[叙旧] 这两天墙头上有什么新动静？",
+          "PlayerKeyZh": "这两天墙头上有什么新动静？",
           "HintKey": "LWN_story_hint_son_opt_chat",
           "HintKeyZh": "打听墙头近况。",
           "Requires": [
             "quest_turned"
           ],
           "Effects": [],
-          "NextNode": "son_chat_line1",
+          "NextNode": "son_chat",
           "Speaker": "player",
           "Listener": "npc"
         },
@@ -1867,7 +1627,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_learn_opt_back_top",
-          "PlayerKeyZh": "[收住] 我还有别的事。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_son_learn_back_top",
           "HintKeyZh": "回到眼前的其他事情。",
           "Requires": [],
@@ -1891,7 +1651,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_practice_opt_start",
-          "PlayerKeyZh": "[试锁] 细铁片有了，我就试这把锁。",
+          "PlayerKeyZh": "细铁片有了，我就试这把锁。",
           "HintKey": "LWN_story_hint_son_practice_start",
           "HintKeyZh": "经小六许可，用撬锁包练开旧箱的锁，可以中途收手。",
           "Requires": [
@@ -1905,7 +1665,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_practice_opt_back",
-          "PlayerKeyZh": "[收住] 再说说这些工具。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_son_practice_back",
           "HintKeyZh": "回到钩索和锁具的话题。",
           "Requires": [],
@@ -1915,7 +1675,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1931,7 +1691,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_practice_start",
-      "TextKeyZh": "先稳住第一层，再拨第二层，弄坏了可别指望我这只伤手给你收拾。",
+      "TextKeyZh": "慢慢来，先稳住第一层再拨第二层，这只伤手可没法替你修锁。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1952,7 +1712,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_practice_done",
-      "TextKeyZh": "两层都拨开了，下回碰别人的锁，先想想主人肯不肯借你这双手。",
+      "TextKeyZh": "开了就好，下次碰别人的锁，可别以为主人也会站在旁边教你。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -1962,7 +1722,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_son_practice_opt_back",
-          "PlayerKeyZh": "[收住] 再说说这些工具。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_son_practice_back",
           "HintKeyZh": "回到钩索和锁具的话题。",
           "Requires": [],
@@ -1972,7 +1732,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],

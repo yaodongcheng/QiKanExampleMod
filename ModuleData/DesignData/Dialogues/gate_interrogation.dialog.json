@@ -2,9 +2,9 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 门岗实际说话者由本次请求绑定，blocker与gate_sentry复用本定义。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "gate_interrogation",
-  "ContentVersion": 10,
+  "ContentVersion": 11,
   "EntryOption": "LWN_story_blocker_entry",
-  "EntryOptionZh": "[说两句] 让一让，我要进城。",
+  "EntryOptionZh": "让一让，我要进城。",
   "SkipVanillaOpening": true,
   "Participants": [
     "questioner",
@@ -81,7 +81,7 @@
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_first_line1",
-      "TextKeyZh": "通行文书。",
+      "TextKeyZh": "把通行文书拿出来。",
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
@@ -89,7 +89,7 @@
         {
           "Id": "request_entry",
           "PlayerKey": "LWN_story_blocker_entry",
-          "PlayerKeyZh": "[说两句] 让一让，我要进城。",
+          "PlayerKeyZh": "让一让，我要进城。",
           "HintKey": "LWN_story_hint_blocker_entry",
           "HintKeyZh": "向守卫提出进城的请求。",
           "Requires": [],
@@ -101,7 +101,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -135,31 +135,31 @@
         {
           "Id": "insist",
           "PlayerKey": "LWN_story_blocker_opt_insist",
-          "PlayerKeyZh": "[说明来意] 我妹妹在城里做工，我进去找她。",
+          "PlayerKeyZh": "我妹妹在城里做工，我进去找她。",
           "HintKey": "LWN_story_hint_explain",
           "HintKeyZh": "向守卫说明进城找人的缘由。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "blocker_first_refuse_line1",
+          "NextNode": "blocker_first_refuse",
           "Speaker": "player",
           "Listener": "questioner"
         },
         {
           "Id": "draw",
           "PlayerKey": "LWN_story_blocker_opt_draw",
-          "PlayerKeyZh": "[动手] 今天这门我非进不可。",
+          "PlayerKeyZh": "今天这门我非进不可。",
           "HintKey": "LWN_story_hint_guard_fight",
           "HintKeyZh": "坚持强闯城门，可能开战或被扣押。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "blocker_first_blow_line1",
+          "NextNode": "blocker_first_blow",
           "Speaker": "player",
           "Listener": "questioner"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -171,23 +171,11 @@
       ]
     },
     {
-      "Id": "blocker_first_refuse_line1",
-      "Speaker": "questioner",
-      "Listener": "player",
-      "TextKey": "LWN_story_blocker_first_refuse_line1",
-      "TextKeyZh": "找人的、讨债的、逃命的——每天八百个都这么说。",
-      "LineActions": [
-        "act_conversation_aggressive_trivial"
-      ],
-      "NextNode": "blocker_first_refuse",
-      "Options": []
-    },
-    {
       "Id": "blocker_first_refuse",
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_first_refuse",
-      "TextKeyZh": "退后，别逼我动手。",
+      "TextKeyZh": "每天都有人说要找亲人，没有文书就退后，我不挨个听你们解释。",
       "LineActions": [
         "act_conversation_aggressive_very_negative"
       ],
@@ -195,19 +183,19 @@
         {
           "Id": "draw",
           "PlayerKey": "LWN_story_blocker_opt_draw",
-          "PlayerKeyZh": "[动手] 今天这门我非进不可。",
+          "PlayerKeyZh": "今天这门我非进不可。",
           "HintKey": "LWN_story_hint_guard_fight",
           "HintKeyZh": "坚持强闯城门，可能开战或被扣押。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "blocker_first_blow_line1",
+          "NextNode": "blocker_first_blow",
           "Speaker": "player",
           "Listener": "questioner"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -219,23 +207,11 @@
       ]
     },
     {
-      "Id": "blocker_first_blow_line1",
-      "Speaker": "questioner",
-      "Listener": "player",
-      "TextKey": "LWN_story_blocker_first_blow_line1",
-      "TextKeyZh": "敬酒不吃吃罚酒。",
-      "LineActions": [
-        "act_conversation_aggressive_trivial"
-      ],
-      "NextNode": "blocker_first_blow",
-      "Options": []
-    },
-    {
       "Id": "blocker_first_blow",
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_first_blow",
-      "TextKeyZh": "给我躺下！",
+      "TextKeyZh": "还往里挤，那就把兵器放下，跟我们走！",
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
@@ -244,7 +220,7 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_opt_face_fight",
-          "PlayerKeyZh": "[迎战] 那就来吧。",
+          "PlayerKeyZh": "那就来吧。",
           "HintKey": "LWN_story_hint_fight",
           "HintKeyZh": "与眼前的守卫开战。",
           "Requires": [],
@@ -256,7 +232,7 @@
         {
           "Id": "surrender",
           "PlayerKey": "LWN_story_opt_surrender",
-          "PlayerKeyZh": "[束手就擒] 我不抵抗，跟你走。",
+          "PlayerKeyZh": "我不抵抗，跟你走。",
           "HintKey": "LWN_story_hint_surrender",
           "HintKeyZh": "放弃抵抗，接受守卫扣押。",
           "Requires": [],
@@ -272,7 +248,7 @@
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_open_line1",
-      "TextKeyZh": "通行文书。",
+      "TextKeyZh": "把通行文书拿出来。",
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
@@ -280,7 +256,7 @@
         {
           "Id": "request_entry",
           "PlayerKey": "LWN_story_blocker_entry",
-          "PlayerKeyZh": "[说两句] 让一让，我要进城。",
+          "PlayerKeyZh": "让一让，我要进城。",
           "HintKey": "LWN_story_hint_blocker_entry",
           "HintKeyZh": "向守卫提出进城的请求。",
           "Requires": [
@@ -294,7 +270,7 @@
         {
           "Id": "pass",
           "PlayerKey": "LWN_story_blocker_opt_pass",
-          "PlayerKeyZh": "[走过去] 借过。",
+          "PlayerKeyZh": "借过。",
           "HintKey": "LWN_story_hint_blocker_opt_pass",
           "HintKeyZh": "凭已有的通行资格过门。",
           "Requires": [
@@ -308,7 +284,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -342,7 +318,7 @@
         {
           "Id": "bribe",
           "PlayerKey": "LWN_story_blocker_opt_bribe",
-          "PlayerKeyZh": "[塞钱] 这点钱拿去喝茶。（100 第纳尔）",
+          "PlayerKeyZh": "这点钱拿去喝茶。（100 第纳尔）",
           "HintKey": "LWN_story_hint_pay_gate",
           "HintKeyZh": "拿出100第纳尔，打点守卫争取通行。",
           "Requires": [
@@ -373,7 +349,7 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "blocker_bribe_ok_line1",
+          "NextNode": "blocker_bribe_ok",
           "Speaker": "player",
           "Listener": "questioner"
         },
@@ -382,7 +358,7 @@
           "PlayerKey": "LWN_story_blocker_opt_threat",
           "PlayerKeyZh": "[威吓] 好狗不挡道，让开。",
           "HintKey": "LWN_story_hint_threat_gate",
-          "HintKeyZh": "试图逼守卫让路，有引发战斗或被扣押的风险。",
+          "HintKeyZh": "先处理郑大山的砸摊委托并交差，获得15点武力训练收益后才能尝试；通过后依然检定，失败可能开战或被拘捕。",
           "Requires": [
             "!gate_open",
             "!stripped_disarmed",
@@ -392,9 +368,10 @@
           "Check": {
             "Tactic": "Threaten",
             "Target": "questioner",
-            "Success": "blocker_threat_ok_line1",
-            "Fail": "blocker_threat_fail_line1",
-            "Capability": "Intimidate"
+            "Success": "blocker_threat_ok",
+            "Fail": "blocker_threat_fail",
+            "Capability": "Intimidate",
+            "MinimumGrowth": 15
           },
           "Speaker": "player",
           "Listener": "questioner",
@@ -412,7 +389,7 @@
         {
           "Id": "disguise",
           "PlayerKey": "LWN_story_blocker_opt_disguise",
-          "PlayerKeyZh": "[冒充贵客] 贵客入城还要等你点头，谁给你的规矩？",
+          "PlayerKeyZh": "[冒充贵客] 我来办事还得等你同意，把你们管事的叫来。",
           "HintKey": "LWN_story_hint_disguise_gate",
           "HintKeyZh": "借贵族行头施压争取通行；被识破可能遭到武力拘捕。",
           "Requires": [
@@ -424,8 +401,8 @@
           "Check": {
             "Tactic": "Coerce",
             "Target": "questioner",
-            "Success": "blocker_disguise_ok_line1",
-            "Fail": "blocker_disguise_fail_line1",
+            "Success": "blocker_disguise_ok",
+            "Fail": "blocker_disguise_fail",
             "Capability": "Impersonate"
           },
           "Speaker": "player",
@@ -444,7 +421,7 @@
         {
           "Id": "disarmed",
           "PlayerKey": "LWN_story_blocker_opt_disarmed",
-          "PlayerKeyZh": "[走过去] 你手里的刀没了。让开。",
+          "PlayerKeyZh": "你手里的刀没了。让开。",
           "HintKey": "LWN_story_hint_blocker_opt_disarmed",
           "HintKeyZh": "指出守卫已无武器，要求让路。",
           "Requires": [
@@ -463,14 +440,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "blocker_disarmed_ok_line1",
+          "NextNode": "blocker_disarmed_ok",
           "Speaker": "player",
           "Listener": "questioner"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -482,35 +459,11 @@
       ]
     },
     {
-      "Id": "blocker_bribe_ok_line1",
-      "Speaker": "questioner",
-      "Listener": "player",
-      "TextKey": "LWN_story_blocker_bribe_ok_line1",
-      "TextKeyZh": "……还算懂规矩。",
-      "LineActions": [
-        "act_conversation_aggressive_negative"
-      ],
-      "NextNode": "blocker_bribe_ok_line2",
-      "Options": []
-    },
-    {
-      "Id": "blocker_bribe_ok_line2",
-      "Speaker": "questioner",
-      "Listener": "player",
-      "TextKey": "LWN_story_blocker_bribe_ok_line2",
-      "TextKeyZh": "进去吧。",
-      "LineActions": [
-        "act_conversation_aggressive_negative"
-      ],
-      "NextNode": "blocker_bribe_ok",
-      "Options": []
-    },
-    {
       "Id": "blocker_bribe_ok",
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_bribe_ok",
-      "TextKeyZh": "进了门安分点，别给我惹事。",
+      "TextKeyZh": "钱收了，进去吧，里头惹了事可别说是我放的你。",
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
@@ -518,7 +471,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -530,23 +483,11 @@
       ]
     },
     {
-      "Id": "blocker_threat_ok_line1",
-      "Speaker": "questioner",
-      "Listener": "player",
-      "TextKey": "LWN_story_blocker_threat_ok_line1",
-      "TextKeyZh": "……行，你横。",
-      "LineActions": [
-        "act_conversation_aggressive_negative"
-      ],
-      "NextNode": "blocker_threat_ok",
-      "Options": []
-    },
-    {
       "Id": "blocker_threat_ok",
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_threat_ok",
-      "TextKeyZh": "我不为这点俸禄拼命，过去吧。",
+      "TextKeyZh": "你先把手放下，我犯不着跟你拼命，过去吧。",
       "LineActions": [
         "act_conversation_aggressive_negative"
       ],
@@ -567,7 +508,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -579,23 +520,11 @@
       ]
     },
     {
-      "Id": "blocker_threat_fail_line1",
-      "Speaker": "questioner",
-      "Listener": "player",
-      "TextKey": "LWN_story_blocker_threat_fail_line1",
-      "TextKeyZh": "在老子地头上耍横？",
-      "LineActions": [
-        "act_conversation_aggressive_very_negative"
-      ],
-      "NextNode": "blocker_threat_fail",
-      "Options": []
-    },
-    {
       "Id": "blocker_threat_fail",
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_threat_fail",
-      "TextKeyZh": "找死！",
+      "TextKeyZh": "当着我的面威胁守门的人，那你今天别想走了！",
       "LineActions": [
         "act_conversation_aggressive_very_negative"
       ],
@@ -613,7 +542,7 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_opt_face_fight",
-          "PlayerKeyZh": "[迎战] 那就来吧。",
+          "PlayerKeyZh": "那就来吧。",
           "HintKey": "LWN_story_hint_fight",
           "HintKeyZh": "与眼前的守卫开战。",
           "Requires": [],
@@ -625,7 +554,7 @@
         {
           "Id": "surrender",
           "PlayerKey": "LWN_story_opt_surrender",
-          "PlayerKeyZh": "[束手就擒] 我不抵抗，跟你走。",
+          "PlayerKeyZh": "我不抵抗，跟你走。",
           "HintKey": "LWN_story_hint_surrender",
           "HintKeyZh": "放弃抵抗，接受守卫扣押。",
           "Requires": [],
@@ -637,23 +566,11 @@
       ]
     },
     {
-      "Id": "blocker_disguise_ok_line1",
-      "Speaker": "questioner",
-      "Listener": "player",
-      "TextKey": "LWN_story_blocker_disguise_ok_line1",
-      "TextKeyZh": "……原来是贵客当面。",
-      "LineActions": [
-        "act_conversation_aggressive_negative"
-      ],
-      "NextNode": "blocker_disguise_ok",
-      "Options": []
-    },
-    {
       "Id": "blocker_disguise_ok",
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_disguise_ok",
-      "TextKeyZh": "小的眼拙，您里边请。",
+      "TextKeyZh": "是我没认出来，您请进，别耽误了您的事。",
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
@@ -673,7 +590,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -685,35 +602,11 @@
       ]
     },
     {
-      "Id": "blocker_disguise_fail_line1",
-      "Speaker": "questioner",
-      "Listener": "player",
-      "TextKey": "LWN_story_blocker_disguise_fail_line1",
-      "TextKeyZh": "……不对，这身衣裳不合身。",
-      "LineActions": [
-        "act_conversation_aggressive_negative"
-      ],
-      "NextNode": "blocker_disguise_fail_line2",
-      "Options": []
-    },
-    {
-      "Id": "blocker_disguise_fail_line2",
-      "Speaker": "questioner",
-      "Listener": "player",
-      "TextKey": "LWN_story_blocker_disguise_fail_line2",
-      "TextKeyZh": "敢冒充贵人？",
-      "LineActions": [
-        "act_conversation_aggressive_very_negative"
-      ],
-      "NextNode": "blocker_disguise_fail",
-      "Options": []
-    },
-    {
       "Id": "blocker_disguise_fail",
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_disguise_fail",
-      "TextKeyZh": "给我拿下！",
+      "TextKeyZh": "这衣裳像戏班里的，你连来办什么事都说不清，冒充身份还想过门？",
       "LineActions": [
         "act_conversation_aggressive_very_negative"
       ],
@@ -731,7 +624,7 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_opt_face_fight",
-          "PlayerKeyZh": "[迎战] 那就来吧。",
+          "PlayerKeyZh": "那就来吧。",
           "HintKey": "LWN_story_hint_fight",
           "HintKeyZh": "与眼前的守卫开战。",
           "Requires": [],
@@ -743,7 +636,7 @@
         {
           "Id": "surrender",
           "PlayerKey": "LWN_story_opt_surrender",
-          "PlayerKeyZh": "[束手就擒] 我不抵抗，跟你走。",
+          "PlayerKeyZh": "我不抵抗，跟你走。",
           "HintKey": "LWN_story_hint_surrender",
           "HintKeyZh": "放弃抵抗，接受守卫扣押。",
           "Requires": [],
@@ -767,7 +660,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -779,23 +672,11 @@
       ]
     },
     {
-      "Id": "blocker_disarmed_ok_line1",
-      "Speaker": "questioner",
-      "Listener": "player",
-      "TextKey": "LWN_story_blocker_disarmed_ok_line1",
-      "TextKeyZh": "……你什么时候顺走我佩刀的？",
-      "LineActions": [
-        "act_conversation_aggressive_negative"
-      ],
-      "NextNode": "blocker_disarmed_ok",
-      "Options": []
-    },
-    {
       "Id": "blocker_disarmed_ok",
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_disarmed_ok",
-      "TextKeyZh": "算你手快，进去吧。",
+      "TextKeyZh": "我的刀都被你拿走了，我不想跟你拼命，你进去，别再碰我。",
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
@@ -803,7 +684,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -859,7 +740,7 @@
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_threat_fail_fight_response",
-      "TextKeyZh": "还敢嘴硬，看招！",
+      "TextKeyZh": "还敢顶嘴，那就动手！",
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
@@ -918,7 +799,7 @@
       "Speaker": "questioner",
       "Listener": "player",
       "TextKey": "LWN_story_blocker_disguise_fail_surrender_response",
-      "TextKeyZh": "冒充贵人的账，进去再算。",
+      "TextKeyZh": "跟我们走，冒充身份这事还没完。",
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],

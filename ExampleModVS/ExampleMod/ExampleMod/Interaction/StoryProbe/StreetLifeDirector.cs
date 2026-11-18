@@ -62,6 +62,10 @@ namespace LivingWorldNpcs
 
         // ── 常驻 / 桥段 / 反应 ──
         private readonly Dictionary<string, float> _nextGreetingAt = new Dictionary<string, float>();
+        private readonly Dictionary<string, float> _nextSpeechAt = new Dictionary<string, float>();
+        private readonly Dictionary<string, int> _speechCursor = new Dictionary<string, int>();
+        private float _nextAmbientSpeechAt;
+        private int _nextSpeechDefIndex;
         private float _nextSkitAt;
         private bool _playerWasArmed;
 
@@ -91,6 +95,12 @@ namespace LivingWorldNpcs
             _nextEventAt = _time + t.Events.FirstDelaySec;   // 进场多久起第一起（§6.1）
             _nextSkitAt = t.Skits.FirstDelaySec;
             _playedEvents.Clear();
+            _nextSpeechAt.Clear();
+            _speechCursor.Clear();
+            _nextAmbientSpeechAt = 0f;
+            _nextSpeechDefIndex = 0;
+            foreach (var speech in StoryProbeDefs.StreetLife)
+                _nextSpeechAt[speech.NpcId] = SpeechDelay(speech.SpeechFirstDelayMinSec, speech.SpeechFirstDelayMaxSec);
             _events = LoadEvents();
 
             foreach (var def in StoryProbeDefs.Npcs)
@@ -139,6 +149,7 @@ namespace LivingWorldNpcs
             if (!inConversation)
             {
                 TickAmbient(dt);
+                TickAmbientSpeech();
                 TickReactions(dt);
                 TickSkit(dt);
             }
@@ -715,6 +726,66 @@ namespace LivingWorldNpcs
             }
         }
 
+        private float SpeechDelay(float min, float max)
+        {
+            float lo = Math.Max(1f, min);
+            return lo + (float)_rng.NextDouble() * (Math.Max(lo, max) - lo);
+        }
+
+        // 发话与姿态分开：工作人物也使用同一数据，但不能抢工作租约、转身或注视玩家。
+        private void TickAmbientSpeech()
+        {
+            var player = Agent.Main;
+            if (!AgentControlHelper.SafeIsActive(player) || _time < _nextAmbientSpeechAt) return;
+            var definitions = StoryProbeDefs.StreetLife;
+            for (int offset = 0; offset < definitions.Count; offset++)
+            {
+                int defIndex = (_nextSpeechDefIndex + offset) % definitions.Count;
+                var def = definitions[defIndex];
+                if (def.Speech == null || def.Speech.Count == 0) continue;
+                if (_nextSpeechAt.TryGetValue(def.NpcId, out float next) && _time < next) continue;
+                var agent = _host.GetAgent(def.NpcId);
+                if (!AgentControlHelper.SafeIsActive(agent) || agent.Health <= 0f
+                    || agent.Position.Distance(player.Position) > def.SpeechRadiusMeters
+                    || _eventActors.ContainsKey(agent) || _ambientActors.ContainsKey(agent)) continue;
+                var brain = AgentAIController.GetBrainForAgent(agent);
+                if (brain == null || brain.IsInCombat || brain.IsStoryIntercepting || brain.IsBound
+                    || brain.IsStatusHeld || brain.IsStunned) continue;
+                bool working = _host.Work?.CanSpeakWhileWorking(def.NpcId) == true;
+                if (!working && (brain.IsPerforming || !(brain.CurrentAction is StreetIdleAction))) continue;
+                var context = new StoryDialogueContext { ActorId = def.NpcId };
+                foreach (var rule in def.Speech)
+                {
+                    if (rule?.LineKeys == null || rule.LineKeys.Length == 0
+                        || !StoryDialogueFacts.TryEvaluateAll(rule.Requires, context, out bool allowed, out _, out _)
+                        || !allowed) continue;
+                    bool selfTalk = string.IsNullOrEmpty(rule.Listener);
+                    var listener = selfTalk ? null : _host.ResolveSpeechListener(rule.Listener);
+                    if (!selfTalk && (!AgentControlHelper.SafeIsActive(listener) || listener == agent
+                        || listener.Health <= 0f || agent.Position.Distance(listener.Position) > def.SpeechRadiusMeters)) continue;
+                    _speechCursor.TryGetValue(def.NpcId, out int cursor);
+                    int i = cursor % rule.LineKeys.Length;
+                    _host.SayOnAgent(agent, rule.LineKeys[i], rule.LineFallbacks != null && i < rule.LineFallbacks.Length ? rule.LineFallbacks[i] : "",
+                        listener: listener, selfTalk: selfTalk);
+                    _speechCursor[def.NpcId] = cursor + 1;
+                    _nextSpeechAt[def.NpcId] = _time + SpeechDelay(def.SpeechGapMinSec, def.SpeechGapMaxSec);
+                    _nextAmbientSpeechAt = _time + Math.Max(1f, StoryProbeTuning.Current.Ambient.SpeechGapSec);
+                    _nextSpeechDefIndex = (defIndex + 1) % definitions.Count;
+                    DebugLogger.Log($"[StoryAmbient] npc={def.NpcId} line={rule.LineKeys[i]} selfTalk={selfTalk} working={working}");
+                    return;
+                }
+            }
+        }
+
+        public string CueSpeech(string npcId)
+        {
+            var def = StoryProbeDefs.GetStreetLife(npcId);
+            if (Stopped || def?.Speech == null || def.Speech.Count == 0) return "Error: no active ambient speech for " + npcId;
+            _nextSpeechAt[npcId] = 0f;
+            _nextAmbientSpeechAt = 0f;
+            return "Queued: ambient speech for " + npcId + "; range, state, dialogue and control checks still apply; no movement or story effects.";
+        }
+
         private bool PlayerHasWeaponDrawn()
         {
             try
@@ -739,7 +810,12 @@ namespace LivingWorldNpcs
         private void ForceAction(Agent agent, string action)
         {
             if (string.IsNullOrEmpty(action) || !OwnsBody(agent)) return;
-            try { AgentControlHelper.ForcePlayAction(agent, action); }
+            try
+            {
+                var lease = _eventActors.TryGetValue(agent, out var eventLease) ? eventLease
+                    : _ambientActors.TryGetValue(agent, out var ambient) ? ambient.Lease : null;
+                lease?.PlayAction(action, StoryLayoutRegistry.Published?.PresentationFor(action));
+            }
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] action '{action}' failed: {ex.Message}"); }
         }
 
@@ -764,7 +840,23 @@ namespace LivingWorldNpcs
             var def = StoryProbeDefs.GetStreetLife(npcId);
             var agent = _host.GetAgent(npcId);
             var listener = _host.ResolveSpeechListener(listenerId);
-            if (def?.Actions == null || def.Actions.Length == 0 || def.LineKeys == null || def.LineKeys.Length == 0)
+            var keys = def?.LineKeys;
+            var fallbacks = def?.LineFallbacks;
+            // 保留显式听话者的表现调试入口；新台词表按实际剧情条件取句。
+            if ((keys == null || keys.Length == 0) && def?.Speech != null)
+            {
+                var context = new StoryDialogueContext { ActorId = npcId };
+                foreach (var rule in def.Speech)
+                {
+                    if (rule?.LineKeys == null || rule.LineKeys.Length == 0
+                        || !StoryDialogueFacts.TryEvaluateAll(rule.Requires, context, out bool allowed, out _, out _)
+                        || !allowed) continue;
+                    keys = rule.LineKeys;
+                    fallbacks = rule.LineFallbacks;
+                    break;
+                }
+            }
+            if (def?.Actions == null || def.Actions.Length == 0 || keys == null || keys.Length == 0)
                 return "Error: no ambient action/line for " + npcId;
             if (!AgentControlHelper.SafeIsActive(agent) || !AgentControlHelper.SafeIsActive(listener)
                 || agent == listener || listener.Health <= 0f)
@@ -773,8 +865,8 @@ namespace LivingWorldNpcs
                 return "Error: actor belongs to a group or work performance.";
             BeginAmbient(agent, def.Actions[0]);
             if (!_ambientActors.TryGetValue(agent, out var slot)) return "Error: performance rejected by Brain.";
-            slot.LineKey = def.LineKeys[0];
-            slot.LineFallback = def.LineFallbacks?.Length > 0 ? def.LineFallbacks[0] : "";
+            slot.LineKey = keys[0];
+            slot.LineFallback = fallbacks?.Length > 0 ? fallbacks[0] : "";
             slot.Listener = listener;
             slot.Duration = StoryProbeTuning.Current.Performance.DebugSpeechDurationSec;
             return "Queued: speaker=" + npcId + " listener=" + listenerId + " line=" + slot.LineKey
@@ -840,7 +932,7 @@ namespace LivingWorldNpcs
             foreach (var e in StoryProbeDefs.Events)
                 lines.Add($"event {e.Index}: {e.ActorA}{(e.TwoPerson ? "+" + e.ActorB : "")} host={e.HostNpcId} node={e.JoinNode} placement={e.Placement}");
             foreach (var s in StoryProbeDefs.StreetLife)
-                lines.Add($"ambient {s.NpcId}: {string.Join("|", s.Actions)}");
+                lines.Add($"ambient {s.NpcId}: {string.Join("|", s.Actions)} speechRules={s.Speech?.Count ?? 0} radius={s.SpeechRadiusMeters:F1}m nextSpeech={(_nextSpeechAt.TryGetValue(s.NpcId, out float next) ? Math.Max(0f, next - _time) : 0f):F1}s");
             return string.Join(" ; ", lines);
         }
     }
@@ -903,6 +995,8 @@ namespace LivingWorldNpcs
             _poseEndsAt = -1f;
             _bodyHeld = false;
             _stayPos = agent.Position;
+            // 接回日常时释放上个动作/原版会话留下的对象注视；其引用不会随距离自动失效。
+            AgentControlHelper.StopLooking(agent);
             var amb = StoryProbeTuning.Current.Ambient;
             float lo = Math.Max(0.5f, amb.FirstDelayMinSec);
             float hi = Math.Max(lo, amb.FirstDelayMaxSec);
@@ -967,7 +1061,8 @@ namespace LivingWorldNpcs
                 int i = _rng.Next(_lineKeys.Length);
                 string fb = i < _lineFallbacks.Length ? _lineFallbacks[i] : "";
                 var listener = host.ResolveSpeechListener(_listenerId);
-                if (AgentControlHelper.SafeIsActive(listener) && listener != agent && listener.Health > 0f)
+                if (AgentControlHelper.SafeIsActive(listener) && listener != agent && listener.Health > 0f
+                    && agent.Position.Distance(listener.Position) <= StoryProbeTuning.Current.Noise.GazeRadiusMeters)
                     host.SayOnAgent(agent, _lineKeys[i], fb, listener: listener);
             }
         }

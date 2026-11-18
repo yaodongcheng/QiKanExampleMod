@@ -13,8 +13,8 @@ namespace LivingWorldNpcs
     /// 🔴 **复用接缝**：这一层将来会被 `Story/StoryEngine.cs` 顶掉（见 plans §17.10）。
     ///    换的时候只换这个类，**台本数据和原子名一个字都不用改**。
     ///
-    /// 时序：v1 = **绝对时间**（每条的 `At` 秒）。所有原子都是瞬时的，
-    ///       所以 `Async` / `Group` 字段接受但不生效 —— 等 `actor_enter`（走位，有耗时）落地再启用。
+    /// 时序：按每条 `At` 推进台本时间；等待玩家的 inquiry 和完整镜头过渡期间暂停台本，
+    ///       恢复后从该拍继续，不因玩家读弹窗多久而跳过后续表演。
     ///
     /// 诊断：所有输出都带 `[StoryStage]`；每个原子执行都打一行，失败也打。
     /// </summary>
@@ -33,6 +33,9 @@ namespace LivingWorldNpcs
         private string _actorInterrupted;
         private float _readyWait;
         private bool _actorsAcquired;
+        private bool _waitingInquiry, _waitingCamera;
+        private int _runtimeToken;
+        private int _inquiryRound;
         private StageBeat _openingCameraBeat;
         private float _returnBlendSeconds = 0.8f;
         // 🔴 开场镜头重试（2026-11-16 实机）：`AfterStart` 那一刻 `SpringArmCameraView` 的
@@ -95,6 +98,8 @@ namespace LivingWorldNpcs
             _actorOwner = "stage-" + Guid.NewGuid().ToString("N");
             _running = true;
             _actorsAcquired = false;
+            _runtimeToken = StoryProbeState.RuntimeToken;
+            _waitingInquiry = _waitingCamera = false;
             // Conceal first-time actor spawning with the existing opening camera case.
             // Player freezing still waits for the entire group to start in Tick.
             var openingCamera = _script.Beats?.FirstOrDefault(b => b != null && b.At <= 0f && b.Cmd == "camera_cut");
@@ -153,6 +158,8 @@ namespace LivingWorldNpcs
         {
             bool hadResources = _running || _frozenPlayer != null || CameraService.IsHeldBy(_cameraOwner);
             _running = false;
+            CloseInquiry();
+            _waitingCamera = false;
             var leases = _actors.Values.ToList();
             _actors.Clear();
             foreach (var lease in leases) lease.Release(reason);
@@ -197,6 +204,8 @@ namespace LivingWorldNpcs
         public void DisposeManaged()
         {
             _running = false;
+            CloseInquiry();
+            _waitingCamera = false;
             foreach (var lease in _actors.Values.ToList()) lease.InvalidateManaged();
             _actors.Clear();
             _props.Clear();
@@ -212,6 +221,7 @@ namespace LivingWorldNpcs
         {
             if (!_running) return;
             if (Mission.Current != _mission) { DisposeManaged(); return; }
+            if (!StoryProbeState.IsRuntimeCurrent(_runtimeToken)) { Stop("runtime invalidated"); return; }
             // 开场机位重试：相机视图通常要等 MissionScreen 初始化后才存在（见 Begin 的注释）。
             // 重试期间台本一帧都不推进、演员也不生成（HoldSpawning 挡住准备批次）。
             if (_openingCameraPending)
@@ -240,6 +250,13 @@ namespace LivingWorldNpcs
                 Stop("actor interrupted: " + _actorInterrupted);
                 return;
             }
+            if (_waitingCamera)
+            {
+                if (!CameraService.IsHeldBy(_cameraOwner)) { Stop("observation camera ownership lost"); return; }
+                if (CameraService.Machine.BlendProgress < 1f) return;
+                _waitingCamera = false;
+            }
+            if (_waitingInquiry) return;
             if (!_actorsAcquired)
             {
                 if (_openingCameraBeat != null && !CameraService.IsHeldBy(_cameraOwner))
@@ -270,6 +287,7 @@ namespace LivingWorldNpcs
                 // 开场机位已在Begin接管，不能到第0拍又重启同一过渡。
                 if (!ReferenceEquals(_script.Beats[_next], _openingCameraBeat)) Execute(_script.Beats[_next], _next);
                 _next++;
+                if (_waitingInquiry || _waitingCamera) { _time = _script.Beats[_next - 1].At; break; }
             }
 
             if (_next >= BeatCount) Stop("script end");
@@ -316,6 +334,7 @@ namespace LivingWorldNpcs
                     case "actor_place":    PlaceActor(b, index); break;
                     case "actor_action":   PlayAction(b, index); break;
                     case "actor_say":      SayLine(b, index); break;
+                    case "inquiry":        ShowInquiry(b); break;
                     case "wait":           DebugLogger.Log($"[StoryStage] #{index} wait {b.Seconds}s"); break;
                     default:
                         DebugLogger.Log($"[StoryStage] #{index} UNKNOWN cmd '{b.Cmd}' (skipped)");
@@ -326,7 +345,7 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[StoryStage] #{index} '{b.Cmd}' failed: {ex.Message}");
                 if (b.Cmd == "player_freeze" || b.Cmd == "player_release" || b.Cmd == "camera_cut" || b.Cmd == "camera_return"
-                    || (b.Cmd != null && b.Cmd.StartsWith("actor_")))
+                    || b.Cmd == "inquiry" || (b.Cmd != null && b.Cmd.StartsWith("actor_")))
                     Stop("control atom failed");
             }
         }
@@ -388,6 +407,30 @@ namespace LivingWorldNpcs
             catch (Exception ex) { DebugLogger.Log($"[StoryStage] camera return failed: {ex.Message}"); }
         }
 
+        private void CloseInquiry()
+        {
+            if (!_waitingInquiry) return;
+            _waitingInquiry = false;
+            InformationManager.HideInquiry();
+        }
+
+        private void ShowInquiry(StageBeat beat)
+        {
+            string session = _actorOwner;
+            int round = ++_inquiryRound;
+            _waitingInquiry = true;
+            bool Current() => _running && _waitingInquiry && _actorOwner == session && _inquiryRound == round
+                && Mission.Current == _mission && StoryProbeState.IsRuntimeCurrent(_runtimeToken);
+            InformationManager.ShowInquiry(new InquiryData(
+                LWNTextHelper.ResolveText(beat.TitleKey, "Look around"),
+                LWNTextHelper.ResolveText(beat.TextKey, beat.Note ?? ""), true, true,
+                LWNTextHelper.ResolveText(beat.AcceptKey, "Continue looking"),
+                LWNTextHelper.ResolveText(beat.CancelKey, "Enough"),
+                () => { if (Current()) _waitingInquiry = false; },
+                () => { if (!Current()) return; _waitingInquiry = false; Stop("observation declined"); }));
+            DebugLogger.Log("[StoryStage] inquiry " + beat.TextKey);
+        }
+
         private void CutCamera(StageBeat b, bool quiet = false)
         {
             if (string.IsNullOrEmpty(b.Case))
@@ -396,10 +439,14 @@ namespace LivingWorldNpcs
                 return;
             }
             Vec3 anchor = PlaceVec(b);
-            bool ok = CameraService.BlendPose(b.Case, null, null, anchor, _cameraOwner, b.BlendSeconds);
+            var focus = string.IsNullOrEmpty(b.Actor) ? null : _host.GetAgent(b.Actor);
+            if (!string.IsNullOrEmpty(b.Actor) && !AgentControlHelper.SafeIsActive(focus))
+                throw new InvalidOperationException("Camera focus unavailable: " + b.Actor);
+            bool ok = CameraService.BlendPose(b.Case, focus, null, anchor, _cameraOwner, b.BlendSeconds);
             if (!quiet || ok)
                 DebugLogger.Log($"[StoryStage] camera_cut '{b.Case}' -> {ok} anchor=({anchor.x:F1},{anchor.y:F1},{anchor.z:F1})");
             if (!ok) throw new InvalidOperationException("Cannot acquire stage camera: " + b.Case);
+            _waitingCamera = true;
         }
 
         /// <summary>
@@ -489,7 +536,8 @@ namespace LivingWorldNpcs
 
             if (!OwnsActor(b.Actor)) throw new InvalidOperationException("actor_action without active performance: " + b.Actor);
             // 租约结束负责清姿态，禁止延迟恢复 action set 回调在另一场演出/战斗中晚到。
-            AgentControlHelper.ForcePlayAction(agent, b.Action, restoreAfter: false);
+            if (!_actors[b.Actor].PlayAction(b.Action, StoryLayoutRegistry.Published?.PresentationFor(b.Action)))
+                throw new InvalidOperationException("actor_action failed: " + b.Actor + " " + b.Action);
             DebugLogger.Log($"[StoryStage] #{index} actor_action '{b.Actor}' -> '{b.Action}'");
         }
 

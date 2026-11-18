@@ -1237,7 +1237,7 @@ namespace LivingWorldNpcs
             sentence.OnClickableCondition = (out TextObject explanation) =>
             {
                 explanation = hint();
-                return true;
+                return transition.RuntimeCanSelect == null || transition.RuntimeCanSelect();
             };
         }
 
@@ -1262,6 +1262,8 @@ namespace LivingWorldNpcs
             [Newtonsoft.Json.JsonIgnore] public Func<bool> RuntimeCondition;
             /// <summary>原版选项悬停说明；纯查询，不执行效果或掷骰。</summary>
             [JsonIgnore] public Func<TextObject> RuntimeHint;
+            /// <summary>可见但暂不可选的资格闸门；提交处仍须复查。</summary>
+            [JsonIgnore] public Func<bool> RuntimeCanSelect;
             /// <summary>惰性玩家选项文本（Func 求值）。非 null 时优先于 PlayerLine，引擎显示时才求值。</summary>
             public Func<string> LazyPlayerLine;
             /// <summary>此选项是否有技能检定分支。</summary>

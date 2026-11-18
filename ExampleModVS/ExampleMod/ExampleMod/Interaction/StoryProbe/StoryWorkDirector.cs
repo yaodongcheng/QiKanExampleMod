@@ -46,6 +46,7 @@ namespace LivingWorldNpcs
 
         public bool Begin(string stageId)
         {
+            Stop("work restarted");
             _slots.Clear();
             _occupancy.Clear();
             _started = false;
@@ -286,6 +287,10 @@ namespace LivingWorldNpcs
         public bool IsWorkActor(string actorId)
             => !string.IsNullOrEmpty(actorId) && _started && _slots.ContainsKey(actorId);
 
+        internal bool CanSpeakWhileWorking(string actorId)
+            => !_stopped && _slots.TryGetValue(actorId, out var slot) && slot.State == "working"
+               && slot.Lease != null && slot.Lease.CanControl;
+
         public string Describe()
         {
             var sb = new StringBuilder();
@@ -300,7 +305,8 @@ namespace LivingWorldNpcs
                   .Append(" state=").Append(slot.State)
                   .Append(" dist=").Append(dist < 0 ? "-" : dist.ToString("F1"))
                   .Append(" occupants=").Append(Occupied(slot.PointId)).Append("/").Append(slot.MaxOccupants)
-                  .Append(" action=").Append(slot.Action ?? "-");
+                  .Append(" action=").Append(slot.Action ?? "-")
+                  .Append(" ").Append(slot.Lease?.DescribePresentation() ?? "presentation=none attached=0");
                 if (!string.IsNullOrEmpty(slot.Reason)) sb.Append(" reason=").Append(slot.Reason);
             }
             return sb.ToString();
@@ -330,7 +336,12 @@ namespace LivingWorldNpcs
         {
             if (agent == null || string.IsNullOrEmpty(slot.Action) || slot.Lease?.CanControl != true) return;
             if (AgentControlHelper.IsPlayingPose(agent, slot.Action)) return;
-            try { AgentControlHelper.ForcePlayAction(agent, slot.Action, restoreAfter: false); }
+            try
+            {
+                bool ok = slot.Lease.PlayAction(slot.Action, StoryLayoutRegistry.Published?.PresentationFor(slot.Action));
+                slot.State = ok ? "working" : "presentation-failed";
+                slot.Reason = ok ? "working at " + slot.PointId : "action/prop/sound unavailable";
+            }
             catch (Exception ex) { DebugLogger.Log("[StoryWork] action failed: " + ex.Message); }
         }
 

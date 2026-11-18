@@ -179,7 +179,7 @@ def check_json(module, problems):
 # ══════════════════════════════════════════════════════════════════
 
 STAGE_ATOMS = {"player_freeze", "player_release", "camera_cut", "camera_return",
-               "prop_spawn", "actor_place", "actor_action", "actor_say", "wait"}
+               "prop_spawn", "actor_place", "actor_action", "actor_say", "wait", "inquiry"}
 STAGE_ANCHORS_BUILTIN = {"player", "gate", "gate_inner"}
 TUNING_SECTIONS = ("Ambient", "Events", "Skits", "Gate", "Greeting", "Crime", "Intro", "Performance", "Noise")
 
@@ -229,7 +229,7 @@ def check_cast(module, problems):
             problems.append("cast:%s: missing NameKey" % nid)
         else:
             keys.add(n["NameKey"])
-        for field in ("Identity", "Background", "Temperament", "Specialty"):
+        for field in ("Identity", "Background", "Temperament", "Specialty", "Goal", "Trouble", "PlayerHelp"):
             if not n.get(field + "Key") or not n.get(field + "Fallback"):
                 problems.append("cast:%s: missing %s persona" % (nid, field))
             else:
@@ -248,6 +248,9 @@ def check_cast(module, problems):
             problems.append("cast:%s: unknown Faction '%s'" % (nid, fac))
 
         tgt = n.get("QuestTargetNpcId")
+        for ability, gain in (n.get("AttributeRewards") or {}).items():
+            if ability not in {"force", "guile", "charm"} or type(gain) is not int or not 1 <= gain <= 100 or not tgt:
+                problems.append("cast:%s: invalid AttributeRewards %s=%s" % (nid, ability, gain))
         if tgt and tgt not in nids:
             problems.append("cast:%s: QuestTargetNpcId '%s' is not an npc id" % (nid, tgt))
 
@@ -271,6 +274,9 @@ def check_cast(module, problems):
         if s.get("LineKeys") and (s.get("Listener") not in set(nids) | {"player"} or s.get("Listener") == s.get("NpcId")):
             problems.append("cast: StreetLife '%s' has invalid Listener" % s.get("NpcId"))
         keys.update(s.get("LineKeys") or [])
+        for issue in ambient_speech_issues(s, set(nids)):
+            problems.append("cast: StreetLife '%s': %s" % (s.get("NpcId"), issue))
+        keys.update(k for rule in s.get("Speech", []) for k in rule.get("LineKeys", []))
 
     for e in events:
         for field in ("ActorA", "ActorB", "HostNpcId"):
@@ -412,6 +418,92 @@ def environment_selftest():
     print("SELFTEST OK: environment ranges/types/weather tokens and missing fields")
 
 
+def ambient_speech_issues(definition, actors):
+    """Authored daily speech shares the registered dialogue predicates, never effects."""
+    errors = []
+    fields = ("SpeechRadiusMeters", "SpeechFirstDelayMinSec", "SpeechFirstDelayMaxSec", "SpeechGapMinSec", "SpeechGapMaxSec")
+    for field in fields:
+        v = definition.get(field, 1)
+        if type(v) not in (int, float) or not math.isfinite(v) or v <= 0:
+            errors.append("invalid " + field)
+    for a, b in ((fields[1], fields[2]), (fields[3], fields[4])):
+        if type(definition.get(a, 1)) in (int, float) and type(definition.get(b, 1)) in (int, float) and definition.get(a, 1) > definition.get(b, 1):
+            errors.append(a + " must not exceed " + b)
+    rules = definition.get("Speech", [])
+    if not isinstance(rules, list): return errors + ["Speech must be an array"]
+    for i, rule in enumerate(rules):
+        if not isinstance(rule, dict):
+            errors.append("Speech[%d] must be an object" % i)
+            continue
+        if set(rule) - {"Requires", "Listener", "LineKeys", "LineFallbacks"}:
+            errors.append("Speech[%d] unknown fields" % i)
+        if rule.get("Listener") and (rule["Listener"] not in actors | {"player"} or rule["Listener"] == definition.get("NpcId")):
+            errors.append("Speech[%d] invalid Listener" % i)
+        keys, fallbacks = rule.get("LineKeys", []), rule.get("LineFallbacks", [])
+        if not isinstance(keys, list) or not keys or not all(isinstance(k, str) and k.startswith("LWN_") for k in keys):
+            errors.append("Speech[%d] invalid LineKeys" % i)
+        if not isinstance(fallbacks, list) or len(fallbacks) != len(keys) or not all(isinstance(f, str) and f for f in fallbacks):
+            errors.append("Speech[%d] LineFallbacks must match LineKeys" % i)
+        conditions = rule.get("Requires", [])
+        if not isinstance(conditions, list) or not all(isinstance(c, str) and c for c in conditions):
+            errors.append("Speech[%d] invalid Requires" % i)
+            continue
+        # Use the actual strict dialogue condition validator and predicate registry.
+        probe = {"Schema": "story_dialogue/2", "Id": "ambient", "Actors": [definition.get("NpcId")],
+                 "Nodes": [{"Id": "ambient", "Speaker": definition.get("NpcId"), "Listener": "player",
+                            "TextKey": "LWN_ambient", "Requires": conditions}]}
+        errors.extend("Speech[%d] %s" % (i, issue["message"]) for issue in story_dialogue_issues(probe, formal=True)
+                      if ".Requires" in issue["path"])
+    return errors
+
+
+def action_presentation_issues(definitions, game_root=None):
+    """动作配套契约；可选用真实安装核对原版乐器、prefab和已登记曲目。"""
+    issues = []
+    def bad(path, code, message):
+        issues.append({"path": path, "code": code, "message": message})
+    if not isinstance(definitions, dict):
+        bad("$.ActionPresentations", "wrong_type", "必须是对象")
+        return issues
+    instruments, tracks = {}, {}
+    if game_root:
+        folder = os.path.join(game_root, "Modules", "SandBox", "ModuleData")
+        instruments = {n.get("id"): n for n in ET.parse(os.path.join(folder, "settlement_track_instruments.xml")).getroot()}
+        tracks = {n.get("event_id"): n for n in ET.parse(os.path.join(folder, "settlement_tracks.xml")).getroot()}
+    for action, definition in definitions.items():
+        path = "$.ActionPresentations." + action
+        if not action.startswith("act_") or not isinstance(definition, dict):
+            bad(path, "bad_value", "动作名必须以act_开头并对应对象")
+            continue
+        for key in set(definition) - {"Instrument", "Sounds", "Speed"}:
+            bad(path + "." + key, "unknown_key", "未知字段")
+        instrument = definition.get("Instrument", "")
+        sounds = definition.get("Sounds", [])
+        speed = definition.get("Speed", 1)
+        if not isinstance(instrument, str): bad(path + ".Instrument", "wrong_type", "必须是字符串")
+        if not isinstance(sounds, list) or any(not isinstance(s, str) or not s.strip() for s in sounds):
+            bad(path + ".Sounds", "bad_value", "必须是非空声音事件名的数组")
+            sounds = []
+        if type(speed) not in (int, float) or not math.isfinite(speed) or not 0.1 <= speed <= 3:
+            bad(path + ".Speed", "bad_range", "倍率必须在0.1至3之间")
+        if not instrument and not sounds: bad(path, "empty_collection", "至少需要乐器或声音")
+        if game_root and instrument:
+            original = instruments.get(instrument)
+            if original is None or action not in (original.get("standingAction"), original.get("sittingAction")):
+                bad(path, "instrument_action", "乐器没有登记这个动作")
+            else:
+                prefabs, _ = known_prefabs(game_root)
+                entities = original.findall("Entities/Entity")
+                if not entities or any(e.get("name") not in prefabs or not e.get("bone") for e in entities):
+                    bad(path, "instrument_prefab", "乐器缺挂点或prefab")
+            for sound in sounds:
+                if sound.startswith("event:/music/musicians/"):
+                    track = tracks.get(sound)
+                    if track is None or instrument not in [e.get("id") for e in track.findall("Instruments/Instrument")]:
+                        bad(path + ".Sounds", "instrument_sound", "原版曲目没有使用该乐器")
+    return issues
+
+
 def check_stage(module, problems):
     """StoryOpeningTimeline.json：原子名 / 语义位 / 必填参数。"""
     path = os.path.join(module, "ModuleData", "DesignData", "StoryOpeningTimeline.json")
@@ -426,9 +518,13 @@ def check_stage(module, problems):
     if "Environment" in data:
         for issue in environment_issues(data["Environment"], "$.Environment"):
             problems.append("stage: %s [%s] %s" % (issue["path"], issue["code"], issue["message"]))
+    for issue in action_presentation_issues(data.get("ActionPresentations", {}), _game_root(module)):
+        problems.append("stage: %s [%s] %s" % (issue["path"], issue["code"], issue["message"]))
     anchors = set(STAGE_ANCHORS_BUILTIN) | set((data.get("Anchors") or {}).keys())
     cast = load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryProbeCast.json")) or {}
     listeners = {n.get("Id") for n in cast.get("Npcs", [])} | {"player"}
+    layout = load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryScenePlan.json")) or {}
+    present = set((layout.get("Stages", {}).get("second_meet") or {}).get("Actors", [])) | {"player"}
     for name, tags in (data.get("Anchors") or {}).items():
         if not isinstance(tags, list) or not tags:
             problems.append("stage: anchor '%s' has no scene tags" % name)
@@ -451,6 +547,15 @@ def check_stage(module, problems):
             problems.append("stage[%d]: prop_spawn without Prefab" % i)
         if cmd == "camera_cut" and not b.get("Case"):
             problems.append("stage[%d]: camera_cut without Case" % i)
+        if cmd == "inquiry":
+            for field in ("TextKey", "TitleKey", "AcceptKey", "CancelKey"):
+                if not b.get(field): problems.append("stage[%d]: inquiry missing %s" % (i, field))
+        if b.get("Actor") and b["Actor"] not in listeners - {"player"}:
+            problems.append("stage[%d]: unknown Actor '%s'" % (i, b["Actor"]))
+        if b.get("Actor") and b["Actor"] not in present:
+            problems.append("stage[%d]: Actor '%s' is not in second_meet Actors" % (i, b["Actor"]))
+        if cmd == "actor_say" and b.get("Listener") not in present:
+            problems.append("stage[%d]: Listener '%s' is not in second_meet Actors" % (i, b.get("Listener")))
         if cmd in ("camera_cut", "camera_return"):
             blend = b.get("BlendSeconds", 0.8)
             if isinstance(blend, bool) or not isinstance(blend, (int, float)) or not math.isfinite(blend) or blend < 0:
@@ -463,6 +568,8 @@ def check_stage(module, problems):
             problems.append("stage[%d]: actor_say without a distinct Listener" % i)
         if b.get("At") is None:
             problems.append("stage[%d]: missing At" % i)
+        elif type(b["At"]) not in (int, float) or not math.isfinite(b["At"]) or b["At"] < 0:
+            problems.append("stage[%d]: invalid At" % i)
         if cmd == "prop_spawn":
             prop_id = b.get("Id")
             if not prop_id or prop_id in anchors:
@@ -826,6 +933,7 @@ def check_speech_format(module, problems, en, cn):
             bad += 1
     cast = load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryProbeCast.json")) or {}
     bubble_keys = {k for s in cast.get("StreetLife", []) for k in s.get("LineKeys", [])}
+    bubble_keys.update(k for s in cast.get("StreetLife", []) for rule in s.get("Speech", []) for k in rule.get("LineKeys", []))
     bubble_keys.update(k for e in cast.get("Events", []) for k in e.get("LineKeys", []))
     bubble_keys.update(k for k in cn if k.startswith("LWN_story_react_"))
     for name in ("StoryOpeningTimeline.json", "StoryScenePlan.json"):
@@ -1212,7 +1320,7 @@ def check_flow_contract(module, problems, overrides=None):
 # ═══════════════════════════════════════════════════════════════════════════
 
 STAGE_V2_SCHEMA = "story_stage/2"
-STAGE_V2_ROOT = ("Schema", "ContentVersion", "Scene", "WallLevel", "Layouts", "Stages", "Behaviors", "Flows", "Beats")
+STAGE_V2_ROOT = ("Schema", "ContentVersion", "Scene", "WallLevel", "ActionPresentations", "Layouts", "Stages", "Behaviors", "Flows", "Beats")
 STAGE_V2_TERMINAL = ("release", "retry", "reselect", "end")
 
 # name -> (params, required_params, actor_role, wait_kinds, implemented)
@@ -1439,6 +1547,7 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
         return issues
 
     keys(data, "$", STAGE_V2_ROOT, allow_comment=True)
+    issues.extend(action_presentation_issues(data.get("ActionPresentations", {})))
     if data.get("Schema") != STAGE_V2_SCHEMA:
         bad("$.Schema", "schema_mismatch",
             "结构版本必须是 '%s'，实际 '%s'" % (STAGE_V2_SCHEMA, data.get("Schema")))
@@ -2362,6 +2471,8 @@ def check_stage_v2_formal(module, problems):
     design = os.path.dirname(path)
     gate_source = load_data_json(os.path.join(design, "StoryGateSetup.json")) or {}
     opening_source = load_data_json(os.path.join(design, "StoryOpeningTimeline.json")) or {}
+    if data.get("ActionPresentations", {}) != opening_source.get("ActionPresentations", {}):
+        issues.append({"path": "$.ActionPresentations", "code": "source_drift", "message": "动作配套须由开场维护源生成"})
     source_environments = {sid: stage.get("Environment") for sid, stage in (gate_source.get("Stages") or {}).items()}
     source_environments["second_meet"] = opening_source.get("Environment")
     for sid, expected in source_environments.items():
@@ -2747,11 +2858,14 @@ def story_dialogue_issues(data, formal=False):
                 if not isinstance(check, dict):
                     bad(opath + ".Check", "wrong_type", "Check 必须是对象")
                 else:
-                    keys(check, opath + ".Check", ("Tactic", "Capability", "Target", "Success", "Fail"))
+                    keys(check, opath + ".Check", ("Tactic", "Capability", "Target", "Success", "Fail", "MinimumGrowth"))
                     tactic = text(check, opath + ".Check", "Tactic")
                     if tactic and tactic.lower() not in DLG_TACTICS:
                         bad(opath + ".Check.Tactic", "bad_token", "检定手段必须是已注册NegotiationTactic：%s" % tactic)
                     capability = text(check, opath + ".Check", "Capability", formal)
+                    growth = check.get("MinimumGrowth", 0)
+                    if type(growth) is not int or not 0 <= growth <= 100 or (growth > 0 and not capability):
+                        bad(opath + ".Check.MinimumGrowth", "bad_value", "Training prerequisite requires a registered Capability and an integer 0..100")
                     if capability and capability not in ("Intimidate", "Persuade", "Mediate", "Bargain", "Impersonate", "Deceive", "Reason"):
                         bad(opath + ".Check.Capability", "bad_token", "Unknown player capability: " + capability)
                     target = text(check, opath + ".Check", "Target", False)
@@ -2986,6 +3100,12 @@ def main():
     dialogue_v2 = check_dialogue_v2(module, problems)
 
     stage_data = load_data_json(os.path.join(module, "ModuleData", "DesignData", "StoryOpeningTimeline.json")) or {}
+    for beat in stage_data.get("Beats", []):
+        for field in ("TextKey", "TitleKey", "AcceptKey", "CancelKey"):
+            if beat.get(field): keys.add(beat[field])
+    for key in sorted(keys):
+        if key not in en: problems.append("content key missing in EN: " + key)
+        if key not in cn: problems.append("content key missing in CN: " + key)
     check_references(module, problems, cast, stage_data, args.scene)
     line_actions = check_line_actions(module, problems, cast)
     keys |= cast_keys

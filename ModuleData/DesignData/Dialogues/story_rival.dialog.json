@@ -2,9 +2,9 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_rival",
-  "ContentVersion": 7,
+  "ContentVersion": 8,
   "EntryOption": "LWN_story_rival_entry",
-  "EntryOptionZh": "[说两句] 你就是对台戏班的领班？",
+  "EntryOptionZh": "[说两句] 这家戏班是你管的？",
   "SkipVanillaOpening": true,
   "Participants": [
     "npc",
@@ -53,52 +53,16 @@
       "Trigger": "player_talk",
       "Conditions": [],
       "Priority": 70,
-      "Node": "rival_intro_line1"
+      "Node": "rival_intro"
     }
   ],
   "Nodes": [
-    {
-      "Id": "rival_intro_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_rival_intro_line1",
-      "TextKeyZh": "什么对台？",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "rival_intro_line2",
-      "Options": []
-    },
-    {
-      "Id": "rival_intro_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_rival_intro_line2",
-      "TextKeyZh": "街面是官家的，谁嗓门亮谁唱。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "rival_intro_line3",
-      "Options": []
-    },
-    {
-      "Id": "rival_intro_line3",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_rival_intro_line3",
-      "TextKeyZh": "别挡台口。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "rival_intro",
-      "Options": []
-    },
     {
       "Id": "rival_intro",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_rival_intro",
-      "TextKeyZh": "找我有事就说。",
+      "TextKeyZh": "别站在我招牌前面，看戏往两边站，你要找我就说，我一会儿还得开唱。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -116,9 +80,9 @@
         {
           "Id": "settle",
           "PlayerKey": "LWN_story_rival_opt_settle",
-          "PlayerKeyZh": "[说服] 两家留出各自的台口，谁的戏好谁留客，何必堵着她做生意？",
+          "PlayerKeyZh": "[说服] 两家各唱各的，先把到她台前的路让出来，别让客人听戏还得挤过去。",
           "HintKey": "LWN_story_hint_rival_opt_settle",
-          "HintKeyZh": "试着劝领班停止堵台口。",
+          "HintKeyZh": "试着劝领班把通往宋玉娘戏台的路让出来。",
           "Requires": [
             "quest_accepted@widow",
             "!quest_done@widow",
@@ -137,8 +101,8 @@
           "Check": {
             "Tactic": "Reason",
             "Target": "rival",
-            "Success": "rival_settled_line1",
-            "Fail": "rival_settle_refused_line1",
+            "Success": "rival_settled",
+            "Fail": "rival_settle_refused",
             "Capability": "Reason"
           },
           "Speaker": "player",
@@ -147,9 +111,9 @@
         {
           "Id": "sign",
           "PlayerKey": "LWN_story_rival_opt_sign",
-          "PlayerKeyZh": "[打听] 你台口这块招牌，看着倒有些年头。",
+          "PlayerKeyZh": "你这块招牌有些年头了，是家里传下来的？",
           "HintKey": "LWN_story_hint_rival_opt_sign",
-          "HintKeyZh": "打听对台戏班的招牌。",
+          "HintKeyZh": "打听顾长生戏班的招牌。",
           "Requires": [
             "!asked:rival_sign"
           ],
@@ -163,16 +127,16 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "rival_talk_line1",
+          "NextNode": "rival_talk",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_rival_opt_fight",
-          "PlayerKeyZh": "[动手] 你想靠拳头讲理，那就试试。",
+          "PlayerKeyZh": "你想靠拳头讲理，那就试试。",
           "HintKey": "LWN_story_hint_rival_opt_fight",
-          "HintKeyZh": "直接与对台领班开战。",
+          "HintKeyZh": "直接与顾长生开战。",
           "Requires": [
             "!quest_done@widow"
           ],
@@ -186,14 +150,14 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "rival_fight_line1",
+          "NextNode": "rival_fight",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -209,7 +173,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_rival_hub",
-      "TextKeyZh": "还有事？",
+      "TextKeyZh": "还有什么事，快说，我还得招呼客人。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -218,9 +182,9 @@
         {
           "Id": "settle",
           "PlayerKey": "LWN_story_rival_opt_settle",
-          "PlayerKeyZh": "[说服] 两家留出各自的台口，谁的戏好谁留客，何必堵着她做生意？",
+          "PlayerKeyZh": "[说服] 两家各唱各的，先把到她台前的路让出来，别让客人听戏还得挤过去。",
           "HintKey": "LWN_story_hint_rival_opt_settle",
-          "HintKeyZh": "试着劝领班停止堵台口。",
+          "HintKeyZh": "试着劝领班把通往宋玉娘戏台的路让出来。",
           "Requires": [
             "quest_accepted@widow",
             "!quest_done@widow",
@@ -239,8 +203,8 @@
           "Check": {
             "Tactic": "Reason",
             "Target": "rival",
-            "Success": "rival_settled_line1",
-            "Fail": "rival_settle_refused_line1",
+            "Success": "rival_settled",
+            "Fail": "rival_settle_refused",
             "Capability": "Reason"
           },
           "Speaker": "player",
@@ -249,9 +213,9 @@
         {
           "Id": "sign",
           "PlayerKey": "LWN_story_rival_opt_sign",
-          "PlayerKeyZh": "[打听] 你台口这块招牌，看着倒有些年头。",
+          "PlayerKeyZh": "你这块招牌有些年头了，是家里传下来的？",
           "HintKey": "LWN_story_hint_rival_opt_sign",
-          "HintKeyZh": "打听对台戏班的招牌。",
+          "HintKeyZh": "打听顾长生戏班的招牌。",
           "Requires": [
             "!asked:rival_sign"
           ],
@@ -265,16 +229,16 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "rival_talk_line1",
+          "NextNode": "rival_talk",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_rival_opt_fight",
-          "PlayerKeyZh": "[动手] 你想靠拳头讲理，那就试试。",
+          "PlayerKeyZh": "你想靠拳头讲理，那就试试。",
           "HintKey": "LWN_story_hint_rival_opt_fight",
-          "HintKeyZh": "直接与对台领班开战。",
+          "HintKeyZh": "直接与顾长生开战。",
           "Requires": [
             "!quest_done@widow"
           ],
@@ -288,14 +252,14 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "rival_fight_line1",
+          "NextNode": "rival_fight",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -307,23 +271,11 @@
       ]
     },
     {
-      "Id": "rival_talk_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_rival_talk_line1",
-      "TextKeyZh": "这块金字招牌是我爹传下来的，码头帮的大哥亲自捧过场。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "rival_talk",
-      "Options": []
-    },
-    {
       "Id": "rival_talk",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_rival_talk",
-      "TextKeyZh": "谁敢碰我的牌子一下，我跟谁拼命！",
+      "TextKeyZh": "这块牌子是我爹留下的，几个人都靠它吃饭，我不能让宋家的戏班把客人全带走。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -332,9 +284,9 @@
         {
           "Id": "settle",
           "PlayerKey": "LWN_story_rival_opt_settle",
-          "PlayerKeyZh": "[说服] 两家留出各自的台口，谁的戏好谁留客，何必堵着她做生意？",
+          "PlayerKeyZh": "[说服] 两家各唱各的，先把到她台前的路让出来，别让客人听戏还得挤过去。",
           "HintKey": "LWN_story_hint_rival_opt_settle",
-          "HintKeyZh": "试着劝领班停止堵台口。",
+          "HintKeyZh": "试着劝领班把通往宋玉娘戏台的路让出来。",
           "Requires": [
             "quest_accepted@widow",
             "!quest_done@widow",
@@ -353,8 +305,8 @@
           "Check": {
             "Tactic": "Reason",
             "Target": "rival",
-            "Success": "rival_settled_line1",
-            "Fail": "rival_settle_refused_line1",
+            "Success": "rival_settled",
+            "Fail": "rival_settle_refused",
             "Capability": "Reason"
           },
           "Speaker": "player",
@@ -363,9 +315,9 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_rival_opt_fight",
-          "PlayerKeyZh": "[动手] 你想靠拳头讲理，那就试试。",
+          "PlayerKeyZh": "你想靠拳头讲理，那就试试。",
           "HintKey": "LWN_story_hint_rival_opt_fight",
-          "HintKeyZh": "直接与对台领班开战。",
+          "HintKeyZh": "直接与顾长生开战。",
           "Requires": [
             "!quest_done@widow"
           ],
@@ -379,14 +331,14 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "rival_fight_line1",
+          "NextNode": "rival_fight",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -398,23 +350,11 @@
       ]
     },
     {
-      "Id": "rival_fight_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_rival_fight_line1",
-      "TextKeyZh": "在我台口闹事？",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "rival_fight",
-      "Options": []
-    },
-    {
       "Id": "rival_fight",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_rival_fight",
-      "TextKeyZh": "来！",
+      "TextKeyZh": "在我演出的地方动手，那就来吧！",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -423,7 +363,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -435,23 +375,11 @@
       ]
     },
     {
-      "Id": "rival_settled_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_rival_settled_line1",
-      "TextKeyZh": "也罢，各凭本事。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "rival_settled",
-      "Options": []
-    },
-    {
       "Id": "rival_settled",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_rival_settled",
-      "TextKeyZh": "告诉她，我不再堵她的台口。",
+      "TextKeyZh": "我把人挪到自己这边，不堵她台前的路，客人愿意听谁，就让他们自己选。",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -470,7 +398,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -482,7 +410,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -494,23 +422,11 @@
       ]
     },
     {
-      "Id": "rival_settle_refused_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_rival_settle_refused_line1",
-      "TextKeyZh": "外乡人少来教我做生意。",
-      "LineActions": [
-        "act_conversation_closed_trivial"
-      ],
-      "NextNode": "rival_settle_refused",
-      "Options": []
-    },
-    {
       "Id": "rival_settle_refused",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_rival_settle_refused",
-      "TextKeyZh": "她要争，自己来！",
+      "TextKeyZh": "你又不替我们发工钱，她少了几位客人就找人来赶我，那我这几个人怎么办？",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -519,9 +435,9 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_rival_opt_fight",
-          "PlayerKeyZh": "[动手] 你想靠拳头讲理，那就试试。",
+          "PlayerKeyZh": "你想靠拳头讲理，那就试试。",
           "HintKey": "LWN_story_hint_rival_opt_fight",
-          "HintKeyZh": "直接与对台领班开战。",
+          "HintKeyZh": "直接与顾长生开战。",
           "Requires": [],
           "Effects": [
             {
@@ -533,14 +449,14 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "rival_fight_line1",
+          "NextNode": "rival_fight",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -552,7 +468,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],

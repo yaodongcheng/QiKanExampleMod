@@ -130,6 +130,12 @@ def main():
     for key in ("Layouts", "Stages", "Behaviors", "Flows"):
         v2[key] = gate.get(key) or {}
     beats = v1.get("Beats") or []
+    from check_story_probe import action_presentation_issues
+    presentations = v1.get("ActionPresentations", {})
+    issues = action_presentation_issues(presentations)
+    if issues:
+        fail(str(issues))
+    v2["ActionPresentations"] = presentations
 
     props, prop_seen = [], set()
     actors, actor_seen = [], set()

@@ -39,9 +39,10 @@ namespace LivingWorldNpcs
         /// <summary>每个 NPC 已经"处理过"的最新声音时刻 + 上次回头时刻（按 agent 索引存，Agent 销毁后自然失效）。</summary>
         private static readonly Dictionary<int, float> _heardAt = new Dictionary<int, float>();
         private static readonly Dictionary<int, float> _turnedAt = new Dictionary<int, float>();
-        private static readonly HashSet<int> _lookingAt = new HashSet<int>();
+        private static readonly Dictionary<int, Agent> _lookingAt = new Dictionary<int, Agent>();
         private static readonly Dictionary<int, Vec2> _requestedBodies = new Dictionary<int, Vec2>();
         private static readonly Dictionary<int, Vec2> _heardDirections = new Dictionary<int, Vec2>();
+        private static readonly Dictionary<int, Noise> _heardNoises = new Dictionary<int, Noise>();
         private static Mission _mission;
 
         private static float _footstepAt;
@@ -63,6 +64,7 @@ namespace LivingWorldNpcs
             _lookingAt.Clear();
             _requestedBodies.Clear();
             _heardDirections.Clear();
+            _heardNoises.Clear();
             _footstepAt = 0f;
         }
 
@@ -107,6 +109,7 @@ namespace LivingWorldNpcs
                     _requestedBodies.Remove(agent.Index);
                     _turnedAt.Remove(agent.Index);
                     _heardDirections.Remove(agent.Index);
+                    _heardNoises.Remove(agent.Index);
                     continue;
                 }
 
@@ -163,6 +166,7 @@ namespace LivingWorldNpcs
                     {
                         dir.Normalize();
                         _heardDirections[idx] = dir;
+                        _heardNoises[idx] = n;
                         RequestBody(agent, dir, n.Pos, "noise");
                     }
                     _turnedAt[idx] = now;
@@ -173,22 +177,38 @@ namespace LivingWorldNpcs
                 // 声音过去了：转回岗位朝向（有的话），免得一直盯着空处。
                 _turnedAt.Remove(idx);
                 _heardDirections.Remove(idx);
+                _heardNoises.Remove(idx);
                 Vec2 duty = brain.DutyDirection;
                 if (duty.LengthSquared > 1e-4f) RequestBody(agent, duty, brain.DutyPoint, "return-duty");
             }
 
             // ② 注视：玩家在身体正前方扇形内 + 距离内 → 只转眼睛/头；出扇形就松开。
-            if (player == null || !AgentControlHelper.SafeIsActive(player)) return;
-            bool inCone = agent.Position.Distance(player.Position) <= cfg.GazeRadiusMeters
+            bool inCone = player != null && AgentControlHelper.SafeIsActive(player)
+                          && agent.Position.Distance(player.Position) <= cfg.GazeRadiusMeters
                           && NpcSightSystem.IsTargetInViewCone(agent, player, useBodyFacing: true);
-            bool wasLooking = _lookingAt.Contains(idx);
+            // SetLookAgent持有持续跟踪的对象引用。感知登记可能落后于其他动作的设置/清除。
+            // GetLookAgent回读最后一次托管设置的对象，并非原生眼睛朝向的测量值。
+            Agent actualTarget = agent.GetLookAgent();
+            bool wasLooking = _lookingAt.TryGetValue(idx, out var ownedTarget);
+            if (wasLooking && actualTarget != ownedTarget)
+            {
+                _lookingAt.Remove(idx);
+                wasLooking = false;
+            }
+            bool idle = brain.CurrentAction == null || brain.CurrentAction is StreetIdleAction
+                || brain.CurrentAction is StayAction stay && !stay.OwnsLookTarget;
             if (inCone)
             {
-                if (!wasLooking) { AgentControlHelper.LookAtAgent(agent, player); _lookingAt.Add(idx); }
+                // 日常待机可重新取得注视；正在执行其他动作时不覆盖它自己的目标。
+                if (!wasLooking && (idle || actualTarget == null))
+                {
+                    AgentControlHelper.LookAtAgent(agent, player);
+                    _lookingAt[idx] = player;
+                }
             }
-            else if (wasLooking)
+            else if (wasLooking || idle && actualTarget != null && actualTarget == player)
             {
-                // 只松开我们自己设的注视，不去清别人（对话/演出）挂的注视目标。
+                // 日常交接后遗留的玩家目标也必须受距离/扇形约束；忙碌系统已在Tick上层排除。
                 AgentControlHelper.StopLooking(agent);
                 _lookingAt.Remove(idx);
             }
@@ -202,7 +222,7 @@ namespace LivingWorldNpcs
             AgentControlHelper.SetBodyDirection(agent, direction);
             if (Settings.Instance.ShowPerformanceFacingDebugMessages)
                 DebugLogger.Log("[PerceptionFacing] owner=" + owner + " actor=" + agent.Name + "#" + agent.Index
-                    + " source=" + source + " direction=" + direction);
+                    + " source=" + source + " direction=" + direction + " " + Describe(agent));
         }
 
         /// <summary>默认岗位行为须尊重仍在保持的声源方向，不能与感知层交替转身。</summary>
@@ -218,7 +238,25 @@ namespace LivingWorldNpcs
         {
             if (agent == null) return "none";
             _turnedAt.TryGetValue(agent.Index, out float t);
-            return "noises=" + _noises.Count + " lastTurn=" + (t <= 0f ? "-" : (Now - t).ToString("F1") + "s ago");
+            var player = Agent.Main;
+            var cfg = StoryProbeTuning.Current?.Noise;
+            var target = agent.GetLookAgent();
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            bool hasNoise = _heardNoises.TryGetValue(agent.Index, out var noise);
+            return "noises=" + _noises.Count + " lastTurn=" + (_turnedAt.ContainsKey(agent.Index) ? (Now - t).ToString("F1") + "s ago" : "-")
+                + " playerDistance=" + (player == null ? "-" : agent.Position.Distance(player.Position).ToString("F1"))
+                + " gazeRadius=" + (cfg == null ? "-" : cfg.GazeRadiusMeters.ToString("F1"))
+                + " headOwned=" + _lookingAt.ContainsKey(agent.Index) + " bodyFromNoise=" + _heardDirections.ContainsKey(agent.Index)
+                + " gazeTarget=" + (target == null ? "none" : target == player ? "player" : "agent#" + target.Index)
+                + " inBodyCone=" + (player != null && AgentControlHelper.SafeIsActive(player)
+                    && NpcSightSystem.IsTargetInViewCone(agent, player, useBodyFacing: true))
+                + " action=" + (brain?.CurrentAction?.GetType().Name ?? "none")
+                + " performing=" + (brain?.IsPerforming == true) + " moving=" + (brain?.IsMovingOrTurning == true)
+                + " flags=" + agent.GetScriptedFlags()
+                + " noiseSource=" + (hasNoise ? noise.Pos.ToString() : "-")
+                + " noiseRadius=" + (hasNoise ? noise.Radius.ToString("F1") : "-")
+                + " noiseDistance=" + (hasNoise ? agent.Position.Distance(noise.Pos).ToString("F1") : "-")
+                + " noiseAge=" + (hasNoise ? (Now - noise.At).ToString("F1") : "-");
         }
     }
 }

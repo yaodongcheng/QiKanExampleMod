@@ -1,4 +1,4 @@
-"""Build the read-only 511 DesignData viewer. No overview/design prose is embedded.
+"""Build the read-only 511 DesignData viewer and current player walkthrough.
 
 Uses the registered scene_layout_geometry adapter for real Native mesh outlines.
 Actor/prop positions come from ScenePlan and StoryPoints, never old audit markers.
@@ -54,6 +54,14 @@ def make_payload(game_root=None):
     gate_setup = data("StoryGateSetup.json")
     journal = data("StoryJournal.json")
     points = list(csv.DictReader(source(DATA / "StoryPoints.csv").splitlines()))
+    # Camera rows feed the opening timeline detail (arm length / fov per case); the second
+    # row of Camera.csv is a type row, so rows that do not parse as numbers are skipped.
+    cameras = {}
+    for row in csv.DictReader(source(DATA / "Camera.csv").splitlines()):
+        try:
+            cameras[row["ID"]] = dict(ArmLength=float(row["ArmLength"]), Fov=float(row["Fov"]))
+        except (TypeError, ValueError):
+            continue
     language_path = ROOT / "ModuleData/Languages/CNs/std_LivingWorldNpcs_strings.xml"
     language = {e.get("id"): e.get("text", "") for e in ET.fromstring(source(language_path)).iter("string")}
     # This shared preview mapping follows the runtime capability registry.
@@ -93,9 +101,12 @@ def make_payload(game_root=None):
     language = {key: language[key] for key in sorted(used_keys)}
 
     result = dict(cast=cast, plan=plan, tuning=tuning, opening=opening,
-                  gateSetup=gate_setup, journal=journal, points=points,
+                  gateSetup=gate_setup, journal=journal, points=points, cameras=cameras,
                   dialogues=dialogues, language=language, capabilities=capabilities,
                   sources=sources, layouts={})
+    from story_walkthrough import build_walkthrough
+    authored_guide = json.loads(source(Path(__file__).with_name('story_walkthrough.json')))
+    result['walkthrough'] = build_walkthrough(authored_guide, result)
     game_root = game_root or get_game_root()
     scene_path = None if game_root is None else game_root / "Modules/SandBoxCore/SceneObj" / plan["Scene"] / "scene.xscene"
     scene = ET.parse(scene_path).getroot() if scene_path and scene_path.is_file() else None

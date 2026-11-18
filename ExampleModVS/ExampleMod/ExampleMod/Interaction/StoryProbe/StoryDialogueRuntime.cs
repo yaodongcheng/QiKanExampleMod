@@ -322,6 +322,8 @@ namespace LivingWorldNpcs
             var node = session.Definition?.FindNode(nodeId);
             var option = node?.Options?.FirstOrDefault(o => string.Equals(o.Id, optionId, StringComparison.Ordinal));
             if (option == null) { reason = "unknown option " + nodeId + "/" + optionId; return false; }
+            if (option.Check != null && !StoryProbeDefs.MeetsCheckRequirement(option.Check.Capability, option.Check.MinimumGrowth))
+            { reason = "training prerequisite not met"; return false; }
             if (!string.Equals(session.CurrentNode, nodeId, StringComparison.Ordinal))
             { reason = "option is not from the current node: " + nodeId; return false; }
 

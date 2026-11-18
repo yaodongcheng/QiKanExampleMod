@@ -1,5 +1,12 @@
 {
-  "Script": "story_probe_gate",
+  "Script": "story_probe_observation",
+  "ActionPresentations": {
+    "act_play_celtic_harp_stand": {
+      "Instrument": "harp",
+      "Sounds": ["event:/music/musicians/sturgia/04"],
+      "Speed": 0.625
+    }
+  },
   "Environment": {
     "Hour": 7,
     "Weather": "rain",
@@ -19,14 +26,6 @@
       "At": 0.0,
       "Cmd": "player_freeze",
       "Note": "玩家动不了"
-    },
-    {
-      "At": 0.0,
-      "Cmd": "camera_cut",
-      "Case": "story_intro_back",
-      "Anchor": "player",
-      "Note": "镜头先背对广场，布景在画面外完成",
-      "BlendSeconds": 0.8
     },
     {
       "At": 0.2,
@@ -90,8 +89,8 @@
       "Id": "son_lock_box",
       "Prefab": "bd_chest_c",
       "Anchor": "player",
-      "Fwd": 2.6,
-      "Right": -9.6,
+      "Fwd": 4.243934,
+      "Right": -8.642835,
       "Yaw": 0,
       "Scale": 0.5,
       "Note": "小六许可的旧锁箱；只练锁，不分配城镇库存",
@@ -172,8 +171,8 @@
       "Cmd": "actor_place",
       "Actor": "debtor",
       "Anchor": "player",
-      "Fwd": 1.0,
-      "Right": -12.0,
+      "Fwd": 8.747469,
+      "Right": -8.552401,
       "Facing": -1,
       "Civilian": true
     },
@@ -192,8 +191,8 @@
       "Cmd": "actor_place",
       "Actor": "outlaw",
       "Anchor": "player",
-      "Fwd": -2.0,
-      "Right": -16.0,
+      "Fwd": -3.70016,
+      "Right": -6.248808,
       "Facing": -1,
       "Civilian": false
     },
@@ -261,23 +260,180 @@
       "Async": true
     },
     {
-      "At": 1.6,
+      "At": 0.8,
+      "Cmd": "inquiry",
+      "TitleKey": "LWN_story_observe_title",
+      "TextKey": "LWN_story_observe_recall",
+      "AcceptKey": "LWN_story_observe_start",
+      "CancelKey": "LWN_story_observe_stop"
+    },
+    {
+      "At": 0.9,
       "Cmd": "camera_cut",
-      "Case": "story_intro_wide",
+      "Case": "story_observe_gate",
+      "Actor": "blocker",
       "Anchor": "player",
-      "Note": "布景完成，镜头转过来看全场",
-      "BlendSeconds": 0.8
+      "BlendSeconds": 1.2
     },
     {
-      "At": 4.0,
+      "At": 1.0,
+      "Cmd": "actor_action",
+      "Actor": "blocker",
+      "Action": "act_conversation_point_somewhere"
+    },
+    {
+      "At": 1.1,
+      "Cmd": "actor_say",
+      "Actor": "blocker",
+      "Listener": "player",
+      "TextKey": "LWN_story_observe_guard_bark"
+    },
+    {
+      "At": 3.0,
+      "Cmd": "inquiry",
+      "TitleKey": "LWN_story_observe_title",
+      "TextKey": "LWN_story_observe_gate",
+      "AcceptKey": "LWN_story_observe_continue",
+      "CancelKey": "LWN_story_observe_stop"
+    },
+    {
+      "At": 3.1,
+      "Cmd": "camera_cut",
+      "Case": "story_observe_pair",
+      "Actor": "pawnbroker",
+      "Anchor": "player",
+      "BlendSeconds": 1.2
+    },
+    {
+      "At": 3.2,
+      "Cmd": "actor_action",
+      "Actor": "thug",
+      "Action": "act_conversation_threat_point"
+    },
+    {
+      "At": 3.3,
+      "Cmd": "actor_say",
+      "Actor": "thug",
+      "Listener": "pawnbroker",
+      "TextKey": "LWN_story_observe_thug_bark"
+    },
+    {
+      "At": 5.1,
+      "Cmd": "actor_say",
+      "Actor": "pawnbroker",
+      "Listener": "thug",
+      "TextKey": "LWN_story_observe_pawn_bark"
+    },
+    {
+      "At": 7.0,
+      "Cmd": "inquiry",
+      "TitleKey": "LWN_story_observe_title",
+      "TextKey": "LWN_story_observe_pawn",
+      "AcceptKey": "LWN_story_observe_continue",
+      "CancelKey": "LWN_story_observe_stop"
+    },
+    {
+      "At": 7.1,
+      "Cmd": "camera_cut",
+      "Case": "story_observe_pair",
+      "Actor": "widow",
+      "Anchor": "player",
+      "BlendSeconds": 1.2
+    },
+    {
+      "At": 7.2,
+      "Cmd": "actor_action",
+      "Actor": "widow",
+      "Action": "act_conversation_point_somewhere"
+    },
+    {
+      "At": 7.3,
+      "Cmd": "actor_say",
+      "Actor": "widow",
+      "Listener": "rival",
+      "TextKey": "LWN_story_observe_widow_bark"
+    },
+    {
+      "At": 9.1,
+      "Cmd": "actor_say",
+      "Actor": "rival",
+      "Listener": "widow",
+      "TextKey": "LWN_story_observe_rival_bark"
+    },
+    {
+      "At": 11.0,
+      "Cmd": "inquiry",
+      "TitleKey": "LWN_story_observe_title",
+      "TextKey": "LWN_story_observe_widow",
+      "AcceptKey": "LWN_story_observe_continue",
+      "CancelKey": "LWN_story_observe_stop"
+    },
+    {
+      "At": 11.1,
+      "Cmd": "camera_cut",
+      "Case": "story_observe_person",
+      "Actor": "son",
+      "Anchor": "player",
+      "BlendSeconds": 1.2
+    },
+    {
+      "At": 11.2,
+      "Cmd": "actor_action",
+      "Actor": "son",
+      "Action": "act_conversation_closed_trivial"
+    },
+    {
+      "At": 11.3,
+      "Cmd": "actor_say",
+      "Actor": "son",
+      "Listener": "player",
+      "TextKey": "LWN_story_observe_son_bark"
+    },
+    {
+      "At": 13.2,
+      "Cmd": "inquiry",
+      "TitleKey": "LWN_story_observe_title",
+      "TextKey": "LWN_story_observe_son",
+      "AcceptKey": "LWN_story_observe_continue",
+      "CancelKey": "LWN_story_observe_stop"
+    },
+    {
+      "At": 13.3,
+      "Cmd": "camera_cut",
+      "Case": "story_observe_person",
+      "Actor": "butcher",
+      "Anchor": "player",
+      "BlendSeconds": 1.2
+    },
+    {
+      "At": 13.4,
+      "Cmd": "actor_action",
+      "Actor": "butcher",
+      "Action": "act_conversation_talk_explain"
+    },
+    {
+      "At": 13.5,
+      "Cmd": "actor_say",
+      "Actor": "butcher",
+      "Listener": "player",
+      "TextKey": "LWN_story_observe_butcher_bark"
+    },
+    {
+      "At": 15.4,
+      "Cmd": "inquiry",
+      "TitleKey": "LWN_story_observe_title",
+      "TextKey": "LWN_story_observe_butcher",
+      "AcceptKey": "LWN_story_observe_continue",
+      "CancelKey": "LWN_story_observe_stop"
+    },
+    {
+      "At": 15.5,
       "Cmd": "camera_return",
-      "Note": "先解冻玩家，再平滑归还引擎相机",
-      "BlendSeconds": 0.8
+      "BlendSeconds": 1.2
     },
     {
-      "At": 4.2,
-      "Cmd": "player_release",
-      "Note": "归还过渡期保持玩家已解冻；重复释放安全"
+      "At": 15.6,
+      "Cmd": "player_release"
     }
   ]
 }

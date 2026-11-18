@@ -274,6 +274,7 @@
   <ItemGroup>
     <!-- AI -->
     <Compile Include="AI\Actions\AtomicAction.cs" />
+    <Compile Include="Animation\AgentActionPresentation.cs" />
     <Compile Include="AI\AgentAIController.cs" />
     <Compile Include="AI\AgentBrain.cs" />
     <Compile Include="AI\SpeechChannel.cs" />

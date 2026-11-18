@@ -1,0 +1,1718 @@
+{
+  "LWN_story_pawnbroker_intro": [
+    "要当东西就放在柜台上，想找人就说说长什么样，我替你翻翻当票。",
+    "Put what you want to pawn on the counter; if you are looking for someone, tell me what they look like and I will check the pawn slips."
+  ],
+  "LWN_story_pawnbroker_hub": [
+    "你还想打听什么？",
+    "What else did you want to ask?"
+  ],
+  "LWN_story_pawnbroker_ask_self": [
+    "我姓周，铺子开了二十三年，如今挣的钱大半得交给码头帮。",
+    "I'm Zhou; I've kept this shop for twenty-three years, though the dock gang takes most of what I earn now."
+  ],
+  "LWN_story_pawnbroker_ask_stay": [
+    "走了也没亲人投靠，这间铺子好歹能让我吃上饭。",
+    "I've no family to take me in elsewhere; at least this shop keeps me fed."
+  ],
+  "LWN_story_pawnbroker_ask_know": [
+    "有人来当首饰，有人来当刀，过几天有没有钱赎，我都得记着。",
+    "Some pawn jewellery, some pawn a knife; I have to remember whether they come back with the money."
+  ],
+  "LWN_story_pawnbroker_ask_sister": [
+    "找着了，三个月前有个穿青布的姑娘押了一只银镯，借了三十第纳尔，后来没回来赎。",
+    "Here it is: three months ago, a girl in blue pawned a silver bracelet for thirty denars and never came back for it."
+  ],
+  "LWN_story_pawnbroker_sister_where": [
+    "门外等着个穿水手衣服的男人，她一出来就跟着他走了，我认得那身打扮，是码头帮的人。",
+    "A man in a sailor's clothes was waiting outside; she went with him as soon as she left, and I recognized the dock gang clothing."
+  ],
+  "LWN_story_pawnbroker_sister_why": [
+    "她一直问三十够不够，连当票都忘了拿，我追到门口才塞给她。",
+    "She kept asking whether thirty would be enough and forgot her pawn ticket; I had to follow her outside with it."
+  ],
+  "LWN_story_pawnbroker_sister_redeem": [
+    "已经过期了，本来得多收利息，看在你急着找人的份上，还是给三十吧。",
+    "It is overdue, so I should charge interest, but you are trying to find someone; thirty will do."
+  ],
+  "LWN_story_pawnbroker_sister_got": [
+    "镯子内侧刻着个“宁”字，你收好，码头帮的事别一个人去问。",
+    "There's a character for Ning inside the bracelet; keep it safe, and take someone with you if you question the dock gang."
+  ],
+  "LWN_story_pawnbroker_ask_gang": [
+    "守门的叫罗铁，大家叫他铁头，他肯收钱，可你要拔刀，他也真敢动手。",
+    "The guard is Luo Tie, or Ironhead to most people; he takes bribes, but draw a blade and he'll use his."
+  ],
+  "LWN_story_pawnbroker_ask_gang_2": [
+    "戏台那边有体面衣裳，不过你这张脸已经贴在门上，换衣裳也得小心说话。",
+    "The troupe has some fine clothes, but your face is on the notice at the gate; you'll need a convincing story too."
+  ],
+  "LWN_story_pawnbroker_ask_gang_3": [
+    "一百第纳尔，我见他收过这价，少了他肯不肯通融，我可不敢保。",
+    "A hundred denars is what I've seen him take; I can't promise he'll accept less."
+  ],
+  "LWN_story_pawnbroker_deal": [
+    "钱三顺欠我一百二十第纳尔，你替我收回来，我给你三十作跑腿费。",
+    "Qian Sanshun owes me a hundred and twenty denars; collect it and I'll pay you thirty for your trouble."
+  ],
+  "LWN_story_pawnbroker_deal_why": [
+    "我去讨过两回，他把我赶出了巷子，借据还在，可我一个老头拿他没办法。",
+    "I've tried twice and he drove me out of the alley; I have the IOU, but I'm too old to make him honour it."
+  ],
+  "LWN_story_pawnbroker_deal_refuse": [
+    "你怕惹麻烦，我懂，借据先留在我这儿，改了主意再来。",
+    "I understand if you don't want the trouble; I'll keep the IOU here if you change your mind."
+  ],
+  "LWN_story_pawnbroker_quest_accept": [
+    "钱三顺在西边巷口，要回一百二十就回来找我，别为这笔账弄出人命。",
+    "You'll find Qian Sanshun in the western alley; bring back the hundred and twenty, and don't kill anyone over it."
+  ],
+  "LWN_story_pawnbroker_turnin_trouble": [
+    "账是清了，可你把人打成这样，我还得提防他那些同伙，这三十和旧账本你收着。",
+    "The debt is settled, though after that beating I'll have his friends to worry about; take your thirty and the old ledger."
+  ],
+  "LWN_story_pawnbroker_turnin_ok": [
+    "钱收回来了，这三十是说好的酬劳，旧账本也给你，里头有些门口的往来。",
+    "The money's back; here's the thirty I promised, and an old ledger with some dealings around the gate."
+  ],
+  "LWN_story_pawnbroker_turnin_why": [
+    "去问戏班的宋玉娘吧，她正为抢客的事发愁，或许肯拿箱里的戏服答谢你。",
+    "Ask Song Yuniang at the stage; she's having trouble with a rival troupe and might offer a costume for your help."
+  ],
+  "LWN_story_pawnbroker_chat": [
+    "钱三顺今天没来躲账，我总算能把这几笔记清了。",
+    "Qian Sanshun hasn't come round with excuses today; I can finally put those accounts in order."
+  ],
+  "LWN_story_pawnbroker_chat_2": [
+    "我早起开铺时见过西码头的船，卸货不点灯，你进去打听人时留心些。",
+    "I've seen boats unloading without lights at the western docks when I open up early; be careful asking questions there."
+  ],
+  "LWN_story_pawnbroker_money_covert": [
+    "钱别往袖子里塞，要买消息就按买卖算，八十第纳尔，我告诉你守门人怕什么。",
+    "Don't slip money into my sleeve; call it a purchase, eighty denars, and I'll tell you what worries the guard."
+  ],
+  "LWN_story_pawnbroker_money_dealt": [
+    "赌坊的人来问过他三回，他怕欠账的事闹到上司那里，丢了守门这份差事。",
+    "The gambling house has asked after him three times; he's afraid his superiors will hear of his debts and dismiss him."
+  ],
+  "LWN_story_widow_intro": [
+    "看戏就往里面站，别堵台前的路，有事找我就说，后面还有人等着唱。",
+    "Come further in to watch, and keep the way to the stage clear; if you need me, say so, as the others are waiting to sing."
+  ],
+  "LWN_story_widow_hub": [
+    "你说，我听着，待会儿还得照看台上。",
+    "Go on, I'm listening; I'll have to see to the performers soon."
+  ],
+  "LWN_story_widow_ask_stage": [
+    "城里租场地太贵，这里来往的人多，唱一天总还能挣出几个人的饭钱。",
+    "A stage in town costs too much; enough people pass here for a day's singing to feed the troupe."
+  ],
+  "LWN_story_widow_ask_sister": [
+    "是有个穿青布的姑娘来买过通行文书，后来跟着一个水手走了。",
+    "A girl in blue did buy a travel document from me; she left with a sailor afterwards."
+  ],
+  "LWN_story_widow_ask_sister_2": [
+    "他催得很急，我问她认不认得这人，她只说没别的去处，我没能留住她。",
+    "He was hurrying her; I asked whether she knew him, but she said she had nowhere else to go, and I couldn't keep her here."
+  ],
+  "LWN_story_widow_ask_rival": [
+    "顾长生把人拉在我台前唱，客人连路都过不来，这样下去今晚几个人都得饿着。",
+    "Gu Changsheng's people sing right in front of our stage; customers can't get through, and at this rate we won't eat tonight."
+  ],
+  "LWN_story_widow_deal": [
+    "你想借体面的行头，我想让台前那条路空出来，去跟对面领班谈谈，办成了衣裳归你。",
+    "You need fine clothes and I need the path to our stage cleared; talk to the other troupe's leader, and the clothes are yours if you settle it."
+  ],
+  "LWN_story_widow_deal_why": [
+    "我们两家吵了几天，他见我就抬嗓门，你没掺和过，他兴许肯听一句。",
+    "We've been arguing for days and he raises his voice as soon as he sees me; he might listen to someone new."
+  ],
+  "LWN_story_widow_deal_refuse": [
+    "那就先算了，衣裳我还要留着上戏，不能白送。",
+    "Then leave it for now; we still need those clothes for performances, so I can't give them away."
+  ],
+  "LWN_story_widow_quest_accept": [
+    "对面领班在东边，你让他别再堵我们的路，谈妥了回来，衣裳给你留着。",
+    "The other leader is to the east; get him to stop blocking our path, then come back for the clothes."
+  ],
+  "LWN_story_widow_turnin_ok": [
+    "台前终于能走人了，戏服和护符你拿去，穿好后我帮你理理领口，门卫问话时别急着答。",
+    "People can reach us again; take the costume and charm, put them on and I'll straighten your collar before you face the guard."
+  ],
+  "LWN_story_widow_chat": [
+    "今天有人肯停下来听戏了，我还得把这几个孩子的工钱凑齐。",
+    "People are stopping to listen today; I still have the younger performers' wages to make up."
+  ],
+  "LWN_story_widow_chat_2": [
+    "我听来买文书的车夫说，东城大宅隔几天就接一批做工的女子，你可以去问送人的车夫。",
+    "A driver buying papers said women are taken to work in the eastern mansions every few days; you could ask the drivers who take them there."
+  ],
+  "LWN_story_widow_money_open": [
+    "六十第纳尔，是戏班今天的饭钱，你放盘里，我把那姑娘的事再说仔细些。",
+    "Sixty denars will feed the troupe today; put it in the tray and I'll tell you more about that girl."
+  ],
+  "LWN_story_widow_money_taken": [
+    "那男人一直抓着她胳膊，她往这边看了一眼，我到现在还记着。",
+    "The man kept hold of her arm; she looked back at me once, and I still remember it."
+  ],
+  "LWN_story_widow_methods_hub": [
+    "你想跟守门人好好谈，还是借身衣裳装成他不敢拦的人？",
+    "Do you want to reason with the guard, or dress as someone he wouldn't dare stop?"
+  ],
+  "LWN_story_widow_learn_talk": [
+    "先听他为什么不放人，再问有没有商量的余地，别一开口就替他作主。",
+    "Hear why he won't let you through before asking what can be arranged; don't start by telling him his job."
+  ],
+  "LWN_story_widow_learn_identity_1": [
+    "衣裳我能给你找，可从哪儿来、进城办什么，你得自己答得上来。",
+    "I can find you clothes, but you'll have to explain where you're from and what brings you into town."
+  ],
+  "LWN_story_widow_learn_identity_2": [
+    "他要是认出你装的身份，可能当场抓人，别以为换了衣裳就万无一失。",
+    "If he realises you're pretending, he may arrest you on the spot; the clothes aren't a guarantee."
+  ],
+  "LWN_story_butcher_intro": [
+    "今天刚宰的肉，要买我就给你切，有事站旁边说，别碰案上的刀。",
+    "This meat was butchered today; I will cut some if you want to buy, and if you have something to ask, stand to the side and leave the knives alone."
+  ],
+  "LWN_story_butcher_hub": [
+    "说吧，我手上的活不碍着听。",
+    "Go on; I can listen while I work."
+  ],
+  "LWN_story_butcher_ask_meat": [
+    "以前有个徒弟帮我，码头帮的人把他吓跑了，如今劈骨头、收摊都得我自己来。",
+    "I had an apprentice until the dock gang frightened him off; now I cut the bones and clear the stall myself."
+  ],
+  "LWN_story_butcher_ask_past": [
+    "谁跟你提的码头帮，我已经很久不替他们干活了。",
+    "Who mentioned the dock gang to you; I have not worked for them in a long time."
+  ],
+  "LWN_story_butcher_ask_past_2": [
+    "他们让我看着一批被绑的人，我不肯，后来就砸了我的摊子，这事我不想再干。",
+    "They wanted me to guard some people they'd tied up; I refused and they smashed my stall, and I won't go back to it."
+  ],
+  "LWN_story_butcher_ask_sister": [
+    "押人的事我早不做了，不过上月底夜里我听见他们往西码头运人，你可以去那儿打听。",
+    "I haven't guarded prisoners for years, but I heard them moving people to the western docks late last month; ask there."
+  ],
+  "LWN_story_butcher_ask_sister_2": [
+    "那仓库有人守，你要过去先找个帮手，别空着手撞进去。",
+    "That warehouse has guards; find someone to go with you and don't walk in unarmed."
+  ],
+  "LWN_story_butcher_deal": [
+    "马横天天来砸摊，你让他停手，我给你家伙，再教你几招站稳、发力的办法。",
+    "Ma Heng keeps wrecking my stall; make him stop and I'll give you some gear and teach you how to stand and strike properly."
+  ],
+  "LWN_story_butcher_deal_why": [
+    "我一动刀，他们就有借口带人来，你替我谈也好，打也好，让他停手，别杀人。",
+    "If I draw a knife they'll have an excuse to bring more men; talk or fight as you choose, just make him stop without killing him."
+  ],
+  "LWN_story_butcher_deal_refuse": [
+    "不愿惹他们就先别答应，我还得开摊，没法拿这事赌一回。",
+    "Don't agree if you won't face them; I need this stall open, and I can't gamble on it."
+  ],
+  "LWN_story_butcher_quest_accept": [
+    "马横在街口，让他答应不再砸摊就回来，我说好的东西给你留着。",
+    "Ma Heng is down the street; get him to stop smashing the stall, then come back for what I promised."
+  ],
+  "LWN_story_butcher_turnin_ok": [
+    "马横肯收手了，这些家伙归你，我教你的站姿和发力也记牢，别再两脚并着去顶人。",
+    "Ma Heng's agreed to stop; take the gear and remember the stance and weight I showed you, rather than meeting a shove with your feet together."
+  ],
+  "LWN_story_butcher_chat": [
+    "今天能好好卖肉了，案板也不用挪进挪出，多亏你帮了这一回。",
+    "I can sell meat today without hiding the block away; you did me a good turn."
+  ],
+  "LWN_story_butcher_chat_2": [
+    "铁头以前在码头扛货，力气不小，你要动手，先看准他抬刀再挡，别急着抢攻。",
+    "Ironhead used to haul cargo and he's strong; if you fight him, watch his blade and block before you rush in."
+  ],
+  "LWN_story_butcher_money_disdain": [
+    "钱收回去，我想要的是砸摊的人停手，这几枚钱顶不了事。",
+    "Keep the money; I need the man wrecking my stall to stop, and a few coins won't do that."
+  ],
+  "LWN_story_butcher_methods_hub": [
+    "你想动手，还是想让他知道动手也占不到便宜？",
+    "Do you mean to fight him, or make him think a fight won't be worth it?"
+  ],
+  "LWN_story_butcher_learn_fight": [
+    "先把刀拿稳，盯着他出手再招架，撑不住就认输，别为逞强把命丢了。",
+    "Keep your grip, watch his attack and block; surrender if you can't hold him off, rather than lose your life for pride."
+  ],
+  "LWN_story_butcher_learn_threat": [
+    "你现在去喊，他只会当你虚张声势，先替我把砸摊的事办了，回来学会站稳发力，再去跟他谈。",
+    "He'll take your threats for bluffing as you are; settle my trouble first, then learn to stand and strike before you face him again."
+  ],
+  "LWN_story_butcher_learn_control_1": [
+    "背后下手也会失手，人没倒、没被制住就别急着绑，不然他回身就能砍你。",
+    "An attack from behind can fail too; don't try tying him until he's down or restrained, or he'll turn on you."
+  ],
+  "LWN_story_butcher_learn_control_2": [
+    "要松绳就先把人放到稳当的地方，他醒过来还可能继续拦门，你得留心。",
+    "Put him somewhere firm before untying him; once free, he may go straight back to guarding the gate."
+  ],
+  "LWN_story_son_intro": [
+    "别踩我旁边的箱子，我这只手还肿着，挪不开它，你找我有什么事？",
+    "Mind the box beside me; this hand is still swollen and I can't move it, so what did you want?"
+  ],
+  "LWN_story_son_ask_wall": [
+    "我替夜行会看着这条街，有钱袋也得有动手的机会，如今手伤着，只能在这儿等。",
+    "I watch this street for the nightwalkers; you need an opening as well as a purse worth taking, and with this hand all I can do is wait."
+  ],
+  "LWN_story_son_ask_climb": [
+    "门上那根梁能挂钩子，不过我的钩索让墙根那伙人抢了，没拿回工具我也教不了你用。",
+    "The beam above the gate will take a hook, but the gang by the wall stole mine; I can't show you much until I have the tools back."
+  ],
+  "LWN_story_son_ask_climb_2": [
+    "他们抢东西时掰伤了我这根手指，连绳子都攥不住，哪还翻得了墙。",
+    "They bent this finger back when they took my gear; I can't even grip a rope, let alone climb the wall."
+  ],
+  "LWN_story_son_ask_sister": [
+    "上个月夜里，我在屋顶见过两个码头帮的人带着个穿青布的姑娘，嘴里塞着布。",
+    "Last month I saw two dock gang men taking a girl in blue along the lane at night; I was on a roof and she had a cloth in her mouth."
+  ],
+  "LWN_story_son_ask_sister_2": [
+    "我当时正偷东西，没敢出声，只看见他们往大西门里的私仓走。",
+    "I was stealing something and didn't dare call out; I only saw them heading towards the private warehouse inside the west gate."
+  ],
+  "LWN_story_son_deal": [
+    "你替我让墙根那伙人停手，我把备用钩索和撬锁包给你，这只手没好之前我也用不上。",
+    "Get the gang by the wall to leave me alone and you can have my spare hook and lock tools; they're no use to me until this hand heals."
+  ],
+  "LWN_story_son_deal_why": [
+    "手肿得握不住钩子，他们人又多，我再去就是把另一只手也搭上。",
+    "My hand's too swollen to hold a hook and there are several of them; going back will just get the other one broken."
+  ],
+  "LWN_story_son_deal_refuse": [
+    "那算了，我再找别人，你要问别的事就问。",
+    "Then leave it; I'll find someone else, though you can still ask about other things."
+  ],
+  "LWN_story_son_quest_accept": [
+    "领头的在粮仓外，让他不再抢我的东西就行，谈妥了回来取工具。",
+    "Their leader's at outside the granary; get him to stop robbing me, then come back for the tools."
+  ],
+  "LWN_story_son_turnin_ok": [
+    "那我能安心养这只手了，钩索和撬锁包给你，翻墙前先找准能挂牢的地方。",
+    "Now I can let this hand heal; take the hook and lock tools, and find somewhere firm to hang the hook before climbing."
+  ],
+  "LWN_story_son_chat": [
+    "我娘听说你帮我拿回了工具，还说让我少跟你学那些危险的事。",
+    "My mother heard you'd helped with the tools; she told me not to learn any dangerous tricks from you."
+  ],
+  "LWN_story_son_chat_2": [
+    "蹲着走到他身后，等他看向别处再过门，要摸他的刀也得先看看有没有别人盯着。",
+    "Crouch behind him and wait for him to look away before passing; if you're taking his blade, check for other eyes first."
+  ],
+  "LWN_story_son_money_open": [
+    "四十第纳尔，我给你指出梁上能挂钩的地方，别拿绳子往烂木头上搭。",
+    "Forty denars and I'll point out the sound part of the beam, so you don't hang your rope on rotten wood."
+  ],
+  "LWN_story_son_money_taken": [
+    "梁西头的木头坏了，钩子挂正中，动手前再看看守门的脸朝哪边。",
+    "The western end is rotten; hang your hook in the middle and check which way the guard is looking first."
+  ],
+  "LWN_story_son_methods_hub": [
+    "你想绕过他的眼睛，摸走他的刀，还是从墙上进去？",
+    "Do you want to slip past him, take his blade, or climb over the wall?"
+  ],
+  "LWN_story_son_learn_sneak_1": [
+    "在背后他看不见你，可你走得重，他一样会回头。",
+    "He can't see you behind him, but walk heavily and he'll still turn round."
+  ],
+  "LWN_story_son_learn_sneak_2": [
+    "蹲着慢慢走，等他转开脸再过，他只是回头看别处，可不是睡着了。",
+    "Crouch and move slowly, then pass when he looks away; he's looking elsewhere, not asleep."
+  ],
+  "LWN_story_son_learn_steal_1": [
+    "从背后看好你要摸的东西再伸手，别只顾着盯钱袋，忘了他身上还有刀。",
+    "Approach from behind and pick what you're taking before reaching for it; don't forget his knife while staring at his purse."
+  ],
+  "LWN_story_son_learn_steal_2": [
+    "拿不准就收手，他一察觉就可能抓你，钱袋没到手，人先被押走了。",
+    "Stop if you aren't sure; he may arrest you as soon as he notices, before you've even got the purse."
+  ],
+  "LWN_story_son_learn_disarm": [
+    "摸走一把刀不等于他肯放行，先看看他有没有别的武器，再当面跟他谈。",
+    "Taking one blade doesn't mean he'll let you through; check whether he has another weapon, then talk to him."
+  ],
+  "LWN_story_son_tools_hub": [
+    "钩索用来翻墙，细铁片用来开锁，你想先学哪个？",
+    "The hook is for climbing and the thin picks are for locks; which do you want to learn first?"
+  ],
+  "LWN_story_son_learn_lock_1": [
+    "先试出锁里有几层，稳住一层再拨下一层，别只顾着使劲。",
+    "Feel for the layers in the lock, hold one steady and work on the next; forcing it won't help."
+  ],
+  "LWN_story_son_learn_lock_2": [
+    "开别人的锁会惹麻烦，先拿我这口旧箱练，别跑到人家柜上试。",
+    "Opening someone else's lock will get you in trouble; practise on my old chest before trying a shopkeeper's cupboard."
+  ],
+  "LWN_story_son_business_hub": [
+    "这手指还疼，墙根那伙人又在抢我的东西，你愿意帮我跑一趟吗？",
+    "This finger still hurts and the men by the wall keep taking my things; will you go and see them for me?"
+  ],
+  "LWN_story_son_practice_start": [
+    "慢慢来，先稳住第一层再拨第二层，这只伤手可没法替你修锁。",
+    "Take it slowly, holding the first layer steady before the second; I can't mend a lock with this hand."
+  ],
+  "LWN_story_son_practice_done": [
+    "开了就好，下次碰别人的锁，可别以为主人也会站在旁边教你。",
+    "Good, it's open; don't expect someone else's owner to stand beside you giving advice next time."
+  ],
+  "LWN_story_rival_intro": [
+    "别站在我招牌前面，看戏往两边站，你要找我就说，我一会儿还得开唱。",
+    "Keep clear of the sign and stand to either side if you're watching; say what you want, I've a performance to start soon."
+  ],
+  "LWN_story_rival_hub": [
+    "还有什么事，快说，我还得招呼客人。",
+    "If there is anything else, say it quickly; I have an audience to look after."
+  ],
+  "LWN_story_rival_talk": [
+    "这块牌子是我爹留下的，几个人都靠它吃饭，我不能让宋家的戏班把客人全带走。",
+    "My father left me that sign and it feeds several of us; I can't let Song's troupe take every customer."
+  ],
+  "LWN_story_rival_settled": [
+    "我把人挪到自己这边，不堵她台前的路，客人愿意听谁，就让他们自己选。",
+    "I'll move my people back here and leave her path clear; customers can choose whom they want to hear."
+  ],
+  "LWN_story_rival_settle_refused": [
+    "你又不替我们发工钱，她少了几位客人就找人来赶我，那我这几个人怎么办？",
+    "You aren't paying our wages; she loses a few customers and sends you to move us, so what are my people meant to do?"
+  ],
+  "LWN_story_rival_fight": [
+    "在我演出的地方动手，那就来吧！",
+    "Pick a fight where we perform and you can face me!"
+  ],
+  "LWN_story_debtor_intro": [
+    "交钱的先把名字报上来，等等，账上没你，你找谁？",
+    "Give me your name before you pay; wait, you're not in the book, whom are you looking for?"
+  ],
+  "LWN_story_debtor_hub": [
+    "哪笔账，你说清楚。",
+    "Tell me exactly which account you mean."
+  ],
+  "LWN_story_debtor_talk": [
+    "我替码头帮收各家的例钱，账不齐他们先来找我，可别当我日子好过。",
+    "I collect the shops' dues for the dock gang; if the accounts don't balance, they come for me first."
+  ],
+  "LWN_story_debtor_collect": [
+    "借据还在就没法赖，一百二十你拿去，回去让老周把那笔划掉。",
+    "If he still has the IOU I can't deny it; take the hundred and twenty and tell Zhou to cross out the debt."
+  ],
+  "LWN_story_debtor_refuse": [
+    "老周想要钱就自己来，我今天收的钱还得交上去，不能听你一句话就掏。",
+    "Zhou can come himself; I still have to hand over today's collections and can't pay out just because you ask."
+  ],
+  "LWN_story_debtor_fight": [
+    "要动手讨账，那就看你拿不拿得走！",
+    "If you're collecting by force, let's see whether you can take it!"
+  ],
+  "LWN_story_thug_intro": [
+    "站远些，我跟掌柜算账，你有什么事？",
+    "Stand back, I'm settling accounts with the shopkeeper; what do you want?"
+  ],
+  "LWN_story_thug_hub": [
+    "有话就说，别耽误我收钱。",
+    "Speak up; I've money to collect."
+  ],
+  "LWN_story_thug_talk": [
+    "卖肉的让你来的，还是周掌柜，这条街欠钱的不止他们一家。",
+    "Has the butcher sent you, or Zhou, since they aren't the only ones owing money on this street?"
+  ],
+  "LWN_story_thug_money": [
+    "半夜的货你少打听，我只管这条街的例钱，别拉我去问船上的事。",
+    "Keep out of the night cargo business; I collect this street's dues, so don't drag me into questions about the boats."
+  ],
+  "LWN_story_thug_settled": [
+    "好，我不砸卖肉的摊子了，你让他也别再来找我。",
+    "All right, I'll leave the butcher's stall alone; tell him to leave me alone too."
+  ],
+  "LWN_story_thug_settle_refused": [
+    "他欠的钱还没交，你替他说两句，我回去怎么向上头交代？",
+    "He still hasn't paid; how do I explain that to my superiors just because you've asked nicely?"
+  ],
+  "LWN_story_thug_fight": [
+    "敢替他出头，就别躲在柜台后面！",
+    "If you're standing up for him, come out from behind the counter!"
+  ],
+  "LWN_story_outlaw_intro": [
+    "这儿的东西别乱碰，你要找谁？",
+    "Keep your hands off the things here; who are you looking for?"
+  ],
+  "LWN_story_outlaw_hub": [
+    "说完就走，别堵在这儿。",
+    "Say your piece and go; don't block the way."
+  ],
+  "LWN_story_outlaw_talk": [
+    "墙边那小子自己护不住东西，倒知道找个人来帮忙，你打算怎么替他讨？",
+    "The boy by the wall can't keep hold of his things, but he knows how to find help; how do you plan to get them back?"
+  ],
+  "LWN_story_outlaw_fight": [
+    "你要硬抢，那就过来试试！",
+    "If you're taking it by force, come and try!"
+  ],
+  "LWN_story_outlaw_settled": [
+    "东西的事算了，我也不再找他麻烦，你们离这地方远些。",
+    "Forget the gear; I won't trouble him again, but keep away from this place."
+  ],
+  "LWN_story_outlaw_settle_refused": [
+    "他让你来讲两句，我就得松手，哪有这么便宜的事。",
+    "You think I should give in just because he sent you to say a few words?"
+  ],
+  "LWN_story_blocker_first_refuse": [
+    "每天都有人说要找亲人，没有文书就退后，我不挨个听你们解释。",
+    "Every day someone's looking for family; step back if you have no papers, I won't hear every excuse."
+  ],
+  "LWN_story_blocker_first_blow": [
+    "还往里挤，那就把兵器放下，跟我们走！",
+    "Stop pushing through and put your weapon down, you are coming with us!"
+  ],
+  "LWN_story_blocker_bribe_ok": [
+    "钱收了，进去吧，里头惹了事可别说是我放的你。",
+    "I've got the money; go in, and don't name me if you make trouble inside."
+  ],
+  "LWN_story_blocker_threat_ok": [
+    "你先把手放下，我犯不着跟你拼命，过去吧。",
+    "Lower your hands; this isn't worth risking my neck over, go through."
+  ],
+  "LWN_story_blocker_threat_fail": [
+    "当着我的面威胁守门的人，那你今天别想走了！",
+    "Threaten the guard to his face and you'll be staying here today!"
+  ],
+  "LWN_story_blocker_disguise_ok": [
+    "是我没认出来，您请进，别耽误了您的事。",
+    "I didn't recognise you; please go through, I won't keep you from your business."
+  ],
+  "LWN_story_blocker_disguise_fail": [
+    "这衣裳像戏班里的，你连来办什么事都说不清，冒充身份还想过门？",
+    "That looks like a stage costume and you can't explain your business; did you think pretending would get you through?"
+  ],
+  "LWN_story_blocker_disarmed_ok": [
+    "我的刀都被你拿走了，我不想跟你拼命，你进去，别再碰我。",
+    "You have taken my knife and I do not want to fight you to the death; go in and leave me alone."
+  ],
+  "LWN_story_blocker_entry": [
+    "让一让，我要进城。",
+    "Step aside. I'm going in."
+  ],
+  "LWN_story_opt_leave": [
+    "[离开] 我先走了。",
+    "[Leave] I'll be going."
+  ],
+  "LWN_story_blocker_opt_insist": [
+    "我妹妹在城里做工，我进去找她。",
+    "My sister works in there. I am going to find her."
+  ],
+  "LWN_story_blocker_opt_draw": [
+    "今天这门我非进不可。",
+    "I am walking through this gate today."
+  ],
+  "LWN_story_opt_face_fight": [
+    "那就来吧。",
+    "Come on, then."
+  ],
+  "LWN_story_opt_surrender": [
+    "我不抵抗，跟你走。",
+    "I will not resist. I will go with you."
+  ],
+  "LWN_story_blocker_opt_pass": [
+    "借过。",
+    "Excuse me."
+  ],
+  "LWN_story_blocker_opt_bribe": [
+    "这点钱拿去喝茶。（100 第纳尔）",
+    "Have a drink on me. (100 denars)"
+  ],
+  "LWN_story_hint_threat_gate": [
+    "先处理郑大山的砸摊委托并交差，获得15点武力训练收益后才能尝试；通过后依然检定，失败可能开战或被拘捕。",
+    "First settle the butcher's stall dispute and turn in his job for 15 Force training; the attempt still requires a roll, and failure may lead to a fight or arrest."
+  ],
+  "LWN_story_blocker_opt_disarmed": [
+    "你手里的刀没了。让开。",
+    "Your blade is gone. Step aside."
+  ],
+  "LWN_story_butcher_lesson_opt_methods": [
+    "我想从门口过去，教我两手。",
+    "The man at the gate bars my way; teach me a trick or two."
+  ],
+  "LWN_story_butcher_lesson_opt_business": [
+    "说说你这肉摊。",
+    "Tell me about your stall."
+  ],
+  "LWN_story_butcher_opt_sister": [
+    "见过一个被码头帮带走的青布姑娘吗？",
+    "Have you seen a girl in blue taken by the dockhands?"
+  ],
+  "LWN_story_butcher_opt_back": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_butcher_opt_past_more": [
+    "我不是码头帮的探子——他们为什么砸你的摊？",
+    "I'm no friend of the dockhands. Why did they smash your stall?"
+  ],
+  "LWN_story_butcher_opt_sister2": [
+    "西码头暗仓那边，还有什么讲究？",
+    "Those west dock sheds — what else should I know?"
+  ],
+  "LWN_story_opt_take_job": [
+    "这活我接了。",
+    "I'll do it."
+  ],
+  "LWN_story_butcher_opt_why": [
+    "你手头有刀有肉，怎么不自己剁了他？",
+    "You have a cleaver in hand. Why not cut him down yourself?"
+  ],
+  "LWN_story_butcher_opt_refuse": [
+    "我暂时不想替人出头。",
+    "I won't pick that fight right now."
+  ],
+  "LWN_story_butcher_opt_turnin_ok": [
+    "那个打手已经服软了。",
+    "The enforcer has backed down."
+  ],
+  "LWN_story_butcher_opt_work": [
+    "守门那个铁头，动手时有什么破绽？",
+    "Ironhead at the gate — any weakness when he fights?"
+  ],
+  "LWN_story_event2_opt_ask": [
+    "慢着，你们这是闹什么？",
+    "Hold on — what's this about?"
+  ],
+  "LWN_story_event2_opt_walk": [
+    "街面上的混账事我不掺和。",
+    "Street brawls are none of mine."
+  ],
+  "LWN_story_event_opt_followup": [
+    "我还有件事想问你。",
+    "There is something else I wanted to ask you."
+  ],
+  "LWN_story_event6_opt_help": [
+    "先缓口气。你受伤了没有？",
+    "Take a breath. Are you hurt?"
+  ],
+  "LWN_story_butcher_lesson_opt_fight": [
+    "要是他拔刀呢？",
+    "What if he draws his blade?"
+  ],
+  "LWN_story_butcher_lesson_opt_control": [
+    "我想制住他，少挨几刀。",
+    "I would rather subdue him than trade blows."
+  ],
+  "LWN_story_butcher_lesson_opt_threat": [
+    "不拔刀，能不能让他自己退？",
+    "Can I make him back off without drawing?"
+  ],
+  "LWN_story_butcher_lesson_opt_back_top": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_butcher_lesson_opt_back_methods": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_butcher_opt_meat": [
+    "这么大个肉案，就你一个人守着？",
+    "Big meat block. You run it all alone?"
+  ],
+  "LWN_story_butcher_opt_past": [
+    "听街坊说，你以前也是码头帮的人？",
+    "Word on the street says you used to run with the dockhands?"
+  ],
+  "LWN_story_butcher_lesson_opt_work": [
+    "摊上有难处就说。",
+    "Tell me if you need a hand."
+  ],
+  "LWN_story_butcher_opt_deal": [
+    "我身上没家伙，能不能借把刀、教我两手？",
+    "I'm unarmed. Spare me a blade and teach me a trick or two?"
+  ],
+  "LWN_story_butcher_opt_chat": [
+    "今天的肉看着不错。",
+    "Good cuts on the block today."
+  ],
+  "LWN_story_butcher_opt_money": [
+    "这些钱，买你一句话。",
+    "This coin buys me a word."
+  ],
+  "LWN_story_butcher_lesson_opt_back_business": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_debtor_opt_ask": [
+    "你手里这本账册，记的都是谁的账？",
+    "Whose names are written in that ledger of yours?"
+  ],
+  "LWN_story_debtor_opt_fight": [
+    "既然嘴上讨不回来，那就打到你掏钱为止。",
+    "If talk won't pry the purse open, my fists will."
+  ],
+  "LWN_story_pawnbroker_opt_back": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_debtor_opt_collect_leave": [
+    "[离开] 我先走了。",
+    "[Leave] I'll be going."
+  ],
+  "LWN_story_outlaw_opt_ask": [
+    "你们昨天抢了墙头那个半大孩子的飞钩，还伤了人。",
+    "You robbed that boy on the wall yesterday and twisted his finger."
+  ],
+  "LWN_story_outlaw_opt_fight": [
+    "你要靠拳头讲理，那就来。",
+    "If fists are your only argument, come on."
+  ],
+  "LWN_story_pawnbroker_opt_self": [
+    "先说说你自己吧。",
+    "Tell me about yourself."
+  ],
+  "LWN_story_pawnbroker_opt_sister": [
+    "三个月前，见过一个穿青布的姑娘吗？",
+    "Three months ago — a girl in blue cloth?"
+  ],
+  "LWN_story_pawnbroker_opt_gang": [
+    "守门那个人，怎么才能过去？",
+    "That man at the gate — how do I get past him?"
+  ],
+  "LWN_story_pawnbroker_opt_errand": [
+    "你这铺子里有跑腿打杂的活吗？",
+    "Any odd jobs that need running?"
+  ],
+  "LWN_story_pawnbroker_opt_deal": [
+    "我手头空，你这儿有什么赚钱的门路？",
+    "My purse is empty. Any way to earn coin here?"
+  ],
+  "LWN_story_pawnbroker_opt_chat": [
+    "老周，这两天生意怎么样？",
+    "Old Zhou, how has business been these past few days?"
+  ],
+  "LWN_story_pawnbroker_opt_money": [
+    "这点意思，您收着。",
+    "A token of respect. Take it."
+  ],
+  "LWN_story_pawnbroker_opt_help_reward": [
+    "刚才我替你拦住了他，你没事吧？",
+    "I stopped him for you just now; are you all right?"
+  ],
+  "LWN_story_pawnbroker_opt_sister_redeem": [
+    "那只银镯，我替她赎回来。",
+    "I'll redeem that silver bracelet for her."
+  ],
+  "LWN_story_pawnbroker_opt_self_stay": [
+    "被压榨成这样，你怎么不走？",
+    "Why stay when they bleed you like this?"
+  ],
+  "LWN_story_pawnbroker_opt_self_know": [
+    "所以这城门口的事，你都门儿清？",
+    "So you know everything that passes this gate?"
+  ],
+  "LWN_story_pawnbroker_opt_sister_where": [
+    "她当完镯子，往哪去了？",
+    "Where did she go after pawning it?"
+  ],
+  "LWN_story_pawnbroker_opt_sister_why": [
+    "三个月前的当票，你怎么记得这么清？",
+    "Three months back — how do you remember it so clearly?"
+  ],
+  "LWN_story_pawnbroker_opt_pay30": [
+    "三十第纳尔，数好了。（30 第纳尔）",
+    "Thirty denars, counted out. (30 denars)"
+  ],
+  "LWN_story_pawnbroker_opt_hold": [
+    "先替我留着，我凑够钱再来赎。",
+    "Keep it safe. I'll come back with the coin."
+  ],
+  "LWN_story_pawnbroker_opt_gang_how": [
+    "除了给钱，还有别的办法吗？",
+    "Is there another way besides paying him?"
+  ],
+  "LWN_story_pawnbroker_opt_gang_price": [
+    "给他多少钱才肯放人？",
+    "How much does he want to let someone through?"
+  ],
+  "LWN_story_pawnbroker_opt_deal_why": [
+    "收账这事，你怎么不自己去？",
+    "Why not collect it yourself?"
+  ],
+  "LWN_story_pawnbroker_opt_refuse": [
+    "我只想找人，暂时不想惹码头帮。",
+    "I only want to find someone, not cross the dockhands yet."
+  ],
+  "LWN_story_pawnbroker_opt_turnin_ok": [
+    "一百二十第纳尔都在这儿，没闹出人命。",
+    "All hundred and twenty denars are here. Nobody died."
+  ],
+  "LWN_story_pawnbroker_opt_turnin_trouble": [
+    "钱拿回来了，不过动手揍了他一顿。",
+    "Got the money, though I had to rough him up."
+  ],
+  "LWN_story_pawnbroker_opt_turnin_why": [
+    "还有什么路子？",
+    "What other way?"
+  ],
+  "LWN_story_pawnbroker_opt_visit": [
+    "进城之后，码头那边有什么风声？",
+    "Once I'm inside, what's the word down at the docks?"
+  ],
+  "LWN_story_pawnbroker_opt_work": [
+    "我再问问别的事。",
+    "Let me ask about something else."
+  ],
+  "LWN_story_event1_opt_pay": [
+    "他欠多少？我替他付。（80 第纳尔）",
+    "How much does he owe? I'll cover it. (80 denars)"
+  ],
+  "LWN_story_event1_opt_walk": [
+    "不关我的事。",
+    "Not my business."
+  ],
+  "LWN_story_event5_opt_ask": [
+    "我找门路进城，咱们聊聊。",
+    "I'm looking for a way in. Let's talk."
+  ],
+  "LWN_story_pawnbroker_opt_money_buy": [
+    "八十第纳尔，买门口那人的底细。",
+    "Eighty denars for the truth about the gate guard."
+  ],
+  "LWN_story_rival_opt_sign": [
+    "你这块招牌有些年头了，是家里传下来的？",
+    "That sign looks old; has it been in your family long?"
+  ],
+  "LWN_story_rival_opt_fight": [
+    "你想靠拳头讲理，那就试试。",
+    "You want to settle this with fists? Try me."
+  ],
+  "LWN_story_son_learn_opt_methods": [
+    "正门堵着，教我几样绕过去的本事。",
+    "The gate is barred to me; show me some ways around it."
+  ],
+  "LWN_story_son_learn_opt_business": [
+    "你手伤着，要是需要帮忙，就跟我说。",
+    "If you need a hand while yours is hurt, just say so."
+  ],
+  "LWN_story_son_opt_sister": [
+    "你整天蹲在墙头，见过一个穿青布的姑娘吗？",
+    "Watching from up there, have you seen a girl in blue cloth?"
+  ],
+  "LWN_story_son_opt_back": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_son_opt_climb2": [
+    "谁敢抢夜行会的东西？",
+    "Who dared rob a Nightwalker?"
+  ],
+  "LWN_story_son_opt_sister2": [
+    "那天夜里他们把人押去哪了？",
+    "Where did they take her that night?"
+  ],
+  "LWN_story_son_opt_why": [
+    "这是你的地方，怎么不自己把东西要回来？",
+    "This is your patch; why do you not get your things back yourself?"
+  ],
+  "LWN_story_son_opt_refuse": [
+    "我不替小偷打架。",
+    "I don't fight battles for thieves."
+  ],
+  "LWN_story_son_opt_turnin_ok": [
+    "墙根那伙野贼已经打发了。",
+    "Those thieves at the wall are dealt with."
+  ],
+  "LWN_story_son_opt_work": [
+    "除了钩索翻墙，过门还有什么巧办法？",
+    "Besides the grapple, any other clever way past the gate?"
+  ],
+  "LWN_story_event4_opt_ask": [
+    "慢着，到底丢了什么东西？",
+    "Hold on — what exactly went missing?"
+  ],
+  "LWN_story_event4_opt_walk": [
+    "抓贼的事我不掺和。",
+    "Not my affair."
+  ],
+  "LWN_story_son_opt_pay": [
+    "门上那根梁，到底哪截结实？",
+    "That beam over the gate — which section holds?"
+  ],
+  "LWN_story_son_learn_opt_sneak": [
+    "先教我从他眼皮底下绕过去。",
+    "Show me how to slip past his eyes."
+  ],
+  "LWN_story_son_learn_opt_steal": [
+    "我想把他身上的刀偷走。",
+    "I want to steal the knife he is carrying."
+  ],
+  "LWN_story_son_learn_opt_tools": [
+    "说说你那些钩子和开锁的家伙。",
+    "Tell me about your hooks and lockpicks."
+  ],
+  "LWN_story_son_learn_opt_back_top": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_son_learn_opt_back_methods": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_son_learn_opt_disarm": [
+    "摸走他的刀，就能大摇大摆进门？",
+    "If I take his blade, can I walk straight in?"
+  ],
+  "LWN_story_son_opt_climb": [
+    "正门被堵死了，怎么才能翻进去？",
+    "The front gate is blocked. How do I get over the wall?"
+  ],
+  "LWN_story_son_learn_opt_locks": [
+    "我没开过锁，先教我怎么用这些工具。",
+    "I have never picked a lock; show me how to use these tools."
+  ],
+  "LWN_story_son_practice_opt_try": [
+    "找把旧锁，让我试试？",
+    "Find me an old lock to try."
+  ],
+  "LWN_story_son_practice_opt_done": [
+    "你那把旧锁，我打开了。",
+    "I opened that old lock of yours."
+  ],
+  "LWN_story_son_learn_opt_beam_price": [
+    "梁上哪一段能挂住钩子，给我指一下。",
+    "Show me which part of the beam can hold the hook."
+  ],
+  "LWN_story_son_opt_wall": [
+    "你天天蹲在这墙根底下看什么？",
+    "What do you watch from this wall all day?"
+  ],
+  "LWN_story_son_opt_deal": [
+    "把你的飞钩借我用用。",
+    "Lend me your grappling hook."
+  ],
+  "LWN_story_son_opt_chat": [
+    "这两天墙头上有什么新动静？",
+    "Anything new from the top of the wall?"
+  ],
+  "LWN_story_son_practice_opt_start": [
+    "细铁片有了，我就试这把锁。",
+    "I have the picks; I will try this lock."
+  ],
+  "LWN_story_son_practice_opt_back": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_thug_opt_ask": [
+    "这条街的商铺，你每天都来砸一通？",
+    "You smash up stalls on this street every day?"
+  ],
+  "LWN_story_thug_opt_money": [
+    "上个月半夜，你们押去码头的姑娘在哪？",
+    "Last month at midnight — where did you take that girl?"
+  ],
+  "LWN_story_thug_opt_fight": [
+    "别拿码头帮吓唬我，要打就来。",
+    "Do not threaten me with the dock gang; fight me if you want to."
+  ],
+  "LWN_story_widow_lesson_opt_gate": [
+    "我想试试靠说话让门卫放行。",
+    "The guard stops me; can words get me through?"
+  ],
+  "LWN_story_widow_lesson_opt_business": [
+    "说说你们这戏班。",
+    "Tell me about your troupe."
+  ],
+  "LWN_story_widow_opt_sister": [
+    "见过一个穿青布的姑娘吗？",
+    "Have you seen a girl in blue cloth?"
+  ],
+  "LWN_story_widow_opt_back": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_widow_opt_sister_more": [
+    "领走她的那个水手，你还记得什么特征？",
+    "That sailor who led her off — what else do you remember?"
+  ],
+  "LWN_story_widow_opt_why": [
+    "这种得罪人的事，你怎么不自己叫人干？",
+    "Why not have your own people do it?"
+  ],
+  "LWN_story_widow_opt_refuse": [
+    "我不替你去赶走别人，也不想砸他们的台子。",
+    "I will not drive them away for you or smash their stage."
+  ],
+  "LWN_story_widow_opt_turnin_ok": [
+    "对面领班答应不再堵路了。",
+    "The other troupe leader has agreed to stop blocking the path."
+  ],
+  "LWN_story_widow_opt_work": [
+    "你在城门口唱戏，听说过城里的动静吗？",
+    "Singing by the gate, what rumours do you hear from inside?"
+  ],
+  "LWN_story_event3_opt_ask": [
+    "你们俩到底在吵什么？",
+    "What are you two arguing about?"
+  ],
+  "LWN_story_event3_opt_walk": [
+    "戏班子的事我不掺和。",
+    "Troupe business is none of mine."
+  ],
+  "LWN_story_widow_opt_pay": [
+    "那姑娘进城时到底是什么样？",
+    "How did that girl really look going in?"
+  ],
+  "LWN_story_widow_lesson_opt_talk": [
+    "怎么跟他谈，他才肯听？",
+    "How do I talk to him so he will listen?"
+  ],
+  "LWN_story_widow_lesson_opt_identity": [
+    "换上戏服，就能装成贵人？",
+    "Will a costume make me a noble?"
+  ],
+  "LWN_story_widow_opt_wear": [
+    "这身戏服，现在就换上。",
+    "Put the costume on now."
+  ],
+  "LWN_story_widow_lesson_opt_back_top": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_widow_lesson_opt_back_methods": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_widow_opt_stage": [
+    "你这戏班子，天天都在城门口唱？",
+    "Your troupe plays outside the gate every day?"
+  ],
+  "LWN_story_widow_opt_rival": [
+    "对面那家戏班是怎么回事？",
+    "What is going on with the other troupe?"
+  ],
+  "LWN_story_widow_lesson_opt_work": [
+    "有用得着我的地方，尽管说。",
+    "I can lend a hand where you need one."
+  ],
+  "LWN_story_widow_opt_deal": [
+    "给我弄一个能进城的身份。",
+    "Get me a name and coat that pass the gate."
+  ],
+  "LWN_story_widow_opt_chat": [
+    "今天生意怎么样？",
+    "How's the crowd today?"
+  ],
+  "LWN_story_widow_opt_money": [
+    "六十第纳尔，买你两句实话。",
+    "Sixty denars for two honest words."
+  ],
+  "LWN_story_widow_lesson_opt_back_business": [
+    "[收住] 说点别的。",
+    "[Back] Let's talk about something else."
+  ],
+  "LWN_story_hint_butcher_lesson_fight": [
+    "向屠户请教对方拔刀后该怎么应付。",
+    "Ask the butcher how to handle an opponent who draws a blade."
+  ],
+  "LWN_story_hint_butcher_lesson_control": [
+    "向屠户请教怎么制住对方、少挨几刀。",
+    "Ask the butcher how to restrain an opponent and avoid getting cut."
+  ],
+  "LWN_story_hint_butcher_lesson_threat": [
+    "向屠户请教怎么让对方不打就退。",
+    "Ask the butcher how to make an opponent back down without a fight."
+  ],
+  "LWN_story_hint_son_learn_sneak": [
+    "向小六请教怎么偷偷绕过守卫。",
+    "Ask Xiao Liu how to sneak past a guard."
+  ],
+  "LWN_story_hint_son_learn_steal": [
+    "向小六请教怎么偷走守卫的武器。",
+    "Ask Xiao Liu how to steal a guard's weapons."
+  ],
+  "LWN_story_hint_son_learn_tools": [
+    "向小六请教钩索和开锁工具的用法。",
+    "Ask Xiao Liu how to use climbing hooks and lockpicks."
+  ],
+  "LWN_story_hint_son_opt_climb": [
+    "向小六打听翻墙进城的办法。",
+    "Ask Xiao Liu about climbing over the wall into town."
+  ],
+  "LWN_story_hint_son_learn_locks": [
+    "向小六请教开锁工具的用法。",
+    "Ask Xiao Liu how to use lockpicks."
+  ],
+  "LWN_story_hint_son_practice_try": [
+    "请小六找把旧锁，让你练习开锁。",
+    "Ask Xiao Liu for an old lock to practise on."
+  ],
+  "LWN_story_hint_son_practice_done": [
+    "告诉小六，你已经打开了练习用的锁。",
+    "Tell Xiao Liu you have opened the practice lock."
+  ],
+  "LWN_story_hint_son_opt_money": [
+    "请小六说明横梁上哪里能挂住钩子。",
+    "Ask Xiao Liu where on the beam a hook will hold."
+  ],
+  "LWN_story_hint_widow_lesson_talk": [
+    "向宋玉娘请教怎么跟守卫说话。",
+    "Ask Song Yuniang how to talk to the guard."
+  ],
+  "LWN_story_hint_widow_lesson_identity": [
+    "向宋玉娘请教穿戏服冒充贵人的办法。",
+    "Ask Song Yuniang about using a stage costume to pass as a noble."
+  ],
+  "LWN_story_hint_widow_opt_wear": [
+    "换上贵族戏服，原来的上衣收回行囊。",
+    "Put on the noble costume and return your current tunic to your pack."
+  ],
+  "LWN_story_persona_pawnbroker_identity": [
+    "城门外的小当铺掌柜，收入靠典当和熟客，不属官绅。",
+    "A small pawnbroker outside the gate, living on pledges and regular customers, without official protection."
+  ],
+  "LWN_story_persona_pawnbroker_background": [
+    "我姓周，铺子开了二十三年，码头帮索取例钱后，欠账越来越难收，手里的账是养老的本钱。",
+    "I am Zhou and have kept this shop for twenty-three years; gang dues make debts harder to recover, and these ledgers are what I have to retire on."
+  ],
+  "LWN_story_pawnbroker_goal": [
+    "我想把欠款收齐，保住铺子，不跟码头帮闹到关门。",
+    "I want my debts paid and my shop kept open without a quarrel that shuts it down."
+  ],
+  "LWN_story_pawnbroker_trouble": [
+    "钱三顺欠我一百二十第纳尔，拖了半年，我去讨钱又被赶出来。",
+    "Qian Sanshun owes me a hundred and twenty denars, six months overdue, and has driven me away when I asked."
+  ],
+  "LWN_story_pawnbroker_playerhelp": [
+    "希望外乡人拿借据讨回欠款，不闹出人命，我支付三十第纳尔并给旧账本。",
+    "I need someone from outside to recover the debt without killing anyone; I offer thirty denars and my old ledger."
+  ],
+  "LWN_story_persona_pawnbroker_temperament": [
+    "先问来意再报价，记得小数目，怕惹祸，但会对肯办事的人通融，不讲人生大道理。",
+    "I ask what people need before pricing it and remember small sums; cautious about trouble, but willing to make allowances for people who help."
+  ],
+  "LWN_story_persona_widow_identity": [
+    "靠街头卖艺谋生的寡妇和小戏班领班，要养活手下的演员。",
+    "A widowed street performer leading a small troupe and responsible for its performers."
+  ],
+  "LWN_story_persona_widow_background": [
+    "我叫宋玉娘，丈夫过世后带着戏班接着唱，城里租不起场子，就在门外搭台。",
+    "I am Song Yuniang; after my husband died I kept the troupe going, performing outside the gate because town rents are too dear."
+  ],
+  "LWN_story_widow_goal": [
+    "想让戏班每天开得了唱，给演员发工钱，不被别家赶走。",
+    "I want daily performances, wages for my people and a place we cannot be driven from."
+  ],
+  "LWN_story_widow_trouble": [
+    "顾长生的人堵在台前唱，客人到不了我这里，今天的饭钱还没挣齐。",
+    "Gu Changsheng has singers blocking the path to our stage, and we have not earned enough for food today."
+  ],
+  "LWN_story_widow_playerhelp": [
+    "希望有人让对面领班停止堵路，以戏服、护符和应对门卫的经验答谢。",
+    "I need someone to get the rival leader to clear our path; I offer a costume, a charm and advice for talking to the guard."
+  ],
+  "LWN_story_persona_widow_temperament": [
+    "话直、护短，常掂量饭钱与工钱，懂演戏但不拿戏词当日常说话，对帮忙的人热心。",
+    "Direct and protective, often thinking of meals and wages; theatrical experience without speaking in stage verses, and warm to those who help."
+  ],
+  "LWN_story_persona_son_identity": [
+    "没有固定收入的年轻小贼，替夜行会盯街，仍受母亲管束。",
+    "A young thief without steady wages, watching the street for the nightwalkers and still answering to his mother."
+  ],
+  "LWN_story_persona_son_background": [
+    "我叫许小六，母亲在戏班唱戏，我靠望风和偷小东西混饭，墙根那伙人抢了我的钩索，还掰伤了手。",
+    "I am Xu Xiaoliu; my mother performs with the troupe and I live on lookout work and petty theft, but men by the wall took my hook and hurt my hand."
+  ],
+  "LWN_story_son_goal": [
+    "想保住自己的地盘和工具，等手好后还能有饭吃。",
+    "I want my patch and tools safe so I can earn again when my hand heals."
+  ],
+  "LWN_story_son_trouble": [
+    "手指肿着，握不住绳子，再去讨东西怕另一只手也被打坏。",
+    "My swollen finger cannot grip a rope, and going back might get my other hand hurt too."
+  ],
+  "LWN_story_son_playerhelp": [
+    "希望有人让粮仓外的野贼停手，以备用钩索、撬锁工具和使用经验答谢。",
+    "I need someone to make the gang by the granary leave me alone; I offer spare climbing and lock tools, and show how to use them."
+  ],
+  "LWN_story_persona_son_temperament": [
+    "嘴快、戒备，熟了才愿意多说，知道自己害怕却爱逞能，常留意守卫是否在听。",
+    "Quick-tongued and wary, more talkative after trust forms; scared but prone to boasting, always checking whether guards can hear."
+  ],
+  "LWN_story_persona_butcher_identity": [
+    "独自经营肉摊的屠户，曾在码头帮干活，没有上头撑腰。",
+    "A butcher running his stall alone, formerly working for the dock gang and without a patron."
+  ],
+  "LWN_story_persona_butcher_background": [
+    "我叫郑大山，过去替码头帮干过活，他们要我看守被绑的人，我拒绝后离了帮，摆肉摊挣钱。",
+    "I am Zheng Dashan; I worked for the dock gang until they asked me to guard bound prisoners, then left to earn my living selling meat."
+  ],
+  "LWN_story_butcher_goal": [
+    "想保住肉摊、收个徒弟，不再参与押人的买卖。",
+    "I want the stall safe, an apprentice and no part in trafficking people."
+  ],
+  "LWN_story_butcher_trouble": [
+    "马横来砸摊，徒弟已被吓跑，我动刀反而会让他们找到报复的借口。",
+    "Ma Heng wrecks the stall and has scared off my apprentice; using a knife would give the gang an excuse for reprisals."
+  ],
+  "LWN_story_butcher_playerhelp": [
+    "希望外人让马横停手，答谢家伙、绳子、磨刀石，并教站姿和发力，增加武力15点。",
+    "I need an outsider to make Ma Heng stop; I offer equipment and teach stance and force, granting 15 Force."
+  ],
+  "LWN_story_persona_butcher_temperament": [
+    "不绕话，习惯边干活边听，讲具体招式与风险，拒绝靠几枚钱解决砸摊的问题。",
+    "Plain-spoken, listening while working and giving practical advice about moves and risks; a few coins will not solve his stall being wrecked."
+  ],
+  "LWN_story_persona_blocker_identity": [
+    "有固定差事的城门守卫，领俸禄，靠守门权力收私钱。",
+    "A salaried gate guard who also takes private payments using his authority."
+  ],
+  "LWN_story_persona_blocker_background": [
+    "我叫罗铁，人家叫铁头，过去在码头扛过货，后来领了守门的差事，在赌坊欠着钱。",
+    "I am Luo Tie, called Ironhead; I hauled cargo before becoming a gate guard, and owe money to a gambling house."
+  ],
+  "LWN_story_blocker_goal": [
+    "想保住守门的差事，用私下收到的钱抵赌债。",
+    "I want to keep my post and use private payments to cover my gambling debts."
+  ],
+  "LWN_story_blocker_trouble": [
+    "上头要求验文书，债主又在催，我怕收钱的事被揭出来。",
+    "My superiors require checked papers and creditors want payment; exposure of my bribes would cost me the post."
+  ],
+  "LWN_story_blocker_playerhelp": [
+    "不主动求助，可以谈通行条件，但不肯为陌生人担责。",
+    "I do not seek help; passage can be negotiated, but I will not take responsibility for a stranger."
+  ],
+  "LWN_story_persona_blocker_temperament": [
+    "先摆规矩，认钱也怕丢差事，对虚张声势的人粗硬，面对真的强手会保命。",
+    "Starts with rules, likes money and fears dismissal; hard on bluffers but unwilling to die against proven strength."
+  ],
+  "LWN_story_persona_gate_sentry_identity": [
+    "城门副守卫，收入是俸禄，地位低于主守卫。",
+    "A deputy gate guard paid a wage and subordinate to the main guard."
+  ],
+  "LWN_story_persona_gate_sentry_background": [
+    "我叫韩守义，在城门协助验文书和看住闯门的人，自己并不收私钱。",
+    "I am Han Shouyi; I help check papers and stop people forcing the gate, without taking private payments."
+  ],
+  "LWN_story_gate_sentry_goal": [
+    "想把当班的事做完，别漏放人，也别因同僚的私事担责。",
+    "I want my shift finished without letting someone slip through or taking blame for a colleague."
+  ],
+  "LWN_story_gate_sentry_trouble": [
+    "主守卫处事粗暴，我仍得按上头要求看住入口。",
+    "The senior guard is rough with people, but I still have orders to watch the entrance."
+  ],
+  "LWN_story_gate_sentry_playerhelp": [
+    "没有私人委托，只要求按规矩配合查验。",
+    "No private job; asks people to cooperate with the inspection."
+  ],
+  "LWN_story_persona_gate_sentry_temperament": [
+    "少说话、重程序，不主动贪钱，也不随主守卫一起讲脏话。",
+    "Few words, careful about procedure, not eager for money and not copying the senior guard's abuse."
+  ],
+  "LWN_story_persona_thug_identity": [
+    "靠码头帮撑腰收例钱的街头打手，地位不高。",
+    "A low-ranking street enforcer collecting dues under the dock gang's protection."
+  ],
+  "LWN_story_persona_thug_background": [
+    "我叫马横，替上头收这条街的例钱，欠交的铺户多，我就砸东西逼他们交。",
+    "I am Ma Heng; I collect this street's dues for my superiors and smash property when shopkeepers do not pay."
+  ],
+  "LWN_story_thug_goal": [
+    "想交齐上头要的钱，保住自己在这条街的威风。",
+    "I want the required money collected and my standing on this street intact."
+  ],
+  "LWN_story_thug_trouble": [
+    "郑大山不肯交，我压不服他，外乡人又来插手。",
+    "Zheng Dashan will not pay, I cannot make him yield, and an outsider is interfering."
+  ],
+  "LWN_story_thug_playerhelp": [
+    "不主动请玩家帮忙，希望插手的人退开，也可以接受足以让他停手的压力或劝说。",
+    "I do not seek help; I want interference stopped, but convincing pressure or persuasion can make me back off."
+  ],
+  "LWN_story_persona_thug_temperament": [
+    "当众要面子，专欺没有靠山的人，遇到更强的人会算能否全身而退。",
+    "Wants public respect, bullies those without protection and weighs escape when someone stronger appears."
+  ],
+  "LWN_story_persona_debtor_identity": [
+    "替码头帮收例钱的收数人，也欠当铺私债。",
+    "A collector for the dock gang who also owes a personal debt to the pawnshop."
+  ],
+  "LWN_story_persona_debtor_background": [
+    "我叫钱三顺，替码头帮收铺户的钱，自己周转不灵，向周掌柜借的一百二十一直没还。",
+    "I am Qian Sanshun; I collect shop dues, but my own finances are short and I still owe Zhou a hundred and twenty."
+  ],
+  "LWN_story_debtor_goal": [
+    "想按时向帮里交账，把自己的欠款再拖一阵。",
+    "I want the gang's accounts paid on time and my personal debt postponed."
+  ],
+  "LWN_story_debtor_trouble": [
+    "周掌柜留着借据，要钱的人找上门，收来的钱又不能随便挪。",
+    "Zhou has the IOU and has sent someone to collect; I cannot freely use the money I have collected."
+  ],
+  "LWN_story_debtor_playerhelp": [
+    "不主动求助，希望讨债的人放宽期限，受到有效压力才愿意还钱。",
+    "I do not seek help; I want the collector to extend the deadline and pay only under convincing pressure."
+  ],
+  "LWN_story_persona_debtor_temperament": [
+    "嘴快、会推账，把公账当借口挡私债，真被捏住凭据又怕闹大。",
+    "Talks quickly and shifts blame, using gang accounts to evade personal debts, but wary of firm evidence escalating the matter."
+  ],
+  "LWN_story_persona_rival_identity": [
+    "另一家街头戏班的领班，继承了父亲的招牌，靠观众赏钱养人。",
+    "Leader of a rival street troupe, inheriting his father's sign and supporting performers through audience donations."
+  ],
+  "LWN_story_persona_rival_background": [
+    "我叫顾长生，父亲留下戏班和牌子，码头帮的人捧过场，可演员的饭钱还是得每天唱出来。",
+    "I am Gu Changsheng; my father left the troupe and sign, and dock gang patrons attend, but we must still sing for our meals."
+  ],
+  "LWN_story_rival_goal": [
+    "想保住老招牌，让自己的人有客人、有饭吃。",
+    "I want the old name kept alive, customers listening and my people fed."
+  ],
+  "LWN_story_rival_trouble": [
+    "两家争同一拨过路客，我把人拉到宋家的台前，已经吵了几天。",
+    "We compete for passing customers; I have moved singers in front of Song's stage and the argument has lasted days."
+  ],
+  "LWN_story_rival_playerhelp": [
+    "不主动请玩家帮忙，若来调解，得说明如何让两家都能唱，不能只叫我挪开。",
+    "I do not ask for help; a mediator must explain how both troupes can perform rather than merely order me away."
+  ],
+  "LWN_story_persona_rival_temperament": [
+    "护着招牌和演员、容易急，不懂的外人来教做生意会惹恼他，愿听能保住生计的安排。",
+    "Protective of the sign and performers, quick to anger at outsiders lecturing about business, but open to plans that preserve a living."
+  ],
+  "LWN_story_persona_outlaw_identity": [
+    "落脚粮仓外的野贼头目，不守城内公会的规矩。",
+    "Leader of outlaws living in a shelter outside the granary, outside the town guilds? rules."
+  ],
+  "LWN_story_persona_outlaw_background": [
+    "我叫杜野，和几个人躲在粮仓外的墙根，抢落单的人过日子，前些日子拿了小贼的工具。",
+    "I am Du Ye; a few of us live in a shelter by the granary wall, rob lone travellers and recently took a thief's tools."
+  ],
+  "LWN_story_outlaw_goal": [
+    "想保住藏身处和抢来的东西，不被守卫或别的帮派赶走。",
+    "I want the hideout and stolen goods kept safe from guards and other gangs."
+  ],
+  "LWN_story_outlaw_trouble": [
+    "抢来的工具还在我手上，小六迟早会来讨，我不想为这点东西把守卫招过来。",
+    "I still have the tools I took; Xiaoliu may come for them, and I don't want the guards drawn here over them."
+  ],
+  "LWN_story_outlaw_playerhelp": [
+    "不主动求助，希望来人离开，条件合适时可以答应停止找小贼麻烦。",
+    "I do not seek help; I want visitors gone and can agree to leave the young thief alone under the right pressure."
+  ],
+  "LWN_story_persona_outlaw_temperament": [
+    "戒备、粗鲁，先试探来人是不是好欺负，发现不划算会退，不讲江湖格言。",
+    "Wary and rude, probing whether a visitor is easy prey, backing off from a bad bargain rather than reciting outlaw maxims."
+  ],
+  "LWN_story_hint_training_required": [
+    "先通过实际历练获得{MINIMUM}点{ATTRIBUTE}训练收益（当前已获得{GAIN}点）。\n{NOTE}",
+    "First gain {MINIMUM} {ATTRIBUTE} through training (gained: {GAIN}).\n{NOTE}"
+  ],
+  "LWN_story_check_source_force": [
+    "基础武力来自活力与控制之和×5，加上完成委托获得的武力训练收益。",
+    "Base Force is (Vigor + Control) ? 5, plus Force training earned by completing jobs."
+  ],
+  "LWN_story_observe_title": [
+    "再到城门外",
+    "Back outside the gate"
+  ],
+  "LWN_story_observe_start": [
+    "观察局势",
+    "Observe the situation"
+  ],
+  "LWN_story_observe_continue": [
+    "继续观察",
+    "Keep observing"
+  ],
+  "LWN_story_observe_stop": [
+    "不看了",
+    "Enough for now"
+  ],
+  "LWN_story_observe_recall": [
+    "上次硬闯城门，你被守卫抓住，身上的钱和东西也被收走了，现在刑期已经结束，你又回到门外，还没有找到妹妹。\n\n先看看门口和街上的人，或者直接过去问问。",
+    "The guards caught you last time you forced your way through the gate and took your money and belongings; your sentence is over and you are back outside, but you still have not found your sister.\n\nLook at the gate and the people along the street, or go and ask them yourself."
+  ],
+  "LWN_story_observe_gate": [
+    "还是那两名守卫守着入口，直接往里冲恐怕又会被拦下。街边有人在做买卖，也有人正争执，或许能从他们那里打听别的办法。",
+    "The same two guards hold the entrance; another rush may end the same way. People are trading and arguing nearby, and may know another way in."
+  ],
+  "LWN_story_observe_pawn": [
+    "柜台前的人正在向掌柜要钱，掌柜紧紧护着账本。做典当的人经手许多东西，你可以问他是否见过妹妹，也可以先问问他眼前的麻烦。",
+    "A man is demanding money at the counter while the shopkeeper keeps his ledger close. A pawnbroker handles many belongings; ask whether he has seen your sister, or what is troubling him."
+  ],
+  "LWN_story_observe_widow": [
+    "两个戏班正在抢台前的位置，客人过不去。台边放着衣箱，领班似乎急着让对方挪开，你可以过去听她说说。",
+    "Two troupes are arguing over space and customers cannot get past. There is a costume chest by the stage, and the leader wants the other troupe to move; you could hear her out."
+  ],
+  "LWN_story_observe_son": [
+    "墙边的年轻人护着伤手，刚才又提到了钩索。正门进不去，或许能请他教你翻墙或避开守卫，不过得先弄清他的工具出了什么事。",
+    "The young man by the wall is nursing his hand and mentioned a hook. He may know how to climb over or evade the guards; first find out what happened to his tools."
+  ],
+  "LWN_story_observe_butcher": [
+    "屠户看起来不愿再忍那些收钱的人，也肯教人用刀。要走武力这条路，可以先替他处理砸摊的麻烦，再回来学本事。\n\n接下来自己决定先找谁；进城会结束这一章，手头的事记得先收尾。",
+    "The butcher has had enough of the collectors and is willing to teach blade work. If you want to rely on strength, settle the trouble at his stall, then return to learn.\n\nChoose whom to approach first; entering the town ends this chapter, so finish your business before crossing."
+  ],
+  "LWN_story_observe_guard_bark": [
+    "没带通行文书的，就在门外等着，别往里挤。",
+    "Wait outside if you haven't got papers; don't push through."
+  ],
+  "LWN_story_observe_thug_bark": [
+    "周掌柜，今天该交的，你打算拖到什么时候？",
+    "Master Zhou, how long are you putting off what is due today?"
+  ],
+  "LWN_story_observe_pawn_bark": [
+    "钱三顺的欠款还没还，你们又来要，我这柜上哪还拿得出来。",
+    "Qian Sanshun still owes me and now you want more; where am I meant to find it?"
+  ],
+  "LWN_story_observe_widow_bark": [
+    "你们挪开些，客人连上台的路都过不来了！",
+    "Move your people back; the customers cannot even reach our stage!"
+  ],
+  "LWN_story_observe_rival_bark": [
+    "这几个人也得吃饭，你有客人，我们就不能唱了？",
+    "My people need to eat too; are we meant to stop singing whenever you have customers?"
+  ],
+  "LWN_story_observe_son_bark": [
+    "这手还是使不上劲，连自己的工具都护不住。",
+    "Still no strength in this hand; I couldn't even keep my own tools safe."
+  ],
+  "LWN_story_observe_butcher_bark": [
+    "想学用刀可以，可我这摊子天天被砸，先让我把生意做安稳了。",
+    "I can teach you blade work, but they keep wrecking my stall; let me get the business safe first."
+  ],
+  "LWN_story_training_reward": [
+    "完成训练：{ATTRIBUTE} +{GAIN}（当前{TOTAL}）。",
+    "Training completed: {ATTRIBUTE} +{GAIN} (now {TOTAL})."
+  ],
+  "LWN_story_rival_opt_settle": [
+    "[说服] 两家各唱各的，先把到她台前的路让出来，别让客人听戏还得挤过去。",
+    "[Persuade] Both troupes can perform; clear the path to her stage so customers can get through."
+  ],
+  "LWN_story_event3_join_line1": [
+    "你们把台前的路都占了，我的客人怎么过去？",
+    "Your people are blocking the path to our stage; how are my customers meant to get through?"
+  ],
+  "LWN_story_event3_opt_side_widow": [
+    "[帮腔] 客人想听哪家是他们的事，你把路堵上，她的生意怎么做？",
+    "[Support her] Customers can choose whom to hear; how can she earn anything while you block the path?"
+  ],
+  "LWN_story_amb_rival_1": [
+    "谁招来客人谁唱！",
+    "Whoever draws the crowd gets to perform!"
+  ],
+  "LWN_story_amb_rival_2": [
+    "别把客人堵在我这边！",
+    "Do not block the crowd on my side!"
+  ],
+  "LWN_story_event1_join": [
+    "你别管这事，钱我马上给他。",
+    "Stay out of this; I will pay him right now."
+  ],
+  "LWN_story_event1_paid_line2": [
+    "你下个月还想帮他，就接着掏钱。",
+    "If you want to help him next month, keep paying."
+  ],
+  "LWN_story_event1_paid": [
+    "谢谢你替我付这钱，可他下个月还会来，也不知道还能撑多久。",
+    "Thank you for paying for me, but he will come back next month; I do not know how much longer I can keep going."
+  ],
+  "LWN_story_event1_win_line2": [
+    "他来收钱收了三年。",
+    "He has been collecting money here for three years."
+  ],
+  "LWN_story_event1_lose_line1": [
+    "连我都打不过，还敢管别人的事？",
+    "You cannot even beat me, and you want to interfere?"
+  ],
+  "LWN_story_event5_join_line1": [
+    "这三笔欠账，一笔都没收回来。",
+    "I have not recovered a single one of these three debts."
+  ],
+  "LWN_story_event5_join": [
+    "你是来当东西，还是想找挣钱的活？",
+    "Are you here to pawn something or find paying work?"
+  ],
+  "LWN_story_widow_wear_done": [
+    "站好，我帮你把衣领理一理，别把领口扯开。",
+    "Stand still and let me straighten your collar; do not pull the neckline open."
+  ],
+  "LWN_story_widow_turnin": [
+    "对面那家戏班的事，谈妥了吗？",
+    "Have you settled things with the other troupe?"
+  ],
+  "LWN_story_event3_join": [
+    "这条街又不是你家的，我们能招来客人就能在这儿唱，你凭什么赶人？",
+    "You do not own this street; we can draw a crowd and perform here, so what gives you the right to drive us off?"
+  ],
+  "LWN_story_event3_ask_line1": [
+    "她在这儿唱了三年，我们刚搭好台，她就要赶我们走！",
+    "She has performed here for three years; we had barely set up our stage before she tried to drive us off!"
+  ],
+  "LWN_story_event3_ask": [
+    "码头帮把你们叫来，就是想抢走我的客人！",
+    "The dock gang sent you here to take my audience!"
+  ],
+  "LWN_story_event3_win_line1": [
+    "行，今天先让你们唱。",
+    "Fine, you can perform first today."
+  ],
+  "LWN_story_event3_win": [
+    "谢谢你替我们说话，不然还不知道要吵到什么时候。",
+    "Thank you for speaking up for us; otherwise we might still be arguing."
+  ],
+  "LWN_story_event3_lose": [
+    "你这话帮不上忙，只会让他笑话我们。",
+    "That does not help; it just gives him a reason to laugh at us."
+  ],
+  "LWN_story_event2_opt_help": [
+    "[帮屠户] 住手，别砸他的摊子，有本事冲我来。",
+    "[Help the butcher] Stop smashing his stall; if you want a fight, come at me."
+  ],
+  "LWN_story_event2_ask": [
+    "这是我和码头帮之间的事，你别跟着惹麻烦。",
+    "This is between me and the dock gang; do not get yourself into trouble."
+  ],
+  "LWN_story_event2_win_line1": [
+    "你从哪儿冒出来的，怎么这么能打！",
+    "Where did you come from, and how are you this good in a fight!"
+  ],
+  "LWN_story_event2_win_line3": [
+    "你手上力气真不小。",
+    "You have quite a bit of strength."
+  ],
+  "LWN_story_event2_lose_line1": [
+    "站都站不稳，还敢来替人打架？",
+    "You can barely stay on your feet, and you came to fight for him?"
+  ],
+  "LWN_story_butcher_business_hub": [
+    "我卖肉就图个安稳，别让我一天到晚防着他们砸摊。",
+    "I just want to sell meat in peace without spending all day worrying they will smash the stall."
+  ],
+  "LWN_story_butcher_work_hub": [
+    "你想借家伙，还是打听事，先说清楚。",
+    "Tell me whether you want to borrow something or ask about something."
+  ],
+  "LWN_story_event4_join_line3": [
+    "周掌柜，真不是我拿的！",
+    "Shopkeeper Zhou, I really did not take it!"
+  ],
+  "LWN_story_event4_join": [
+    "我今天连你的柜台都没靠近！",
+    "I have not even been near your counter today!"
+  ],
+  "LWN_story_event4_opt_defend": [
+    "[劝解] 先看看账本下面，东西还没找清楚，别急着怪他。",
+    "[Calm them down] Look under the ledger first; you have not finished searching, so do not blame him yet."
+  ],
+  "LWN_story_event4_ask_line1": [
+    "柜台角上那袋零钱不见了，刚才只有这小子从门前走过！",
+    "The bag of coins on the counter has gone missing, and this lad was the only one who walked past the door!"
+  ],
+  "LWN_story_event4_win_line2": [
+    "是我看错了，刚才不该怪你。",
+    "I got it wrong; I should not have blamed you."
+  ],
+  "LWN_story_event4_win": [
+    "多谢你拦着，不然他又得抓着我的伤手不放。",
+    "Thanks for stopping him, or he would have grabbed my injured hand again."
+  ],
+  "LWN_story_debtor_opt_collect": [
+    "[逼债] 你欠老周的一百二十第纳尔，今天就还给他。",
+    "[Demand payment] Pay back the hundred and twenty denars you owe Old Zhou today."
+  ],
+  "LWN_story_thug_opt_settle": [
+    "[说服] 你把摊子砸了，他明天拿什么交钱，先让他好好做生意。",
+    "[Persuade] If you smash his stall, what will he pay you with tomorrow; let him do business."
+  ],
+  "LWN_story_outlaw_opt_settle": [
+    "[劝说] 他靠钩索吃饭，手又伤着，别再抢他的东西、找他的麻烦了。",
+    "[Persuade] He lives off his grappling hook and his hand is injured; stop taking his things and harassing him."
+  ],
+  "LWN_story_blocker_first_line1": [
+    "把通行文书拿出来。",
+    "Show me your entry papers."
+  ],
+  "LWN_story_blocker_open_line1": [
+    "把通行文书拿出来。",
+    "Show me your entry papers."
+  ],
+  "LWN_story_blocker_opt_disguise": [
+    "[冒充贵客] 我来办事还得等你同意，把你们管事的叫来。",
+    "[Pose as an important visitor] I need your permission to attend to my business; call whoever is in charge here."
+  ],
+  "LWN_story_blocker_threat_fail_fight_response": [
+    "还敢顶嘴，那就动手！",
+    "Still talking back; then fight!"
+  ],
+  "LWN_story_blocker_disguise_fail_surrender_response": [
+    "跟我们走，冒充身份这事还没完。",
+    "Come with us; we are not done with your false identity."
+  ],
+  "LWN_story_amb_pawnbroker_2": [
+    "利息不高，生人也能当。",
+    "Low interest; strangers can pawn here too."
+  ],
+  "LWN_story_amb_widow_1": [
+    "要开唱了，往里站！",
+    "We are about to start; move further in!"
+  ],
+  "LWN_story_event5_l2": [
+    "这点钱都快不够吃饭了。",
+    "This is barely enough to eat on."
+  ],
+  "LWN_story_rival_entry": [
+    "[说两句] 这家戏班是你管的？",
+    "[Talk] Are you in charge of this troupe?"
+  ],
+  "LWN_story_hint_rival_opt_settle": [
+    "试着劝领班把通往宋玉娘戏台的路让出来。",
+    "Try to persuade the troupe leader to clear the path to Song Yuniang's stage."
+  ],
+  "LWN_story_hint_rival_opt_sign": [
+    "打听顾长生戏班的招牌。",
+    "Ask about Gu Changsheng's troupe sign."
+  ],
+  "LWN_story_hint_rival_opt_fight": [
+    "直接与顾长生开战。",
+    "Fight Gu Changsheng."
+  ],
+  "LWN_story_hint_widow_opt_rival": [
+    "打听另一家戏班的来路。",
+    "Ask where the other troupe comes from."
+  ],
+  "LWN_story_quest_widow_title": [
+    "两家戏班的争执",
+    "The Dispute Between the Troupes"
+  ],
+  "LWN_story_quest_finished": [
+    "已经向{NAME}交差。",
+    "You have reported back to {NAME}."
+  ],
+  "LWN_story_daily_pawnbroker_pending_1": [
+    "钱三顺又躲债去了。",
+    "Qian Sanshun has gone hiding from his debt again."
+  ],
+  "LWN_story_daily_pawnbroker_pending_2": [
+    "这欠账，催了也不还。",
+    "I keep asking, but he still will not pay."
+  ],
+  "LWN_story_daily_pawnbroker_done_1": [
+    "总算把旧账收回来了。",
+    "At last, that old debt is paid."
+  ],
+  "LWN_story_daily_pawnbroker_done_2": [
+    "当票收好，别拿错东西。",
+    "Keep the pawn slips safe; do not mix up the goods."
+  ],
+  "LWN_story_daily_widow_pending_1": [
+    "别挤了，给我们留条路。",
+    "Stop crowding us; leave a way through."
+  ],
+  "LWN_story_daily_widow_pending_2": [
+    "饭钱没着落，还得接着唱。",
+    "We still have to sing if we want to eat."
+  ],
+  "LWN_story_daily_widow_done_1": [
+    "今天总算能好好唱了。",
+    "At last we can get on with the singing."
+  ],
+  "LWN_story_daily_widow_done_2": [
+    "这琴又走调了，得调一调。",
+    "This harp is out of tune again; better fix it."
+  ],
+  "LWN_story_daily_son_pending_1": [
+    "手还肿着，箱子都搬不动。",
+    "My hand is still swollen; I cannot even move the box."
+  ],
+  "LWN_story_daily_son_pending_2": [
+    "杜野拿着工具不肯还。",
+    "Du Ye still will not return my tools."
+  ],
+  "LWN_story_daily_son_done_1": [
+    "工具回来了，手还得养。",
+    "The tools are back; my hand still needs rest."
+  ],
+  "LWN_story_daily_son_done_2": [
+    "下回得把工具看紧点。",
+    "I had better watch my tools next time."
+  ],
+  "LWN_story_daily_butcher_pending_1": [
+    "我一个人忙不过来啊。",
+    "I cannot keep up with all this work on my own."
+  ],
+  "LWN_story_daily_butcher_pending_2": [
+    "再砸一回，我还吃什么？",
+    "If he wrecks it again, what will I live on?"
+  ],
+  "LWN_story_daily_butcher_done_1": [
+    "没人砸摊，能安心干活了。",
+    "Nobody is wrecking the stall; I can work in peace."
+  ],
+  "LWN_story_daily_butcher_done_2": [
+    "还得找个徒弟帮帮忙。",
+    "I still need an apprentice to help me."
+  ],
+  "LWN_story_daily_thug_pending_1": [
+    "这一趟，钱又没收齐。",
+    "Another round, and I still have not collected it all."
+  ],
+  "LWN_story_daily_thug_pending_2": [
+    "郑大山这人真难缠。",
+    "That Zheng Dashan is a stubborn one."
+  ],
+  "LWN_story_daily_thug_done_1": [
+    "今天不去他摊子找事了。",
+    "I will leave his stall alone today."
+  ],
+  "LWN_story_daily_thug_done_2": [
+    "歇会儿，腿都站酸了。",
+    "Time for a rest; my legs are aching."
+  ],
+  "LWN_story_daily_debtor_pending_1": [
+    "欠我的钱，倒没人管。",
+    "Nobody bothers about the money owed to me."
+  ],
+  "LWN_story_daily_debtor_pending_2": [
+    "账单一催，酒都喝不下。",
+    "A debt demand takes all the taste out of my drink."
+  ],
+  "LWN_story_daily_debtor_done_1": [
+    "老周那笔账总算清了。",
+    "At least my debt to Old Zhou is settled."
+  ],
+  "LWN_story_daily_debtor_done_2": [
+    "下回花钱得看着点。",
+    "I will have to watch my spending next time."
+  ],
+  "LWN_story_daily_rival_pending_1": [
+    "他们都抢了，咱们吃什么？",
+    "If they take all the trade, what do we eat?"
+  ],
+  "LWN_story_daily_rival_pending_2": [
+    "靠这几文钱，怎么养人？",
+    "How am I meant to feed everyone on a few coins?"
+  ],
+  "LWN_story_daily_rival_done_1": [
+    "轮到咱们唱，可得唱好。",
+    "When it is our turn, we had better sing well."
+  ],
+  "LWN_story_daily_rival_done_2": [
+    "嗓子得省着，后头还得唱。",
+    "Save your voices; there is more singing to do."
+  ],
+  "LWN_story_daily_outlaw_pending_1": [
+    "这点工具，真不值几个钱。",
+    "These tools are hardly worth anything."
+  ],
+  "LWN_story_daily_outlaw_pending_2": [
+    "这地方太亮，藏不住人。",
+    "It is too bright here to stay hidden."
+  ],
+  "LWN_story_daily_outlaw_done_1": [
+    "工具还了，少件麻烦事。",
+    "Tools returned; one less trouble to worry about."
+  ],
+  "LWN_story_daily_outlaw_done_2": [
+    "先歇歇，别再惹事了。",
+    "Take a rest; no more trouble for now."
+  ]
+}

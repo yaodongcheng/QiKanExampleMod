@@ -56,11 +56,11 @@
       "MoneyHintFallback": "The gate man owes the gambling den three months. He is more afraid of losing the post than of a knife.",
       "Civilian": true,
       "IdentityKey": "LWN_story_persona_pawnbroker_identity",
-      "IdentityFallback": "Pawnbroker and broker for the Fixers",
+      "IdentityFallback": "A small pawnbroker outside the gate, living on pledges and regular customers, without official protection.",
       "BackgroundKey": "LWN_story_persona_pawnbroker_background",
-      "BackgroundFallback": "I run a pawnshop outside the gate, make introductions and collect debts.",
+      "BackgroundFallback": "I am Zhou and have kept this shop for twenty-three years; gang dues make debts harder to recover, and these ledgers are what I have to retire on.",
       "TemperamentKey": "LWN_story_persona_pawnbroker_temperament",
-      "TemperamentFallback": "I count carefully, speak cautiously and expect a fair return.",
+      "TemperamentFallback": "I ask what people need before pricing it and remember small sums; cautious about trouble, but willing to make allowances for people who help.",
       "SpecialtyKey": "LWN_story_persona_pawnbroker_specialty",
       "SpecialtyFallback": "I appraise valuables, keep accounts and know the traders outside the gate.",
       "ReactiveRole": "merchant",
@@ -70,7 +70,13 @@
         "temper": 0.3,
         "social": 0.7,
         "greed": 0.7
-      }
+      },
+      "GoalKey": "LWN_story_pawnbroker_goal",
+      "GoalFallback": "I want my debts paid and my shop kept open without a quarrel that shuts it down.",
+      "TroubleKey": "LWN_story_pawnbroker_trouble",
+      "TroubleFallback": "Qian Sanshun owes me a hundred and twenty denars, six months overdue, and has driven me away when I asked.",
+      "PlayerHelpKey": "LWN_story_pawnbroker_playerhelp",
+      "PlayerHelpFallback": "I need someone from outside to recover the debt without killing anyone; I offer thirty denars and my old ledger."
     },
     {
       "Id": "widow",
@@ -103,11 +109,11 @@
       "MoneyHintFallback": "Your sister did not look like a worker when she went by. She looked like she was being walked.",
       "Civilian": true,
       "IdentityKey": "LWN_story_persona_widow_identity",
-      "IdentityFallback": "Widowed performer and troupe leader",
+      "IdentityFallback": "A widowed street performer leading a small troupe and responsible for its performers.",
       "BackgroundKey": "LWN_story_persona_widow_background",
-      "BackgroundFallback": "I lead a travelling troupe outside town; a rival has taken our performance space.",
+      "BackgroundFallback": "I am Song Yuniang; after my husband died I kept the troupe going, performing outside the gate because town rents are too dear.",
       "TemperamentKey": "LWN_story_persona_widow_temperament",
-      "TemperamentFallback": "I am proud, sharp-tongued and repay those who help me.",
+      "TemperamentFallback": "Direct and protective, often thinking of meals and wages; theatrical experience without speaking in stage verses, and warm to those who help.",
       "SpecialtyKey": "LWN_story_persona_widow_specialty",
       "SpecialtyFallback": "I know costumes and manners, and how to look the part.",
       "ReactiveRole": "chief",
@@ -117,7 +123,13 @@
         "temper": 0.5,
         "social": 0.8,
         "greed": 0.5
-      }
+      },
+      "GoalKey": "LWN_story_widow_goal",
+      "GoalFallback": "I want daily performances, wages for my people and a place we cannot be driven from.",
+      "TroubleKey": "LWN_story_widow_trouble",
+      "TroubleFallback": "Gu Changsheng has singers blocking the path to our stage, and we have not earned enough for food today.",
+      "PlayerHelpKey": "LWN_story_widow_playerhelp",
+      "PlayerHelpFallback": "I need someone to get the rival leader to clear our path; I offer a costume, a charm and advice for talking to the guard."
     },
     {
       "Id": "son",
@@ -150,11 +162,11 @@
       "MoneyHintFallback": "The beam over the gate is rotten on the left end. Nobody ever looks up there.",
       "Civilian": true,
       "IdentityKey": "LWN_story_persona_son_identity",
-      "IdentityFallback": "Young thief of the Nightwalkers",
+      "IdentityFallback": "A young thief without steady wages, watching the street for the nightwalkers and still answering to his mother.",
       "BackgroundKey": "LWN_story_persona_son_background",
-      "BackgroundFallback": "I make a living outside the gate, know its side routes and am bullied by an outlaw.",
+      "BackgroundFallback": "I am Xu Xiaoliu; my mother performs with the troupe and I live on lookout work and petty theft, but men by the wall took my hook and hurt my hand.",
       "TemperamentKey": "LWN_story_persona_son_temperament",
-      "TemperamentFallback": "I am quick, wary and test people before trusting them.",
+      "TemperamentFallback": "Quick-tongued and wary, more talkative after trust forms; scared but prone to boasting, always checking whether guards can hear.",
       "SpecialtyKey": "LWN_story_persona_son_specialty",
       "SpecialtyFallback": "I can pick locks, hide things and find grapple points.",
       "ReactiveRole": "default",
@@ -164,7 +176,13 @@
         "temper": 0.4,
         "social": 0.6,
         "greed": 0.6
-      }
+      },
+      "GoalKey": "LWN_story_son_goal",
+      "GoalFallback": "I want my patch and tools safe so I can earn again when my hand heals.",
+      "TroubleKey": "LWN_story_son_trouble",
+      "TroubleFallback": "My swollen finger cannot grip a rope, and going back might get my other hand hurt too.",
+      "PlayerHelpKey": "LWN_story_son_playerhelp",
+      "PlayerHelpFallback": "I need someone to make the gang by the granary leave me alone; I offer spare climbing and lock tools, and show how to use them."
     },
     {
       "Id": "butcher",
@@ -196,11 +214,11 @@
       "MoneyHintFallback": "",
       "Civilian": true,
       "IdentityKey": "LWN_story_persona_butcher_identity",
-      "IdentityFallback": "Butcher and neighbour of the Dockhands",
+      "IdentityFallback": "A butcher running his stall alone, formerly working for the dock gang and without a patron.",
       "BackgroundKey": "LWN_story_persona_butcher_background",
-      "BackgroundFallback": "I sell meat outside the gate, know the dockhands and have trouble with a thug at my stall.",
+      "BackgroundFallback": "I am Zheng Dashan; I worked for the dock gang until they asked me to guard bound prisoners, then left to earn my living selling meat.",
       "TemperamentKey": "LWN_story_persona_butcher_temperament",
-      "TemperamentFallback": "I am blunt, loyal and refuse money offered in place of principle.",
+      "TemperamentFallback": "Plain-spoken, listening while working and giving practical advice about moves and risks; a few coins will not solve his stall being wrecked.",
       "SpecialtyKey": "LWN_story_persona_butcher_specialty",
       "SpecialtyFallback": "I am strong, know knives and can tend injuries.",
       "ReactiveRole": "merchant",
@@ -210,6 +228,15 @@
         "temper": 0.6,
         "social": 0.5,
         "greed": 0.1
+      },
+      "GoalKey": "LWN_story_butcher_goal",
+      "GoalFallback": "I want the stall safe, an apprentice and no part in trafficking people.",
+      "TroubleKey": "LWN_story_butcher_trouble",
+      "TroubleFallback": "Ma Heng wrecks the stall and has scared off my apprentice; using a knife would give the gang an excuse for reprisals.",
+      "PlayerHelpKey": "LWN_story_butcher_playerhelp",
+      "PlayerHelpFallback": "I need an outsider to make Ma Heng stop; I offer equipment and teach stance and force, granting 15 Force.",
+      "AttributeRewards": {
+        "force": 15
       }
     },
     {
@@ -239,11 +266,11 @@
       "MoneyHintFallback": "He counts it twice. He does not even hide it.",
       "Civilian": false,
       "IdentityKey": "LWN_story_persona_blocker_identity",
-      "IdentityFallback": "Gate guard known as Ironhead",
+      "IdentityFallback": "A salaried gate guard who also takes private payments using his authority.",
       "BackgroundKey": "LWN_story_persona_blocker_background",
-      "BackgroundFallback": "I guard this gate and check who may pass.",
+      "BackgroundFallback": "I am Luo Tie, called Ironhead; I hauled cargo before becoming a gate guard, and owe money to a gambling house.",
       "TemperamentKey": "LWN_story_persona_blocker_temperament",
-      "TemperamentFallback": "I am stern, proud and reluctant to speak about my debts.",
+      "TemperamentFallback": "Starts with rules, likes money and fears dismissal; hard on bluffers but unwilling to die against proven strength.",
       "SpecialtyKey": "LWN_story_persona_blocker_specialty",
       "SpecialtyFallback": "I can fight and know the gate checks.",
       "ReactiveRole": "guard",
@@ -253,7 +280,13 @@
         "temper": 0.7,
         "social": 0.4,
         "greed": 0.6
-      }
+      },
+      "GoalKey": "LWN_story_blocker_goal",
+      "GoalFallback": "I want to keep my post and use private payments to cover my gambling debts.",
+      "TroubleKey": "LWN_story_blocker_trouble",
+      "TroubleFallback": "My superiors require checked papers and creditors want payment; exposure of my bribes would cost me the post.",
+      "PlayerHelpKey": "LWN_story_blocker_playerhelp",
+      "PlayerHelpFallback": "I do not seek help; passage can be negotiated, but I will not take responsibility for a stranger."
     },
     {
       "Id": "gate_sentry",
@@ -278,11 +311,11 @@
       "MoneyHintFallback": "",
       "Civilian": false,
       "IdentityKey": "LWN_story_persona_gate_sentry_identity",
-      "IdentityFallback": "Second guard at the same gate",
+      "IdentityFallback": "A deputy gate guard paid a wage and subordinate to the main guard.",
       "BackgroundKey": "LWN_story_persona_gate_sentry_background",
-      "BackgroundFallback": "I share this gate post with another guard and question travellers while on duty.",
+      "BackgroundFallback": "I am Han Shouyi; I help check papers and stop people forcing the gate, without taking private payments.",
       "TemperamentKey": "LWN_story_persona_gate_sentry_temperament",
-      "TemperamentFallback": "I follow the rules, speak briefly and support my fellow guard against intruders.",
+      "TemperamentFallback": "Few words, careful about procedure, not eager for money and not copying the senior guard's abuse.",
       "SpecialtyKey": "LWN_story_persona_gate_sentry_specialty",
       "SpecialtyFallback": "I keep watch, check travellers and intercept intruders.",
       "ReactiveRole": "guard",
@@ -292,7 +325,13 @@
         "temper": 0.5,
         "social": 0.4,
         "greed": 0.3
-      }
+      },
+      "GoalKey": "LWN_story_gate_sentry_goal",
+      "GoalFallback": "I want my shift finished without letting someone slip through or taking blame for a colleague.",
+      "TroubleKey": "LWN_story_gate_sentry_trouble",
+      "TroubleFallback": "The senior guard is rough with people, but I still have orders to watch the entrance.",
+      "PlayerHelpKey": "LWN_story_gate_sentry_playerhelp",
+      "PlayerHelpFallback": "No private job; asks people to cooperate with the inspection."
     },
     {
       "Id": "thug",
@@ -313,11 +352,11 @@
       "OffsetRight": -1.5,
       "Civilian": false,
       "IdentityKey": "LWN_story_persona_thug_identity",
-      "IdentityFallback": "Thug collecting protection money",
+      "IdentityFallback": "A low-ranking street enforcer collecting dues under the dock gang's protection.",
       "BackgroundKey": "LWN_story_persona_thug_background",
-      "BackgroundFallback": "I collect money from stalls outside town, including the butcher.",
+      "BackgroundFallback": "I am Ma Heng; I collect this street's dues for my superiors and smash property when shopkeepers do not pay.",
       "TemperamentKey": "LWN_story_persona_thug_temperament",
-      "TemperamentFallback": "I am aggressive and bully those weaker than me.",
+      "TemperamentFallback": "Wants public respect, bullies those without protection and weighs escape when someone stronger appears.",
       "SpecialtyKey": "LWN_story_persona_thug_specialty",
       "SpecialtyFallback": "I fight and intimidate people for money.",
       "ReactiveRole": "default",
@@ -327,7 +366,13 @@
         "temper": 0.9,
         "social": 0.3,
         "greed": 0.8
-      }
+      },
+      "GoalKey": "LWN_story_thug_goal",
+      "GoalFallback": "I want the required money collected and my standing on this street intact.",
+      "TroubleKey": "LWN_story_thug_trouble",
+      "TroubleFallback": "Zheng Dashan will not pay, I cannot make him yield, and an outsider is interfering.",
+      "PlayerHelpKey": "LWN_story_thug_playerhelp",
+      "PlayerHelpFallback": "I do not seek help; I want interference stopped, but convincing pressure or persuasion can make me back off."
     },
     {
       "Id": "debtor",
@@ -344,15 +389,15 @@
         "merchant_empire"
       ],
       "Age": 40,
-      "OffsetForward": 1.0,
-      "OffsetRight": -12.0,
+      "OffsetForward": 8.747469,
+      "OffsetRight": -8.552401,
       "Civilian": true,
       "IdentityKey": "LWN_story_persona_debtor_identity",
-      "IdentityFallback": "Gambling-house collector indebted to the pawnbroker",
+      "IdentityFallback": "A collector for the dock gang who also owes a personal debt to the pawnshop.",
       "BackgroundKey": "LWN_story_persona_debtor_background",
-      "BackgroundFallback": "I collect gambling debts but owe the pawnbroker money myself.",
+      "BackgroundFallback": "I am Qian Sanshun; I collect shop dues, but my own finances are short and I still owe Zhou a hundred and twenty.",
       "TemperamentKey": "LWN_story_persona_debtor_temperament",
-      "TemperamentFallback": "I talk fast and evade debts until shown firm proof.",
+      "TemperamentFallback": "Talks quickly and shifts blame, using gang accounts to evade personal debts, but wary of firm evidence escalating the matter.",
       "SpecialtyKey": "LWN_story_persona_debtor_specialty",
       "SpecialtyFallback": "I bargain and know gambling-house rules.",
       "ReactiveRole": "merchant",
@@ -362,7 +407,13 @@
         "temper": 0.4,
         "social": 0.7,
         "greed": 0.8
-      }
+      },
+      "GoalKey": "LWN_story_debtor_goal",
+      "GoalFallback": "I want the gang's accounts paid on time and my personal debt postponed.",
+      "TroubleKey": "LWN_story_debtor_trouble",
+      "TroubleFallback": "Zhou has the IOU and has sent someone to collect; I cannot freely use the money I have collected.",
+      "PlayerHelpKey": "LWN_story_debtor_playerhelp",
+      "PlayerHelpFallback": "I do not seek help; I want the collector to extend the deadline and pay only under convincing pressure."
     },
     {
       "Id": "rival",
@@ -383,11 +434,11 @@
       "OffsetRight": 11.0,
       "Civilian": true,
       "IdentityKey": "LWN_story_persona_rival_identity",
-      "IdentityFallback": "Leader of a rival performing troupe",
+      "IdentityFallback": "Leader of a rival street troupe, inheriting his father's sign and supporting performers through audience donations.",
       "BackgroundKey": "LWN_story_persona_rival_background",
-      "BackgroundFallback": "I lead another troupe and compete for performance space.",
+      "BackgroundFallback": "I am Gu Changsheng; my father left the troupe and sign, and dock gang patrons attend, but we must still sing for our meals.",
       "TemperamentKey": "LWN_story_persona_rival_temperament",
-      "TemperamentFallback": "I am competitive and dislike backing down in public.",
+      "TemperamentFallback": "Protective of the sign and performers, quick to anger at outsiders lecturing about business, but open to plans that preserve a living.",
       "SpecialtyKey": "LWN_story_persona_rival_specialty",
       "SpecialtyFallback": "I lead performers and negotiate for space.",
       "ReactiveRole": "chief",
@@ -397,7 +448,13 @@
         "temper": 0.7,
         "social": 0.7,
         "greed": 0.5
-      }
+      },
+      "GoalKey": "LWN_story_rival_goal",
+      "GoalFallback": "I want the old name kept alive, customers listening and my people fed.",
+      "TroubleKey": "LWN_story_rival_trouble",
+      "TroubleFallback": "We compete for passing customers; I have moved singers in front of Song's stage and the argument has lasted days.",
+      "PlayerHelpKey": "LWN_story_rival_playerhelp",
+      "PlayerHelpFallback": "I do not ask for help; a mediator must explain how both troupes can perform rather than merely order me away."
     },
     {
       "Id": "outlaw",
@@ -414,15 +471,15 @@
         "civillian_template_gangster_tier3_empire"
       ],
       "Age": 32,
-      "OffsetForward": -2.0,
-      "OffsetRight": -16.0,
+      "OffsetForward": -3.70016,
+      "OffsetRight": -6.248808,
       "Civilian": false,
       "IdentityKey": "LWN_story_persona_outlaw_identity",
-      "IdentityFallback": "Outlaw on the roads outside town",
+      "IdentityFallback": "Leader of outlaws living in a shelter outside the granary, outside the town guilds? rules.",
       "BackgroundKey": "LWN_story_persona_outlaw_background",
-      "BackgroundFallback": "I haunt the side roads outside town and prey on isolated travellers.",
+      "BackgroundFallback": "I am Du Ye; a few of us live in a shelter by the granary wall, rob lone travellers and recently took a thief's tools.",
       "TemperamentKey": "LWN_story_persona_outlaw_temperament",
-      "TemperamentFallback": "I am suspicious, rough and watch for a retreat when faced with strength.",
+      "TemperamentFallback": "Wary and rude, probing whether a visitor is easy prey, backing off from a bad bargain rather than reciting outlaw maxims.",
       "SpecialtyKey": "LWN_story_persona_outlaw_specialty",
       "SpecialtyFallback": "I know the side roads and ambush lone travellers.",
       "ReactiveRole": "default",
@@ -432,7 +489,13 @@
         "temper": 0.8,
         "social": 0.3,
         "greed": 0.7
-      }
+      },
+      "GoalKey": "LWN_story_outlaw_goal",
+      "GoalFallback": "I want the hideout and stolen goods kept safe from guards and other gangs.",
+      "TroubleKey": "LWN_story_outlaw_trouble",
+      "TroubleFallback": "I still have the tools I took; Xiaoliu may come for them, and I don't want the guards drawn here over them.",
+      "PlayerHelpKey": "LWN_story_outlaw_playerhelp",
+      "PlayerHelpFallback": "I do not seek help; I want visitors gone and can agree to leave the young thief alone under the right pressure."
     }
   ],
   "StreetLife": [
@@ -443,15 +506,42 @@
         "act_conversation_talk_commenting",
         "act_conversation_closed_loop"
       ],
-      "LineKeys": [
-        "LWN_story_amb_pawnbroker_1",
-        "LWN_story_amb_pawnbroker_2"
-      ],
-      "LineFallbacks": [
-        "Pawning or looking for a way in?",
-        "Fair interest. I do not cheat strangers."
-      ],
-      "Listener": "player"
+      "LineKeys": [],
+      "LineFallbacks": [],
+      "Listener": "player",
+      "SpeechRadiusMeters": 10,
+      "SpeechFirstDelayMinSec": 2,
+      "SpeechFirstDelayMaxSec": 8,
+      "SpeechGapMinSec": 12,
+      "SpeechGapMaxSec": 20,
+      "Speech": [
+        {
+          "Requires": [
+            "!quest_done"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_pawnbroker_pending_1",
+            "LWN_story_daily_pawnbroker_pending_2"
+          ],
+          "LineFallbacks": [
+            "Qian Sanshun has gone hiding from his debt again.",
+            "I keep asking, but he still will not pay."
+          ]
+        },
+        {
+          "Requires": [
+            "quest_done"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_pawnbroker_done_1",
+            "LWN_story_daily_pawnbroker_done_2"
+          ],
+          "LineFallbacks": [
+            "At last, that old debt is paid.",
+            "Keep the pawn slips safe; do not mix up the goods."
+          ]
+        }
+      ]
     },
     {
       "NpcId": "widow",
@@ -459,15 +549,57 @@
         "act_play_celtic_harp_stand",
         "act_conversation_hip_loop"
       ],
-      "LineKeys": [
-        "LWN_story_amb_widow_1",
-        "LWN_story_amb_widow_2"
-      ],
-      "LineFallbacks": [
-        "Show is starting!",
-        "Stand back from the stage, please!"
-      ],
-      "Listener": "player"
+      "LineKeys": [],
+      "LineFallbacks": [],
+      "Listener": "player",
+      "SpeechRadiusMeters": 10,
+      "SpeechFirstDelayMinSec": 2,
+      "SpeechFirstDelayMaxSec": 8,
+      "SpeechGapMinSec": 12,
+      "SpeechGapMaxSec": 20,
+      "Speech": [
+        {
+          "Requires": [
+            "!quest_done",
+            "!event_resolved:3"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_widow_pending_1",
+            "LWN_story_daily_widow_pending_2"
+          ],
+          "LineFallbacks": [
+            "Stop crowding us; leave a way through.",
+            "We still have to sing if we want to eat."
+          ]
+        },
+        {
+          "Requires": [
+            "quest_done"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_widow_done_1",
+            "LWN_story_daily_widow_done_2"
+          ],
+          "LineFallbacks": [
+            "At last we can get on with the singing.",
+            "This harp is out of tune again; better fix it."
+          ]
+        },
+        {
+          "Requires": [
+            "!quest_done",
+            "event_resolved:3"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_widow_done_1",
+            "LWN_story_daily_widow_done_2"
+          ],
+          "LineFallbacks": [
+            "At last we can get on with the singing.",
+            "This harp is out of tune again; better fix it."
+          ]
+        }
+      ]
     },
     {
       "NpcId": "son",
@@ -475,15 +607,42 @@
         "act_beggar_idle",
         "act_conversation_confident_loop"
       ],
-      "LineKeys": [
-        "LWN_story_amb_son_1",
-        "LWN_story_amb_son_2"
-      ],
-      "LineFallbacks": [
-        "Psst.",
-        "Do not stand there."
-      ],
-      "Listener": "player"
+      "LineKeys": [],
+      "LineFallbacks": [],
+      "Listener": "player",
+      "SpeechRadiusMeters": 10,
+      "SpeechFirstDelayMinSec": 2,
+      "SpeechFirstDelayMaxSec": 8,
+      "SpeechGapMinSec": 12,
+      "SpeechGapMaxSec": 20,
+      "Speech": [
+        {
+          "Requires": [
+            "!quest_done"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_son_pending_1",
+            "LWN_story_daily_son_pending_2"
+          ],
+          "LineFallbacks": [
+            "My hand is still swollen; I cannot even move the box.",
+            "Du Ye still will not return my tools."
+          ]
+        },
+        {
+          "Requires": [
+            "quest_done"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_son_done_1",
+            "LWN_story_daily_son_done_2"
+          ],
+          "LineFallbacks": [
+            "The tools are back; my hand still needs rest.",
+            "I had better watch my tools next time."
+          ]
+        }
+      ]
     },
     {
       "NpcId": "butcher",
@@ -492,15 +651,57 @@
         "act_citizen_cleanup",
         "act_conversation_closed_loop"
       ],
-      "LineKeys": [
-        "LWN_story_amb_butcher_1",
-        "LWN_story_amb_butcher_2"
-      ],
-      "LineFallbacks": [
-        "Fresh.",
-        "Buy or move on."
-      ],
-      "Listener": "player"
+      "LineKeys": [],
+      "LineFallbacks": [],
+      "Listener": "player",
+      "SpeechRadiusMeters": 10,
+      "SpeechFirstDelayMinSec": 2,
+      "SpeechFirstDelayMaxSec": 8,
+      "SpeechGapMinSec": 12,
+      "SpeechGapMaxSec": 20,
+      "Speech": [
+        {
+          "Requires": [
+            "!quest_done",
+            "!event_resolved:2"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_butcher_pending_1",
+            "LWN_story_daily_butcher_pending_2"
+          ],
+          "LineFallbacks": [
+            "I cannot keep up with all this work on my own.",
+            "If he wrecks it again, what will I live on?"
+          ]
+        },
+        {
+          "Requires": [
+            "quest_done"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_butcher_done_1",
+            "LWN_story_daily_butcher_done_2"
+          ],
+          "LineFallbacks": [
+            "Nobody is wrecking the stall; I can work in peace.",
+            "I still need an apprentice to help me."
+          ]
+        },
+        {
+          "Requires": [
+            "!quest_done",
+            "event_resolved:2"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_butcher_done_1",
+            "LWN_story_daily_butcher_done_2"
+          ],
+          "LineFallbacks": [
+            "Nobody is wrecking the stall; I can work in peace.",
+            "I still need an apprentice to help me."
+          ]
+        }
+      ]
     },
     {
       "NpcId": "thug",
@@ -508,15 +709,57 @@
         "act_bully",
         "act_conversation_aggressive_loop"
       ],
-      "LineKeys": [
-        "LWN_story_amb_thug_1",
-        "LWN_story_amb_thug_2"
-      ],
-      "LineFallbacks": [
-        "Pay up.",
-        "Late again this month?"
-      ],
-      "Listener": "player"
+      "LineKeys": [],
+      "LineFallbacks": [],
+      "Listener": "player",
+      "SpeechRadiusMeters": 10,
+      "SpeechFirstDelayMinSec": 2,
+      "SpeechFirstDelayMaxSec": 8,
+      "SpeechGapMinSec": 12,
+      "SpeechGapMaxSec": 20,
+      "Speech": [
+        {
+          "Requires": [
+            "!quest_done@butcher",
+            "!event_resolved:2"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_thug_pending_1",
+            "LWN_story_daily_thug_pending_2"
+          ],
+          "LineFallbacks": [
+            "Another round, and I still have not collected it all.",
+            "That Zheng Dashan is a stubborn one."
+          ]
+        },
+        {
+          "Requires": [
+            "quest_done@butcher"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_thug_done_1",
+            "LWN_story_daily_thug_done_2"
+          ],
+          "LineFallbacks": [
+            "I will leave his stall alone today.",
+            "Time for a rest; my legs are aching."
+          ]
+        },
+        {
+          "Requires": [
+            "!quest_done@butcher",
+            "event_resolved:2"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_thug_done_1",
+            "LWN_story_daily_thug_done_2"
+          ],
+          "LineFallbacks": [
+            "I will leave his stall alone today.",
+            "Time for a rest; my legs are aching."
+          ]
+        }
+      ]
     },
     {
       "NpcId": "debtor",
@@ -524,15 +767,42 @@
         "act_citizen_cleanup_idle",
         "act_conversation_closed_loop"
       ],
-      "LineKeys": [
-        "LWN_story_amb_debtor_1",
-        "LWN_story_amb_debtor_2"
-      ],
-      "LineFallbacks": [
-        "Not paid today? Doubles tomorrow.",
-        "Where is my money?"
-      ],
-      "Listener": "player"
+      "LineKeys": [],
+      "LineFallbacks": [],
+      "Listener": "player",
+      "SpeechRadiusMeters": 10,
+      "SpeechFirstDelayMinSec": 2,
+      "SpeechFirstDelayMaxSec": 8,
+      "SpeechGapMinSec": 12,
+      "SpeechGapMaxSec": 20,
+      "Speech": [
+        {
+          "Requires": [
+            "!quest_done@pawnbroker"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_debtor_pending_1",
+            "LWN_story_daily_debtor_pending_2"
+          ],
+          "LineFallbacks": [
+            "Nobody bothers about the money owed to me.",
+            "A debt demand takes all the taste out of my drink."
+          ]
+        },
+        {
+          "Requires": [
+            "quest_done@pawnbroker"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_debtor_done_1",
+            "LWN_story_daily_debtor_done_2"
+          ],
+          "LineFallbacks": [
+            "At least my debt to Old Zhou is settled.",
+            "I will have to watch my spending next time."
+          ]
+        }
+      ]
     },
     {
       "NpcId": "rival",
@@ -540,15 +810,57 @@
         "act_argue",
         "act_conversation_hip_loop"
       ],
-      "LineKeys": [
-        "LWN_story_amb_rival_1",
-        "LWN_story_amb_rival_2"
-      ],
-      "LineFallbacks": [
-        "The stage is on the street. Anyone can play.",
-        "Move your crowd, old woman."
-      ],
-      "Listener": "player"
+      "LineKeys": [],
+      "LineFallbacks": [],
+      "Listener": "widow",
+      "SpeechRadiusMeters": 10,
+      "SpeechFirstDelayMinSec": 2,
+      "SpeechFirstDelayMaxSec": 8,
+      "SpeechGapMinSec": 12,
+      "SpeechGapMaxSec": 20,
+      "Speech": [
+        {
+          "Requires": [
+            "!quest_done@widow",
+            "!event_resolved:3"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_rival_pending_1",
+            "LWN_story_daily_rival_pending_2"
+          ],
+          "LineFallbacks": [
+            "If they take all the trade, what do we eat?",
+            "How am I meant to feed everyone on a few coins?"
+          ]
+        },
+        {
+          "Requires": [
+            "quest_done@widow"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_rival_done_1",
+            "LWN_story_daily_rival_done_2"
+          ],
+          "LineFallbacks": [
+            "When it is our turn, we had better sing well.",
+            "Save your voices; there is more singing to do."
+          ]
+        },
+        {
+          "Requires": [
+            "!quest_done@widow",
+            "event_resolved:3"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_rival_done_1",
+            "LWN_story_daily_rival_done_2"
+          ],
+          "LineFallbacks": [
+            "When it is our turn, we had better sing well.",
+            "Save your voices; there is more singing to do."
+          ]
+        }
+      ]
     },
     {
       "NpcId": "outlaw",
@@ -556,13 +868,42 @@
         "act_argue_soft_1",
         "act_beggar_idle"
       ],
-      "LineKeys": [
-        "LWN_story_amb_outlaw_1"
-      ],
-      "LineFallbacks": [
-        "Keep walking."
-      ],
-      "Listener": "player"
+      "LineKeys": [],
+      "LineFallbacks": [],
+      "Listener": "player",
+      "SpeechRadiusMeters": 10,
+      "SpeechFirstDelayMinSec": 2,
+      "SpeechFirstDelayMaxSec": 8,
+      "SpeechGapMinSec": 12,
+      "SpeechGapMaxSec": 20,
+      "Speech": [
+        {
+          "Requires": [
+            "!quest_done@son"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_outlaw_pending_1",
+            "LWN_story_daily_outlaw_pending_2"
+          ],
+          "LineFallbacks": [
+            "These tools are hardly worth anything.",
+            "It is too bright here to stay hidden."
+          ]
+        },
+        {
+          "Requires": [
+            "quest_done@son"
+          ],
+          "LineKeys": [
+            "LWN_story_daily_outlaw_done_1",
+            "LWN_story_daily_outlaw_done_2"
+          ],
+          "LineFallbacks": [
+            "Tools returned; one less trouble to worry about.",
+            "Take a rest; no more trouble for now."
+          ]
+        }
+      ]
     }
   ],
   "ItemAliases": {},
@@ -732,7 +1073,7 @@
       ],
       "LineFallbacks": [
         "Three times... and not a coin more.",
-        "Where does it all go."
+        "This is barely enough to eat on."
       ],
       "ActionA": [
         "act_bar_talk_to_2",

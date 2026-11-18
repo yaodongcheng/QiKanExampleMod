@@ -678,6 +678,8 @@ namespace LivingWorldNpcs
                         CloseOnFailedCheck = true,
                     };
                     t.RuntimeHint = () => new TextObject(DescribeOptionHint(opt, npcId));
+                    t.RuntimeCanSelect = () => opt.Check == null
+                        || StoryProbeDefs.MeetsCheckRequirement(opt.Check.Capability, opt.Check.MinimumGrowth);
                     if (opt.Check != null)
                         t.LazyPlayerLine = () => DescribeOptionLine(opt);
 
@@ -704,7 +706,7 @@ namespace LivingWorldNpcs
                             || opt.Check.Target == "npc" ? npcId : opt.Check.Target;
                         if (!def.Actors.Contains(target) && !def.Participants.Contains(target)) target = npcId;
                         t.CheckType = DialogueInjector.TransitionCheckType.SkillCheck;
-                        t.CheckTag = target + "|" + opt.Check.Tactic + "|" + (opt.Check.Capability ?? "");
+                        t.CheckTag = target + "|" + opt.Check.Tactic + "|" + (opt.Check.Capability ?? "") + "|" + opt.Check.MinimumGrowth;
                         t.NextNodeOnSuccess = opt.Check.Success ?? "";
                         t.NextNodeOnFail = opt.Check.Fail ?? "";
                     }
@@ -859,8 +861,14 @@ namespace LivingWorldNpcs
             if (!StoryProbeDefs.TryParseDialogueTactic(option.Check.Tactic, out var tactic)) return note;
             string target = string.IsNullOrEmpty(option.Check.Target) || option.Check.Target == "npc"
                 || option.Check.Target == "questioner" ? actorId : option.Check.Target;
-            var preview = StoryProbeDefs.PreviewDialogueCheck(target, tactic, option.Check.Capability);
+            var preview = StoryProbeDefs.PreviewDialogueCheck(target, tactic, option.Check.Capability, option.Check.MinimumGrowth);
             if (preview == null) return LWNTextHelper.ResolveText("LWN_story_hint_check_unavailable", "The check target is unavailable.");
+            if (!preview.Eligible)
+                return LWNTextHelper.ResolveCompound("LWN_story_hint_training_required",
+                    "First gain {MINIMUM} {ATTRIBUTE} through training (gained: {GAIN}).\n{NOTE}",
+                    ("MINIMUM", preview.MinimumGrowth.ToString()), ("GAIN", preview.Growth.ToString()),
+                    ("ATTRIBUTE", LWNTextHelper.ResolveText(StoryProbeDefs.AbilityDisplayKey(preview.Ability), preview.Ability.ToString())),
+                    ("NOTE", note));
             if (preview.Capability != null)
                 return LWNTextHelper.ResolveCompound("LWN_story_hint_capability_check",
                     "{CAPABILITY} uses {ATTRIBUTE}.\n{SOURCE}\nYou: {PLAYER} / opponent: {NPC}\nSuccess chance: {CHANCE}%\n{NOTE}",
@@ -886,8 +894,11 @@ namespace LivingWorldNpcs
             string npcId = parts[0].Trim();
             if (_actionFailed || !StoryProbeDefs.TryParseDialogueTactic(parts[1], out var tactic)) return false;
 
-            StoryRoll roll = StoryProbeDefs.RollDialogueCheck(npcId, tactic, parts.Length > 2 ? parts[2] : null);
+            int minimumGrowth = 0;
+            if (parts.Length > 3 && (!int.TryParse(parts[3], out minimumGrowth) || minimumGrowth < 0 || minimumGrowth > 100)) return false;
+            StoryRoll roll = StoryProbeDefs.RollDialogueCheck(npcId, tactic, parts.Length > 2 ? parts[2] : null, minimumGrowth);
             if (roll == null) return false;
+            if (!roll.Eligible) return false;
             try
             {
                 InformationManager.DisplayMessage(new InformationMessage(roll.PlayerMessage()));
@@ -1668,6 +1679,13 @@ namespace LivingWorldNpcs
                     StoryProbeState.RecordRewardReceipt(npcId, "native-finished");
                 }
                 StoryProbeState.TurnInQuest(npcId); // 所有应付项目成功后才提交总完成位。
+                if (def.AttributeRewards != null)
+                    foreach (var reward in def.AttributeRewards)
+                        if (StoryProbeDefs.TryParseAbility(reward.Key, out var ability) && reward.Value > 0)
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_story_training_reward",
+                                "Training completed: {ATTRIBUTE} +{GAIN} (now {TOTAL}).",
+                                ("ATTRIBUTE", LWNTextHelper.ResolveText(StoryProbeDefs.AbilityDisplayKey(ability), ability.ToString())),
+                                ("GAIN", reward.Value.ToString()), ("TOTAL", StoryProbeDefs.PlayerAttr(ability).ToString("F0")))));
                 StoryProbeState.SetGoal("tool");
                 Message("LWN_story_narr_turnin", "He pays up, and he remembers your face.");
             }

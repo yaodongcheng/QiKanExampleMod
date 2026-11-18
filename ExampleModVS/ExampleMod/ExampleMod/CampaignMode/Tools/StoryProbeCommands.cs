@@ -528,6 +528,9 @@ namespace LivingWorldNpcs
                 case "say":
                     return director == null ? "Error: no director." : director.ForceSpeech(a1, a2);
 
+                case "bark":
+                    return director == null ? "Error: no director." : director.CueSpeech(a1);
+
                 case "release":
                     return director == null ? "Error: no director." : director.ReleaseSpeech(a1);
 
@@ -555,7 +558,7 @@ namespace LivingWorldNpcs
                             + " bodyTurnRequested=" + performance.BodyTurnRequested + " fov=" + NpcSightSystem.DefaultFovDegrees
                             + " gazeRequested=" + performance.CanControl + " owner=" + performance.OwnerToken;
                     }
-                    return info;
+                    return info + " perception=(" + NpcPerception.Describe(agent) + ")";
                 }
 
                 case "scene":
@@ -575,7 +578,7 @@ namespace LivingWorldNpcs
                     return "OK: street life resumed.";
 
                 default:
-                    return "Usage: custom.story_probe life status|list|debug on|off|force <npc> <i>|say <speaker> <listener>|facing <npc>|release <npc>|scene <n>|stop|resume";
+                    return "Usage: custom.story_probe life status|list|debug on|off|force <npc> <i>|bark <npc>|say <speaker> <listener>|facing <npc>|release <npc>|scene <n>|stop|resume";
             }
         }
 
@@ -1156,16 +1159,21 @@ namespace LivingWorldNpcs
             int total = 0;
             foreach (var layout in file.Layouts.Values)
             {
-                foreach (var w in layout.Points.Where(x => !string.IsNullOrEmpty(x.Prop)))
+                foreach (var w in layout.Points.Where(x => !string.IsNullOrEmpty(x.Action)))
                 {
                     total++;
                     sb.Append("\n  ").Append(layout.Id).Append("/").Append(w.Id)
-                      .Append(" prop=").Append(w.Prop)
+                      .Append(" prop=").Append(w.Prop ?? w.Place.Anchor ?? "-")
                       .Append(" side=").Append(w.Side)
                       .Append(" offset=").Append(w.Offset.ToString("F2"))
                       .Append(" tolerance=").Append(w.ArriveTolerance.ToString("F2"))
                       .Append(" action=").Append(w.Action ?? "-")
                       .Append(" occupants=0/").Append(w.MaxOccupants);
+                    var presentation = file.PresentationFor(w.Action);
+                    if (presentation != null)
+                        sb.Append(" instrument=").Append(presentation.Instrument ?? "-")
+                          .Append(" sounds=").Append(string.Join("|", presentation.Sounds))
+                          .Append(" speed=").Append(presentation.Speed);
                 }
             }
             return "OK: workpoints=" + total + " runtime=no_active_mission" + sb;
@@ -1442,7 +1450,7 @@ namespace LivingWorldNpcs
                    "phase first|second | where | persona [actorId] | spawn | check <ability> | roll <ability> <0-100> | " +
                    "learn <ability> | resolve <ability> | strip | restore | reset | talk <npc> | goal <0..4> | " +
                    "gate [grant|revoke] | " +
-                   "life debug on|off|status|list|force|say <speaker> <listener>|facing <npc>|release <npc>|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +
+                   "life debug on|off|status|list|force|say <speaker> <listener>|bark <npc>|facing <npc>|release <npc>|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +
                    "stage list|only <n>|begin|skip|reload|status|anchor | atom <name> <args> | action <npc> <act> | " +
                    "script list|status|validate [file] | population status|verify | " +
                    "layout list|verify|snapshot|prep|lint-file | environment status|time|weather|snowcover|set|reset|help | intercept status | work status|list|force <npc> | group status | reload | help";

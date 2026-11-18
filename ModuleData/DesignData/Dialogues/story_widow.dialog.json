@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_widow",
-  "ContentVersion": 8,
+  "ContentVersion": 9,
   "EntryOption": "LWN_story_widow_entry",
   "EntryOptionZh": "[说两句] 领班，演得真好。",
   "SkipVanillaOpening": true,
@@ -57,7 +57,7 @@
         "quest_turned"
       ],
       "Priority": 90,
-      "Node": "widow_chat_line1"
+      "Node": "widow_chat"
     },
     {
       "Id": "player_hub",
@@ -73,7 +73,7 @@
       "Trigger": "player_talk",
       "Conditions": [],
       "Priority": 70,
-      "Node": "widow_intro_line1"
+      "Node": "widow_intro"
     },
     {
       "Id": "join_3",
@@ -87,23 +87,11 @@
   ],
   "Nodes": [
     {
-      "Id": "widow_intro_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_intro_line1",
-      "TextKeyZh": "好就多赏两个钱，看戏往里站，别挡台口。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_intro",
-      "Options": []
-    },
-    {
       "Id": "widow_intro",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_intro",
-      "TextKeyZh": "……不过看你这身打扮，不像来看戏的。",
+      "TextKeyZh": "看戏就往里面站，别堵台前的路，有事找我就说，后面还有人等着唱。",
       "LineActions": [
         "act_conversation_hip_negative"
       ],
@@ -123,7 +111,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_gate",
-          "PlayerKeyZh": "[请教] 我想试试靠说话让门卫放行。",
+          "PlayerKeyZh": "我想试试靠说话让门卫放行。",
           "HintKey": "LWN_story_hint_widow_lesson_gate",
           "HintKeyZh": "请教玉娘交涉与扮演身份的办法。",
           "Requires": [],
@@ -135,7 +123,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_business",
-          "PlayerKeyZh": "[戏班] 说说你们这戏班。",
+          "PlayerKeyZh": "说说你们这戏班。",
           "HintKey": "LWN_story_hint_widow_lesson_business",
           "HintKeyZh": "打听戏班的近况、场地纠纷与戏服。",
           "Requires": [],
@@ -145,7 +133,7 @@
         {
           "Id": "sister",
           "PlayerKey": "LWN_story_widow_opt_sister",
-          "PlayerKeyZh": "[打听] 见过一个穿青布的姑娘吗？",
+          "PlayerKeyZh": "见过一个穿青布的姑娘吗？",
           "HintKey": "LWN_story_hint_widow_opt_sister",
           "HintKeyZh": "打听青布姑娘的下落。",
           "Requires": [
@@ -169,14 +157,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "widow_ask_sister_line1",
+          "NextNode": "widow_ask_sister",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -192,7 +180,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_hub",
-      "TextKeyZh": "还有话？",
+      "TextKeyZh": "你说，我听着，待会儿还得照看台上。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -203,7 +191,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_gate",
-          "PlayerKeyZh": "[请教] 我想试试靠说话让门卫放行。",
+          "PlayerKeyZh": "我想试试靠说话让门卫放行。",
           "HintKey": "LWN_story_hint_widow_lesson_gate",
           "HintKeyZh": "请教玉娘交涉与扮演身份的办法。",
           "Requires": [],
@@ -215,7 +203,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_business",
-          "PlayerKeyZh": "[戏班] 说说你们这戏班。",
+          "PlayerKeyZh": "说说你们这戏班。",
           "HintKey": "LWN_story_hint_widow_lesson_business",
           "HintKeyZh": "打听戏班的近况、场地纠纷与戏服。",
           "Requires": [],
@@ -225,7 +213,7 @@
         {
           "Id": "sister",
           "PlayerKey": "LWN_story_widow_opt_sister",
-          "PlayerKeyZh": "[打听] 见过一个穿青布的姑娘吗？",
+          "PlayerKeyZh": "见过一个穿青布的姑娘吗？",
           "HintKey": "LWN_story_hint_widow_opt_sister",
           "HintKeyZh": "打听青布姑娘的下落。",
           "Requires": [
@@ -249,14 +237,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "widow_ask_sister_line1",
+          "NextNode": "widow_ask_sister",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -272,7 +260,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_wear_done",
-      "TextKeyZh": "站好，这身料子撑人，领口别拉太开。",
+      "TextKeyZh": "站好，我帮你把衣领理一理，别把领口扯开。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -280,23 +268,11 @@
       "Options": []
     },
     {
-      "Id": "widow_ask_stage_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_ask_stage_line1",
-      "TextKeyZh": "不在这儿唱，难道喝西北风去？",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_ask_stage",
-      "Options": []
-    },
-    {
       "Id": "widow_ask_stage",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_ask_stage",
-      "TextKeyZh": "城门外人杂，戏词里夹两句私货，官差也听不出来。",
+      "TextKeyZh": "城里租场地太贵，这里来往的人多，唱一天总还能挣出几个人的饭钱。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -305,7 +281,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -317,35 +293,11 @@
       ]
     },
     {
-      "Id": "widow_ask_sister_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_ask_sister_line1",
-      "TextKeyZh": "穿青布的？",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_ask_sister_line2",
-      "Options": []
-    },
-    {
-      "Id": "widow_ask_sister_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_ask_sister_line2",
-      "TextKeyZh": "我卖过她一张真通行文书。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_ask_sister",
-      "Options": []
-    },
-    {
       "Id": "widow_ask_sister",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_ask_sister",
-      "TextKeyZh": "后来有个穿水靠的水手把她领走了。",
+      "TextKeyZh": "是有个穿青布的姑娘来买过通行文书，后来跟着一个水手走了。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -354,7 +306,7 @@
         {
           "Id": "more",
           "PlayerKey": "LWN_story_widow_opt_sister_more",
-          "PlayerKeyZh": "[追问] 领走她的那个水手，你还记得什么特征？",
+          "PlayerKeyZh": "领走她的那个水手，你还记得什么特征？",
           "HintKey": "LWN_story_hint_widow_opt_sister_more",
           "HintKeyZh": "打听领走姑娘的水手特征。",
           "Requires": [
@@ -370,14 +322,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "widow_ask_sister_2_line1",
+          "NextNode": "widow_ask_sister_2",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -387,25 +339,13 @@
           "Listener": "npc"
         }
       ]
-    },
-    {
-      "Id": "widow_ask_sister_2_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_ask_sister_2_line1",
-      "TextKeyZh": "那人满手都是粗缆绳磨出来的死茧，是码头帮跑船的。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_ask_sister_2",
-      "Options": []
     },
     {
       "Id": "widow_ask_sister_2",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_ask_sister_2",
-      "TextKeyZh": "我当时劝她别跟去，她说不去就没活路。",
+      "TextKeyZh": "他催得很急，我问她认不认得这人，她只说没别的去处，我没能留住她。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -414,7 +354,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -424,25 +364,13 @@
           "Listener": "npc"
         }
       ]
-    },
-    {
-      "Id": "widow_ask_rival_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_ask_rival_line1",
-      "TextKeyZh": "对台那班子是码头帮捧起来的，天天堵我台口抢客。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_ask_rival",
-      "Options": []
     },
     {
       "Id": "widow_ask_rival",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_ask_rival",
-      "TextKeyZh": "你要能让他们闭嘴，我记你一份大人情。",
+      "TextKeyZh": "顾长生把人拉在我台前唱，客人连路都过不来，这样下去今晚几个人都得饿着。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -451,7 +379,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -463,23 +391,11 @@
       ]
     },
     {
-      "Id": "widow_deal_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_deal_line1",
-      "TextKeyZh": "贵族行头我箱底有，可不是白送的。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_deal",
-      "Options": []
-    },
-    {
       "Id": "widow_deal",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_deal",
-      "TextKeyZh": "对台领班堵着我的台口抢客，你去让他收手。",
+      "TextKeyZh": "你想借体面的行头，我想让台前那条路空出来，去跟对面领班谈谈，办成了衣裳归你。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -488,19 +404,19 @@
         {
           "Id": "job",
           "PlayerKey": "LWN_story_opt_take_job",
-          "PlayerKeyZh": "[应下] 这活我接了。",
+          "PlayerKeyZh": "这活我接了。",
           "HintKey": "LWN_story_hint_opt_take_job",
           "HintKeyZh": "接下这桩差事，办成后回来领报酬。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "widow_quest_accept_line1",
+          "NextNode": "widow_quest_accept",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "why",
           "PlayerKey": "LWN_story_widow_opt_why",
-          "PlayerKeyZh": "[反问] 这种得罪人的事，你怎么不自己叫人干？",
+          "PlayerKeyZh": "这种得罪人的事，你怎么不自己叫人干？",
           "HintKey": "LWN_story_hint_widow_opt_why",
           "HintKeyZh": "打听宋玉娘请你出面的原因。",
           "Requires": [
@@ -516,42 +432,30 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "widow_deal_why_line1",
+          "NextNode": "widow_deal_why",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "refuse",
           "PlayerKey": "LWN_story_widow_opt_refuse",
-          "PlayerKeyZh": "[缓一缓] 我不替人砸戏台饭碗。",
+          "PlayerKeyZh": "我不替你去赶走别人，也不想砸他们的台子。",
           "HintKey": "LWN_story_hint_defer_job",
           "HintKeyZh": "暂不接这桩差事。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "widow_deal_refuse_line1",
+          "NextNode": "widow_deal_refuse",
           "Speaker": "player",
           "Listener": "npc"
         }
       ]
     },
     {
-      "Id": "widow_deal_why_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_deal_why_line1",
-      "TextKeyZh": "我去，他只当是两家抢生意，根本不听。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_deal_why",
-      "Options": []
-    },
-    {
       "Id": "widow_deal_why",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_deal_why",
-      "TextKeyZh": "你替我把事摆平，能说服最好，动手也别出人命。",
+      "TextKeyZh": "我们两家吵了几天，他见我就抬嗓门，你没掺和过，他兴许肯听一句。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -560,19 +464,19 @@
         {
           "Id": "job",
           "PlayerKey": "LWN_story_opt_take_job",
-          "PlayerKeyZh": "[应下] 这活我接了。",
+          "PlayerKeyZh": "这活我接了。",
           "HintKey": "LWN_story_hint_opt_take_job",
           "HintKeyZh": "接下这桩差事，办成后回来领报酬。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "widow_quest_accept_line1",
+          "NextNode": "widow_quest_accept",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -584,23 +488,11 @@
       ]
     },
     {
-      "Id": "widow_deal_refuse_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_deal_refuse_line1",
-      "TextKeyZh": "随你便。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_deal_refuse",
-      "Options": []
-    },
-    {
       "Id": "widow_deal_refuse",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_deal_refuse",
-      "TextKeyZh": "反正没一套体面行头，正门那个铁头可不会放你过去。",
+      "TextKeyZh": "那就先算了，衣裳我还要留着上戏，不能白送。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -609,7 +501,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -621,23 +513,11 @@
       ]
     },
     {
-      "Id": "widow_quest_accept_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_quest_accept_line1",
-      "TextKeyZh": "领班就在街东头，这件事算你接下了。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_quest_accept",
-      "Options": []
-    },
-    {
       "Id": "widow_quest_accept",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_quest_accept",
-      "TextKeyZh": "纠纷摆平了就来找我交割，行头给你留着。",
+      "TextKeyZh": "对面领班在东边，你让他别再堵我们的路，谈妥了回来，衣裳给你留着。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -656,7 +536,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -668,7 +548,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -684,7 +564,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_turnin",
-      "TextKeyZh": "对台那件事，有结果了？",
+      "TextKeyZh": "对面那家戏班的事，谈妥了吗？",
       "LineActions": [
         "act_conversation_hip_negative"
       ],
@@ -693,47 +573,23 @@
         {
           "Id": "ok",
           "PlayerKey": "LWN_story_widow_opt_turnin_ok",
-          "PlayerKeyZh": "[交差] 对台领班服软了，这事已经摆平。",
+          "PlayerKeyZh": "对面领班答应不再堵路了。",
           "HintKey": "LWN_story_hint_widow_opt_turnin_ok",
           "HintKeyZh": "办妥差事后，领取贵族戏服、护符及技能经验。",
           "Requires": [],
           "Effects": [],
-          "NextNode": "widow_turnin_ok_line1",
+          "NextNode": "widow_turnin_ok",
           "Speaker": "player",
           "Listener": "npc"
         }
       ]
     },
     {
-      "Id": "widow_turnin_ok_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_turnin_ok_line1",
-      "TextKeyZh": "说到做到。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_turnin_ok_line2",
-      "Options": []
-    },
-    {
-      "Id": "widow_turnin_ok_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_turnin_ok_line2",
-      "TextKeyZh": "这身贵族戏服和护符归你，我再教你两手说话的分寸。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_turnin_ok",
-      "Options": []
-    },
-    {
       "Id": "widow_turnin_ok",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_turnin_ok",
-      "TextKeyZh": "穿上再去见门卫，能不能瞒过去，还得看你接不接得住他的话。",
+      "TextKeyZh": "台前终于能走人了，戏服和护符你拿去，穿好后我帮你理理领口，门卫问话时别急着答。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -751,7 +607,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -763,7 +619,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -775,35 +631,11 @@
       ]
     },
     {
-      "Id": "widow_chat_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_chat_line1",
-      "TextKeyZh": "来了？",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_chat_line2",
-      "Options": []
-    },
-    {
-      "Id": "widow_chat_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_chat_line2",
-      "TextKeyZh": "对台歇了菜，今天我这台口总算清净了。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_chat",
-      "Options": []
-    },
-    {
       "Id": "widow_chat",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_chat",
-      "TextKeyZh": "台口那儿有张干净凳子，坐下歇歇脚吧。",
+      "TextKeyZh": "今天有人肯停下来听戏了，我还得把这几个孩子的工钱凑齐。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -812,7 +644,7 @@
         {
           "Id": "work",
           "PlayerKey": "LWN_story_widow_opt_work",
-          "PlayerKeyZh": "[打听] 你在城门口唱戏，听说过城里的动静吗？",
+          "PlayerKeyZh": "你在城门口唱戏，听说过城里的动静吗？",
           "HintKey": "LWN_story_hint_widow_opt_work",
           "HintKeyZh": "打听城内的消息。",
           "Requires": [
@@ -828,14 +660,14 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "widow_chat_2_line1",
+          "NextNode": "widow_chat_2",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -847,7 +679,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -859,35 +691,11 @@
       ]
     },
     {
-      "Id": "widow_chat_2_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_chat_2_line1",
-      "TextKeyZh": "码头帮每隔五天往内城大宅送一批丫鬟，说是做绣活。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_chat_2_line2",
-      "Options": []
-    },
-    {
-      "Id": "widow_chat_2_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_chat_2_line2",
-      "TextKeyZh": "可从来没见人出来过。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_chat_2",
-      "Options": []
-    },
-    {
       "Id": "widow_chat_2",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_chat_2",
-      "TextKeyZh": "你进城找人，多留心东城。",
+      "TextKeyZh": "我听来买文书的车夫说，东城大宅隔几天就接一批做工的女子，你可以去问送人的车夫。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -896,7 +704,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -908,7 +716,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -924,7 +732,7 @@
       "Speaker": "npc",
       "Listener": "rival",
       "TextKey": "LWN_story_event3_join_line1",
-      "TextKeyZh": "抢客抢到我台口来了，还要不要脸？",
+      "TextKeyZh": "你们把台前的路都占了，我的客人怎么过去？",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -936,7 +744,7 @@
       "Speaker": "rival",
       "Listener": "npc",
       "TextKey": "LWN_story_event3_join",
-      "TextKeyZh": "街面是官家的，谁有本事谁开锣，你管得着吗？",
+      "TextKeyZh": "这条街又不是你家的，我们能招来客人就能在这儿唱，你凭什么赶人？",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -945,7 +753,7 @@
         {
           "Id": "widow",
           "PlayerKey": "LWN_story_event3_opt_side_widow",
-          "PlayerKeyZh": "[帮腔] 台上的角儿凭唱功吃饭，堵人台口算什么本事。",
+          "PlayerKeyZh": "[帮腔] 客人想听哪家是他们的事，你把路堵上，她的生意怎么做？",
           "HintKey": "LWN_story_hint_event3_opt_side_widow",
           "HintKeyZh": "替宋玉娘说话，试着调解戏班争执。",
           "Requires": [
@@ -974,7 +782,7 @@
         {
           "Id": "ask",
           "PlayerKey": "LWN_story_event3_opt_ask",
-          "PlayerKeyZh": "[插话] 两位因何事当街争执？",
+          "PlayerKeyZh": "你们俩到底在吵什么？",
           "HintKey": "LWN_story_hint_event3_opt_ask",
           "HintKeyZh": "听听双方怎么说戏班争执。",
           "Requires": [],
@@ -986,7 +794,7 @@
         {
           "Id": "walk",
           "PlayerKey": "LWN_story_event3_opt_walk",
-          "PlayerKeyZh": "[走开] 戏班子的事我不掺和。",
+          "PlayerKeyZh": "戏班子的事我不掺和。",
           "HintKey": "LWN_story_hint_leave_event",
           "HintKeyZh": "离开，让他们自己解决。",
           "Requires": [],
@@ -1002,7 +810,7 @@
       "Speaker": "rival",
       "Listener": "player",
       "TextKey": "LWN_story_event3_ask_line1",
-      "TextKeyZh": "这戏婆霸着城门口唱了三年，我们刚支起台子她就来掀场！",
+      "TextKeyZh": "她在这儿唱了三年，我们刚搭好台，她就要赶我们走！",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -1026,7 +834,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_event3_ask",
-      "TextKeyZh": "是码头帮塞你们过来挤兑我的饭碗！",
+      "TextKeyZh": "码头帮把你们叫来，就是想抢走我的客人！",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -1035,7 +843,7 @@
         {
           "Id": "widow",
           "PlayerKey": "LWN_story_event3_opt_side_widow",
-          "PlayerKeyZh": "[帮腔] 台上的角儿凭唱功吃饭，堵人台口算什么本事。",
+          "PlayerKeyZh": "[帮腔] 客人想听哪家是他们的事，你把路堵上，她的生意怎么做？",
           "HintKey": "LWN_story_hint_event3_opt_side_widow",
           "HintKeyZh": "替宋玉娘说话，试着调解戏班争执。",
           "Requires": [
@@ -1064,7 +872,7 @@
         {
           "Id": "walk",
           "PlayerKey": "LWN_story_event3_opt_walk",
-          "PlayerKeyZh": "[走开] 戏班子的事我不掺和。",
+          "PlayerKeyZh": "戏班子的事我不掺和。",
           "HintKey": "LWN_story_hint_leave_event",
           "HintKeyZh": "离开，让他们自己解决。",
           "Requires": [],
@@ -1080,7 +888,7 @@
       "Speaker": "rival",
       "Listener": "npc",
       "TextKey": "LWN_story_event3_win_line1",
-      "TextKeyZh": "……行，牙尖嘴利，今天这出先让给你。",
+      "TextKeyZh": "行，今天先让你们唱。",
       "LineActions": [
         "act_conversation_hip_negative"
       ],
@@ -1092,7 +900,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_event3_win",
-      "TextKeyZh": "刚才那两句帮腔漂亮，我记下了。",
+      "TextKeyZh": "谢谢你替我们说话，不然还不知道要吵到什么时候。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -1119,7 +927,7 @@
         {
           "Id": "followup",
           "PlayerKey": "LWN_story_event_opt_followup",
-          "PlayerKeyZh": "[跟他说两句]",
+          "PlayerKeyZh": "我还有件事想问你。",
           "HintKey": "LWN_story_hint_event_opt_followup",
           "HintKeyZh": "留下聊聊别的。",
           "Requires": [],
@@ -1131,7 +939,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1159,7 +967,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_event3_lose",
-      "TextKeyZh": "……不会说话就少开口，白白让人看笑话。",
+      "TextKeyZh": "你这话帮不上忙，只会让他笑话我们。",
       "LineActions": [
         "act_conversation_hip_negative"
       ],
@@ -1177,7 +985,7 @@
         {
           "Id": "followup",
           "PlayerKey": "LWN_story_event_opt_followup",
-          "PlayerKeyZh": "[跟他说两句]",
+          "PlayerKeyZh": "我还有件事想问你。",
           "HintKey": "LWN_story_hint_event_opt_followup",
           "HintKeyZh": "留下聊聊别的。",
           "Requires": [],
@@ -1189,7 +997,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1201,35 +1009,11 @@
       ]
     },
     {
-      "Id": "widow_money_open_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_money_open_line1",
-      "TextKeyZh": "爽快人。",
-      "LineActions": [
-        "act_conversation_hip_positive"
-      ],
-      "NextNode": "widow_money_open_line2",
-      "Options": []
-    },
-    {
-      "Id": "widow_money_open_line2",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_money_open_line2",
-      "TextKeyZh": "戏班子最喜欢跟爽快人打交道。",
-      "LineActions": [
-        "act_conversation_hip_positive"
-      ],
-      "NextNode": "widow_money_open",
-      "Options": []
-    },
-    {
       "Id": "widow_money_open",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_money_open",
-      "TextKeyZh": "六十第纳尔放在盘里，你想问什么？",
+      "TextKeyZh": "六十第纳尔，是戏班今天的饭钱，你放盘里，我把那姑娘的事再说仔细些。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -1238,7 +1022,7 @@
         {
           "Id": "pay",
           "PlayerKey": "LWN_story_widow_opt_pay",
-          "PlayerKeyZh": "[数出六十第纳尔] 那姑娘进城时到底是什么样？",
+          "PlayerKeyZh": "那姑娘进城时到底是什么样？",
           "HintKey": "LWN_story_hint_widow_opt_pay",
           "HintKeyZh": "付60第纳尔，打听姑娘进城的事。",
           "Requires": [
@@ -1252,14 +1036,14 @@
               "Receipt": "never"
             }
           ],
-          "NextNode": "widow_money_taken_line1",
+          "NextNode": "widow_money_taken",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1271,23 +1055,11 @@
       ]
     },
     {
-      "Id": "widow_money_taken_line1",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_widow_money_taken_line1",
-      "TextKeyZh": "那姑娘根本不是来找活干的——找活的人自己背着包袱。",
-      "LineActions": [
-        "act_conversation_hip_trivial"
-      ],
-      "NextNode": "widow_money_taken",
-      "Options": []
-    },
-    {
       "Id": "widow_money_taken",
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_money_taken",
-      "TextKeyZh": "她两手空空，是被那穿水靠的男人押着往前走的。",
+      "TextKeyZh": "那男人一直抓着她胳膊，她往这边看了一眼，我到现在还记着。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -1296,7 +1068,7 @@
         {
           "Id": "back",
           "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 别的先不问了。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_back_topics",
           "HintKeyZh": "继续聊别的。",
           "Requires": [],
@@ -1308,7 +1080,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1324,7 +1096,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_methods_hub",
-      "TextKeyZh": "门卫认钱，也认身份，你得给他一个敢开门的理由。",
+      "TextKeyZh": "你想跟守门人好好谈，还是借身衣裳装成他不敢拦的人？",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -1334,9 +1106,9 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_talk",
-          "PlayerKeyZh": "[交涉] 怎么才说得到他心坎上？",
+          "PlayerKeyZh": "怎么跟他谈，他才肯听？",
           "HintKey": "LWN_story_hint_widow_lesson_talk",
-          "HintKeyZh": "请教劝说、调解与议价的区别。",
+          "HintKeyZh": "向宋玉娘请教怎么跟守卫说话。",
           "Requires": [
             "!asked:lesson_talk"
           ],
@@ -1357,9 +1129,9 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_identity",
-          "PlayerKeyZh": "[乔装] 换上戏服，就能装成贵人？",
+          "PlayerKeyZh": "换上戏服，就能装成贵人？",
           "HintKey": "LWN_story_hint_widow_lesson_identity",
-          "HintKeyZh": "请教行头、身份说辞与被识破的风险。",
+          "HintKeyZh": "向宋玉娘请教穿戏服冒充贵人的办法。",
           "Requires": [
             "!asked:lesson_identity"
           ],
@@ -1378,7 +1150,7 @@
         {
           "Id": "wear",
           "PlayerKey": "LWN_story_widow_opt_wear",
-          "PlayerKeyZh": "[换装] 这身戏服，现在就换上。",
+          "PlayerKeyZh": "这身戏服，现在就换上。",
           "HintKey": "LWN_story_hint_widow_opt_wear",
           "HintKeyZh": "换上贵族戏服，原来的上衣收回行囊。",
           "Requires": [
@@ -1405,7 +1177,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_back_top",
-          "PlayerKeyZh": "[收住] 我还有别的事。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_widow_lesson_back_top",
           "HintKeyZh": "回到玉娘的其他话题。",
           "Requires": [],
@@ -1419,7 +1191,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_learn_talk",
-      "TextKeyZh": "劝人先找他的顾虑，调解得给两头留台阶，讲价时可别拿别人的钱做人情。",
+      "TextKeyZh": "先听他为什么不放人，再问有没有商量的余地，别一开口就替他作主。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -1429,7 +1201,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_back_methods",
-          "PlayerKeyZh": "[收住] 再说说进城的办法。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_widow_lesson_back_methods",
           "HintKeyZh": "回到交涉与身份的话题。",
           "Requires": [],
@@ -1439,7 +1211,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1455,7 +1227,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_learn_identity_1",
-      "TextKeyZh": "衣裳只管第一眼，开口的腔调、来意和底气，都得你自己撑住。",
+      "TextKeyZh": "衣裳我能给你找，可从哪儿来、进城办什么，你得自己答得上来。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -1467,7 +1239,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_learn_identity_2",
-      "TextKeyZh": "这出戏要是演砸了，他可不会客客气气地请你下台，你得想好怎么收场。",
+      "TextKeyZh": "他要是认出你装的身份，可能当场抓人，别以为换了衣裳就万无一失。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -1477,7 +1249,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_back_methods",
-          "PlayerKeyZh": "[收住] 再说说进城的办法。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_widow_lesson_back_methods",
           "HintKeyZh": "回到交涉与身份的话题。",
           "Requires": [],
@@ -1487,7 +1259,7 @@
         {
           "Id": "leave",
           "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开]",
+          "PlayerKeyZh": "[离开] 我先走了。",
           "HintKey": "LWN_story_hint_leave",
           "HintKeyZh": "结束交谈。",
           "Requires": [],
@@ -1511,7 +1283,7 @@
         {
           "Id": "stage",
           "PlayerKey": "LWN_story_widow_opt_stage",
-          "PlayerKeyZh": "[搭话] 你这戏班子，天天都在城门口唱？",
+          "PlayerKeyZh": "你这戏班子，天天都在城门口唱？",
           "HintKey": "LWN_story_hint_widow_opt_stage",
           "HintKeyZh": "打听戏班在城门口唱戏的事。",
           "Requires": [
@@ -1527,16 +1299,16 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "widow_ask_stage_line1",
+          "NextNode": "widow_ask_stage",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "rival",
           "PlayerKey": "LWN_story_widow_opt_rival",
-          "PlayerKeyZh": "[打听] 对台那班子是什么来路？",
+          "PlayerKeyZh": "对面那家戏班是怎么回事？",
           "HintKey": "LWN_story_hint_widow_opt_rival",
-          "HintKeyZh": "打听对台戏班的来路。",
+          "HintKeyZh": "打听另一家戏班的来路。",
           "Requires": [
             "!asked:ask_rival"
           ],
@@ -1550,7 +1322,7 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "widow_ask_rival_line1",
+          "NextNode": "widow_ask_rival",
           "Speaker": "player",
           "Listener": "npc"
         },
@@ -1559,7 +1331,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_work",
-          "PlayerKeyZh": "[帮忙] 有用得着我的地方，尽管说。",
+          "PlayerKeyZh": "有用得着我的地方，尽管说。",
           "HintKey": "LWN_story_hint_widow_lesson_work",
           "HintKeyZh": "询问戏班有什么需要帮忙的事。",
           "Requires": [],
@@ -1571,7 +1343,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_back_top",
-          "PlayerKeyZh": "[收住] 我还有别的事。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_widow_lesson_back_top",
           "HintKeyZh": "回到玉娘的其他话题。",
           "Requires": [],
@@ -1593,7 +1365,7 @@
         {
           "Id": "deal",
           "PlayerKey": "LWN_story_widow_opt_deal",
-          "PlayerKeyZh": "[求门路] 给我弄一个能进城的身份。",
+          "PlayerKeyZh": "给我弄一个能进城的身份。",
           "HintKey": "LWN_story_hint_widow_opt_deal",
           "HintKeyZh": "打听贵族行头的取得条件。",
           "Requires": [
@@ -1601,28 +1373,28 @@
             "!quest_turned"
           ],
           "Effects": [],
-          "NextNode": "widow_deal_line1",
+          "NextNode": "widow_deal",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "chat",
           "PlayerKey": "LWN_story_widow_opt_chat",
-          "PlayerKeyZh": "[叙旧] 今天生意怎么样？",
+          "PlayerKeyZh": "今天生意怎么样？",
           "HintKey": "LWN_story_hint_widow_opt_chat",
           "HintKeyZh": "打听戏班近况。",
           "Requires": [
             "quest_turned"
           ],
           "Effects": [],
-          "NextNode": "widow_chat_line1",
+          "NextNode": "widow_chat",
           "Speaker": "player",
           "Listener": "npc"
         },
         {
           "Id": "money",
           "PlayerKey": "LWN_story_widow_opt_money",
-          "PlayerKeyZh": "[塞钱] 六十第纳尔，买你两句实话。",
+          "PlayerKeyZh": "六十第纳尔，买你两句实话。",
           "HintKey": "LWN_story_hint_widow_opt_money",
           "HintKeyZh": "问宋玉娘买消息的价钱。",
           "Requires": [
@@ -1642,7 +1414,7 @@
               "Receipt": "once"
             }
           ],
-          "NextNode": "widow_money_open_line1",
+          "NextNode": "widow_money_open",
           "Speaker": "player",
           "Listener": "npc"
         },
@@ -1651,7 +1423,7 @@
           "Speaker": "player",
           "Listener": "npc",
           "PlayerKey": "LWN_story_widow_lesson_opt_back_business",
-          "PlayerKeyZh": "[收住] 再说说戏班的事。",
+          "PlayerKeyZh": "[收住] 说点别的。",
           "HintKey": "LWN_story_hint_widow_lesson_back_business",
           "HintKeyZh": "回到戏班的其他话题。",
           "Requires": [],

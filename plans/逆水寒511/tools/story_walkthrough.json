@@ -1,0 +1,127 @@
+{
+  "Title": "突破城门攻略",
+  "Intro": "下面的路线用于刑满后第二次回到门外市集。先挑一种办法，不必把所有人的差事都做完。攻略会说明结果，适合卡住时查看。",
+  "Facts": {
+    "bribe": ["dialogues", "gate_interrogation", "Nodes", "blocker_open", "Options", "bribe", "Effects", "pay", "Params", "amount"],
+    "training": ["dialogues", "gate_interrogation", "Nodes", "blocker_open", "Options", "threat", "Check", "MinimumGrowth"],
+    "force_reward": ["cast", "Npcs", "butcher", "AttributeRewards", "force"],
+    "errand_pay": ["dialogues", "story_pawnbroker", "Nodes", "pawnbroker_hub", "Options", "errand", "Effects", "errand", "Params", "pay"],
+    "help_pay": ["dialogues", "story_pawnbroker", "Nodes", "pawnbroker_hub", "Options", "reward", "Effects", "grant_gold", "Params", "amount"]
+  },
+  "BeforeYouGo": [
+    "第一次到城门时，只能问文书、退开，或在对峙中迎战／投降；本页的培养、钱路和工具路线在第二次入场展开。",
+    "开门后还要亲自走进门内目标区才算通关。当前版本进入目标区就会结束本章，取消尚未收尾的差事；想拿报酬、领工具或交账，先在门外办完。",
+    "贿赂和冒充贵客获准后会拿到实物通行令牌。强闯、击晕、绑走、扒光武器、潜行和翻墙没有令牌，这次进去不等于以后也有通行资格。",
+    "对话检定的实际能力值和成功率看选项悬停；提高能力也不能保证成功。同一句威吓或冒充说辞失败后不能无限重试。"
+  ],
+  "Routes": [
+    {
+      "Id": "money", "Title": "攒钱，给守卫好处费", "Ability": "money", "Approach": "money",
+      "Summary": "付{{bribe}}第纳尔，拿到正式通行令牌。",
+      "Conditions": ["至少有{{bribe}}第纳尔，守卫此刻愿意当面收钱。"],
+      "Steps": [
+        {"Text": "缺钱就找当铺老周：零活每次给{{errand_pay}}第纳尔，做完有一个战役小时冷却。当前是对话领取报酬；同一场景内不能连续点两次凑钱。帮他解决保护费纠纷后，还能按条件领一次{{help_pay}}第纳尔谢礼。", "Links": [{"Actor": "pawnbroker", "Node": "pawnbroker_hub", "Option": "errand", "Label": "零活入口"}, {"Actor": "pawnbroker", "Node": "pawnbroker_hub", "Option": "reward", "Label": "谢礼入口"}]},
+        {"Text": "找门口铁头，说明想进城，再选递钱的说法；钱付给实际与你交涉的守卫。", "Links": [{"Actor": "blocker", "Node": "blocker_open", "Option": "bribe", "Label": "递钱放行"}]},
+        {"Text": "看完收钱回应，确认拿到令牌；把门外想办的事情交差后，再走进门内目标区。"}
+      ],
+      "Recovery": ["钱不够就先办差事或等零活冷却，不必直接开战。老周的收账委托里，收回来的120第纳尔是债款，要归还；交差酬劳才是自己的30第纳尔。替他付80第纳尔保护费是支出，不能当赚钱办法。"],
+      "Result": "花掉{{bribe}}第纳尔，获得放行和通行令牌；收钱也会留下被拿捏的后患。"
+    },
+    {
+      "Id": "threat", "Title": "先练武力，再威吓守卫", "Ability": "force", "Approach": "force",
+      "Summary": "大山委托交差后获得{{force_reward}}点武力培养，再尝试威吓。",
+      "Conditions": ["已经拿到至少{{training}}点武力培养收益；守卫仍带武器，自己没有穿贵族戏服。初始角色不能直接用这句通关。"],
+      "Steps": [
+        {"Text": "找肉案旁的郑大山，从生意话题进入差事，听完砸摊的麻烦，答应帮忙。", "Links": [{"Actor": "butcher", "Node": "butcher_work_hub", "Option": "deal", "Label": "了解差事"}, {"Actor": "butcher", "Node": "butcher_deal", "Option": "job", "Label": "接砸摊委托"}]},
+        {"Text": "找马横，让他答应不再砸摊；可以尝试劝说，也可以选择真实战斗并获胜。", "Links": [{"Actor": "thug", "Node": "thug_hub", "Option": "settle", "Label": "和平处理"}, {"Actor": "thug", "Node": "thug_hub", "Option": "fight", "Label": "动武处理"}]},
+        {"Text": "回大山处真正交差，领到培养收益和工具。只听教学、只接单或只把马横打倒，都不能代替交差。", "Links": [{"Actor": "butcher", "Node": "butcher_turnin", "Option": "ok", "Label": "交差学发力"}]},
+        {"Text": "再找铁头，选择威吓，先看悬停里的双方能力和概率，再决定是否尝试。", "Links": [{"Actor": "blocker", "Node": "blocker_open", "Option": "threat", "Label": "威吓守卫"}]}
+      ],
+      "Recovery": ["委托对手拒绝劝说，可以选择动武或先转别的入城路线。威吓守卫失败会进入对峙，需选择迎战或投降；投降走真实扣押流程，不能把离开当作安全脱身。"],
+      "Result": "检定通过后靠武力逼出一条路，会损害守卫关系并记犯罪；没有通行令牌。"
+    },
+    {
+      "Id": "disguise", "Title": "帮戏班解围，穿戏服冒充贵客", "Ability": "charm", "Approach": "charm",
+      "Summary": "拿到并实际穿上贵族戏服，再用魅力冒充身份。",
+      "Conditions": ["实际穿着贵族戏服，守卫仍带武器；冒充说辞尚未尝试。衣服只放在行囊里不算。"],
+      "Steps": [
+        {"Text": "找宋玉娘，从戏班生意进入差事，接下处理顾长生堵路的委托。", "Links": [{"Actor": "widow", "Node": "widow_work_hub", "Option": "deal", "Label": "戏班差事"}, {"Actor": "widow", "Node": "widow_deal", "Option": "job", "Label": "接堵路委托"}]},
+        {"Text": "找顾长生，劝他把招牌和人挪开；也可以用真实战斗处理，胜负由实际交战决定。", "Links": [{"Actor": "rival", "Node": "rival_hub", "Option": "settle", "Label": "劝顾长生"}, {"Actor": "rival", "Node": "rival_hub", "Option": "fight", "Label": "动武处理"}]},
+        {"Text": "回玉娘处交差领戏服，再到进城办法话题选择换上戏服；原上衣会收回行囊。", "Links": [{"Actor": "widow", "Node": "widow_turnin", "Option": "ok", "Label": "交差领衣服"}, {"Actor": "widow", "Node": "widow_methods_hub", "Option": "wear", "Label": "实际换装"}]},
+        {"Text": "穿好后找铁头，选择冒充贵客的说法，进行真实魅力检定。", "Links": [{"Actor": "blocker", "Node": "blocker_open", "Option": "disguise", "Label": "冒充贵客"}]}
+      ],
+      "Recovery": ["选项不可用先检查有没有真正穿上戏服、是否已经尝试过。检定失败会被识破并进入迎战／投降对峙，衣服不能保证骗过守卫。"],
+      "Result": "检定通过后获准入城并得到通行令牌；未通过则不能把这身衣服当作通行资格。"
+    },
+    {
+      "Id": "disarm", "Title": "扒掉全部武器，再让守卫让路", "Ability": "guile", "Approach": "force",
+      "Summary": "从背后实际扒窃，取空铁头所有武器槽，再交谈。",
+      "Conditions": ["能接近铁头并完成扒窃；他的四个武器槽最终都要为空。"],
+      "Steps": [
+        {"Text": "先找小六请教偷东西和缴武器的办法；这是教学，不会自动替你偷到东西。", "Links": [{"Actor": "son", "Node": "son_methods_hub", "Option": "steal", "Label": "偷窃教学"}, {"Actor": "son", "Node": "son_learn_steal_2", "Option": "disarm", "Label": "缴武器说明"}]},
+        {"Text": "蹲着接近铁头背后，使用实际扒窃交互把武器取走。只拿走主手刀，其他槽还有武器，就不满足这条路线。"},
+        {"Text": "全部取空后找他交谈，选指出他已经没刀的说法；只看到缴械提示还没有开门。", "Links": [{"Actor": "blocker", "Node": "blocker_open", "Option": "disarmed", "Label": "缴械后交涉"}]}
+      ],
+      "Recovery": ["失败或被发现按真实偷窃后果处理；剩余武器没拿完时不要指望缴械选项放行。可以转钱路、培养威吓或戏服路线。"],
+      "Result": "缴械后交谈放行，通关结果记为武力突破；不发通行令牌。"
+    },
+    {
+      "Id": "fight", "Title": "打赢守卫，或从背后击晕", "Ability": "force", "Approach": "force",
+      "Summary": "靠实际战斗或击晕让铁头失去阻拦能力。",
+      "Conditions": ["有能赢下交战的装备和能力，或能从背后完成真实击晕。"],
+      "Steps": [
+        {"Text": "可以先完成大山委托领取武器和培养收益，再向他请教战斗、制服的办法。", "Links": [{"Actor": "butcher", "Node": "butcher_methods_hub", "Option": "fight", "Label": "战斗教学"}, {"Actor": "butcher", "Node": "butcher_methods_hub", "Option": "control", "Label": "制服教学"}]},
+        {"Text": "动武路线在守卫对峙时明确选择迎战，并在实际交战中获胜；击晕路线则从背后使用真实击晕交互，等铁头真正倒地。", "Links": [{"Actor": "blocker", "Node": "blocker_threat_fail", "Option": "fight", "Label": "对峙时迎战"}]},
+        {"Text": "收到实际放行提示后再进入目标区；拔刀、听完教学或只造成一次伤害都不算完成。"}
+      ],
+      "Recovery": ["战斗会受伤，也可能败退被扣押；击晕有实际检定和被发现风险。对峙中也能投降，之后按真实刑期处理，不能靠攻略保证打赢。"],
+      "Result": "真实胜利或铁头实际被击晕后开门，承担犯罪和关系后果；没有通行令牌。"
+    },
+    {
+      "Id": "bind", "Title": "用绳子绑住或扛走铁头", "Ability": "guile", "Approach": "guile",
+      "Summary": "使用实际钩索捆绑／搬运交互，让铁头失去岗位控制。",
+      "Conditions": ["拿到钩索用的绳子，并满足实际捆绑或搬运交互的条件。"],
+      "Steps": [
+        {"Text": "帮小六从粮仓外杜野处讨回工具，回小六交差拿绳子和钩索；大山委托也能给绳子。工具准备的详细流程见页末「可选支线：小六的工具与撬锁练习」。", "Links": [{"Actor": "son", "Node": "son_turnin", "Option": "ok", "Label": "小六工具奖励"}]},
+        {"Text": "接近铁头，按实际交互面板开放的条件把他绑住或扛起。口头说制服他、拿出绳子、普通拉拽都不算。"},
+        {"Text": "真实捆绑／搬运成立后会出现无人守门的放行提示，再走进目标区。"}
+      ],
+      "Recovery": ["交互不可用先检查工具、位置和对方状态；被发现或控制失败按原交互后果处理，可以改走其他路线。"],
+      "Result": "按技巧突破开门，但会损害守卫关系、记犯罪并留下绑走守卫的后患；不发通行令牌。"
+    },
+    {
+      "Id": "sneak", "Title": "等他转开，蹲着穿过门口", "Ability": "guile", "Approach": "guile",
+      "Summary": "真实穿过门口、没有被看见，再通过技巧检定。",
+      "Conditions": ["蹲下，铁头此刻看不见你，沿地面从门外穿过实际门口区域。"],
+      "Steps": [
+        {"Text": "找小六请教潜行；观察守卫的身体朝向和视线，蹲着绕到他看不到的位置。", "Links": [{"Actor": "son", "Node": "son_methods_hub", "Option": "sneak", "Label": "潜行教学"}]},
+        {"Text": "趁他没看见，保持蹲姿从门外实际穿过门口。站在背后等着、在墙边蹲下或从远处靠近，都不算已经潜入。"},
+        {"Text": "实际穿门时会进行技巧检定；成功后收到潜入提示，再走到门内目标区。"}
+      ],
+      "Recovery": ["被看见或检定失败不会放行，守卫可能继续拦问。退回门外观察时机或换路线；跑步会让更远处的NPC听见动静，不能靠跑到背后代替潜行。"],
+      "Result": "未被发现且检定通过时靠技巧潜入，不发通行令牌。"
+    },
+    {
+      "Id": "climb", "Title": "拿钩索，从门边城墙翻过去", "Ability": "guile", "Approach": "guile",
+      "Summary": "实际拉拽上墙、越墙并在门内稳定落地。",
+      "Conditions": ["有可用钩索和绳子，从门边城墙的有效区域开始真实攀爬，过程中不被铁头看见。"],
+      "Steps": [
+        {"Text": "先完成小六的工具委托并交差，向他问清攀爬办法；工具流程见页末「可选支线：小六的工具与撬锁练习」。", "Links": [{"Actor": "son", "Node": "son_tools_hub", "Option": "climb", "Label": "钩索与攀爬"}]},
+        {"Text": "在门外找到能挂住的城墙位置，用钩索实际拉拽自己上墙；升到足够高度时进行技巧检定。不能用传送或站在屋顶冒充攀爬。"},
+        {"Text": "通过检定后继续真正越过墙段，落到门内并站稳；拉拽还没结束、停在墙顶或只升到半空，都不算通关。"}
+      ],
+      "Recovery": ["本次检定失败会保持失败，被看见也会留下后患；先安全结束这次拉拽并落地，再决定重新尝试或改走别的路线。不要因为下一帧没有新提示就当成功。"],
+      "Result": "未被发现、技巧通过且真实越墙落地后，按技巧突破开门；没有通行令牌。"
+    }
+  ],
+  "Preparation": {
+    "Title": "可选支线：小六的工具与撬锁练习",
+    "Lead": "这一章不是通关路线。只有上面「用绳子绑住或扛走铁头」和「拿钩索，从门边城墙翻过去」两条路线需要小六的工具；撬锁只能在锁箱上练手，城门没有可撬的门锁，撬开也进不了城。用钱、威吓、冒充、潜行或动手都能不碰这条支线进城。",
+    "Steps": [
+      {"Heading": "拿工具（绳子、钩索、撬锁包）", "Text": "找小六，进入生意话题，问他的工具差事，答应帮他讨回来。", "Links": [{"Actor": "son", "Node": "son_business_hub", "Option": "deal", "Label": "工具差事"}, {"Actor": "son", "Node": "son_deal", "Option": "job", "Label": "接受委托"}]},
+      {"Text": "去粮仓外找杜野，尝试说服他还工具，或在实际战斗中赢下他。", "Links": [{"Actor": "outlaw", "Node": "outlaw_hub", "Option": "settle", "Label": "讨工具"}, {"Actor": "outlaw", "Node": "outlaw_hub", "Option": "fight", "Label": "动武取回"}]},
+      {"Text": "回小六处交差，拿到绳子、钩索和撬锁包；需要实际领到工具才能使用。", "Links": [{"Actor": "son", "Node": "son_turnin", "Option": "ok", "Label": "交差领工具"}]},
+      {"Heading": "撬锁练习（只练手，不能进城）", "Text": "撬锁先在小六工具话题中取得练习许可，再去他身边的锁箱练习。当前城门没有可撬的门锁，打开练习箱不能直接通关。", "Links": [{"Actor": "son", "Node": "son_tools_hub", "Option": "try", "Label": "练习许可入口"}]}
+    ]
+  }
+}

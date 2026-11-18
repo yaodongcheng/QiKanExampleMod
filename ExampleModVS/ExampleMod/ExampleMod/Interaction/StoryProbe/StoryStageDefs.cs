@@ -18,11 +18,11 @@ namespace LivingWorldNpcs
     /// </summary>
     public sealed class StageBeat
     {
-        /// <summary>从进场景算起的秒数（绝对时间；v1 只支持这一种时序）。</summary>
+        /// <summary>台本时间的秒数；等待弹窗和镜头过渡期间不推进。</summary>
         public float At;
 
         /// <summary>原子名（英文 token）：player_freeze / player_release / camera_cut / camera_return /
-        /// prop_spawn / actor_place / actor_action / actor_say / wait。</summary>
+        /// prop_spawn / actor_place / actor_action / actor_say / wait / inquiry。</summary>
         public string Cmd;
 
         /// <summary>prop_spawn 的实例名（日志用，必须唯一）。</summary>
@@ -45,6 +45,8 @@ namespace LivingWorldNpcs
 
         /// <summary>actor_say 的真实听话者：player 或已登记 NPC ID。</summary>
         public string Listener;
+        /// <summary>inquiry：叙事弹窗的标题、继续和中止按钮本地化键。</summary>
+        public string TitleKey, AcceptKey, CancelKey;
 
         /// <summary>prop_spawn 的预制品名（必须是本场景已加载的）。</summary>
         public string Prefab;
@@ -139,8 +141,12 @@ namespace LivingWorldNpcs
 
                 // 按 At 稳定排序（同 At 保持文件里的先后）
                 foreach (var beat in script.Beats)
-                    if (beat == null || float.IsNaN(beat.BlendSeconds) || float.IsInfinity(beat.BlendSeconds) || beat.BlendSeconds < 0f)
+                    if (beat == null || float.IsNaN(beat.At) || float.IsInfinity(beat.At) || beat.At < 0f
+                        || float.IsNaN(beat.BlendSeconds) || float.IsInfinity(beat.BlendSeconds) || beat.BlendSeconds < 0f)
                         throw new InvalidDataException("Invalid beat or BlendSeconds (must be finite and non-negative)");
+                    else if (beat.Cmd == "inquiry" && (string.IsNullOrEmpty(beat.TitleKey) || string.IsNullOrEmpty(beat.TextKey)
+                        || string.IsNullOrEmpty(beat.AcceptKey) || string.IsNullOrEmpty(beat.CancelKey)))
+                        throw new InvalidDataException("Inquiry requires TitleKey, TextKey, AcceptKey and CancelKey");
                 script.Beats = StableSortByAt(script.Beats);
                 _cache[scriptName] = script;
                 DebugLogger.Log($"[StoryStage] loaded '{scriptName}' beats={script.Beats.Count} ({path})");

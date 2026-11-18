@@ -131,6 +131,7 @@ namespace LivingWorldNpcs
 
     public sealed class AmbientTuning
     {
+        public float SpeechGapSec = 3.5f;
         /// <summary>进场后第一次小动作的延迟区间（秒）。</summary>
         public float FirstDelayMinSec = 2f;
         public float FirstDelayMaxSec = 10f;

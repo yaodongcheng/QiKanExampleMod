@@ -1485,6 +1485,8 @@ namespace LivingWorldNpcs
         /// <summary>是否是被击晕导致的 StayAction（永久静止，直到外部解除）</summary>
         public bool IsKnockout { get; }
 
+        internal bool OwnsLookTarget => _lookTarget != null;
+
         public StayAction(Agent lookTarget, bool keepRotating = true, bool isKnockout = false)
         {
             _lookTarget = lookTarget;
@@ -1549,6 +1551,7 @@ namespace LivingWorldNpcs
         private readonly Action<string> _onStopped;
         private bool _ended;
         private bool _bodyHeld;
+        private AgentActionPresentation _presentation;
         private float _facingDebugElapsed;
         private bool _facingDebugReported;
         private AgentControlHelper.FacingTracker _facingTracker = new AgentControlHelper.FacingTracker();
@@ -1601,6 +1604,26 @@ namespace LivingWorldNpcs
                 AgentAIController.Instance?.SendEventToAgent(_brain.Owner, "event_performance_pause", OwnerToken, paused);
         }
 
+        /// <summary>演出租约内播放动作及其数据配套；换动作先收掉本租约的挂件与声音。</summary>
+        public bool PlayAction(string action, ActionPresentationDef presentation = null)
+        {
+            if (!CanControl || string.IsNullOrEmpty(action)) return false;
+            var warrior = MBActionSet.GetActionSet("as_human_warrior");
+            if (!warrior.IsValid || !MBActionSet.CheckActionAnimationClipExists(warrior, ActionIndexCache.Create(action)))
+                return false;
+            if (_presentation == null) _presentation = new AgentActionPresentation(_brain.Owner, _mission, OwnerToken);
+            if (!_presentation.Start(action, presentation))
+            {
+                _brain.Owner.SetActionChannel(0, ActionIndexCache.act_none, ignorePriority: true, blendInPeriod: 0.2f);
+                return false;
+            }
+            AgentControlHelper.ForcePlayAction(_brain.Owner, action, startProgress: 0f, blendIn: 0.15f,
+                blendOutPeriodToNoAnim: presentation == null ? 0.4f : 0f, restoreAfter: false);
+            return true;
+        }
+
+        public string DescribePresentation() => _presentation?.Describe() ?? "presentation=none attached=0";
+
         internal void SetPaused(bool paused)
         {
             if (_ended || Paused == paused) return;
@@ -1648,6 +1671,7 @@ namespace LivingWorldNpcs
                 _facingDebugElapsed += Math.Max(0f, dt);
                 HoldBody(dt);
             }
+            if (_presentation?.Tick(dt, CanControl) == false) Finish("presentation-failed");
         }
 
         private void HoldBody(float dt = 0f)
@@ -1711,6 +1735,7 @@ namespace LivingWorldNpcs
 
         private void ReleaseBody()
         {
+            _presentation?.Stop();
             if (!_bodyHeld) return;
             _bodyHeld = false;
             _facingTracker = new AgentControlHelper.FacingTracker();
@@ -1725,6 +1750,8 @@ namespace LivingWorldNpcs
         internal void Finish(string reason, bool releaseBody = true)
         {
             if (_ended) return;
+            // releaseBody=false 用于死亡、场景失效及特殊状态；声音/挂件仍须独立收尾。
+            _presentation?.Stop();
             try { if (releaseBody) ReleaseBody(); }
             catch (Exception ex) { DebugLogger.Log($"[Performance] release failed: {ex.Message}"); }
             _ended = true;

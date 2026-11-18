@@ -401,6 +401,9 @@ namespace LivingWorldNpcs
         public int ContentVersion;
         public string Scene;
         public string WallLevel;
+        public Dictionary<string, ActionPresentationDef> ActionPresentations = new Dictionary<string, ActionPresentationDef>(StringComparer.Ordinal);
+        public ActionPresentationDef PresentationFor(string action)
+            => !string.IsNullOrEmpty(action) && ActionPresentations.TryGetValue(action, out var value) ? value : null;
         public Dictionary<string, StoryLayoutDef> Layouts = new Dictionary<string, StoryLayoutDef>(StringComparer.Ordinal);
         public Dictionary<string, StoryStageDef> Stages = new Dictionary<string, StoryStageDef>(StringComparer.Ordinal);
         public Dictionary<string, StoryBehaviorDef> Behaviors = new Dictionary<string, StoryBehaviorDef>(StringComparer.Ordinal);
@@ -525,6 +528,7 @@ namespace LivingWorldNpcs
                 errors.Add(new StoryValidationIssue("$.ContentVersion", "missing_field", "缺少必需整数 'ContentVersion'"));
             data.Scene = Str(root, "Scene", "$", errors, true);
             data.WallLevel = Str(root, "WallLevel", "$", errors, true);
+            ParseActionPresentations(root, data, errors);
 
             var cast = new HashSet<string>(castIds ?? Enumerable.Empty<string>(), StringComparer.Ordinal);
 
@@ -570,7 +574,32 @@ namespace LivingWorldNpcs
         }
 
         private static readonly string[] RootKeys =
-            { "Schema", "ContentVersion", "Scene", "WallLevel", "Layouts", "Stages", "Behaviors", "Flows", "Beats" };
+            { "Schema", "ContentVersion", "Scene", "WallLevel", "ActionPresentations", "Layouts", "Stages", "Behaviors", "Flows", "Beats" };
+
+        private static void ParseActionPresentations(JObject root, StoryLayoutFile data, List<StoryValidationIssue> errors)
+        {
+            if (root.Property("ActionPresentations") == null) return;
+            var definitions = Obj(root, "ActionPresentations", "$", errors, true);
+            if (definitions == null) return;
+            foreach (var property in definitions.Properties())
+            {
+                string path = "$.ActionPresentations." + property.Name;
+                if (!property.Name.StartsWith("act_", StringComparison.Ordinal) || !(property.Value is JObject def))
+                { errors.Add(new StoryValidationIssue(path, "bad_value", "动作配套必须是act_动作名对应的对象")); continue; }
+                Keys(def, path, new[] { "Instrument", "Sounds", "Speed" }, errors);
+                var presentation = new ActionPresentationDef
+                {
+                    Instrument = Str(def, "Instrument", path, errors, false),
+                    Sounds = StrList(def, "Sounds", path, errors, false).ToArray(),
+                    Speed = Float(def, "Speed", path, errors, 1f, 0.1f, 3f),
+                };
+                if (string.IsNullOrEmpty(presentation.Instrument) && presentation.Sounds.Length == 0)
+                    errors.Add(new StoryValidationIssue(path, "empty_collection", "动作配套至少需要乐器或声音"));
+                if (presentation.Sounds.Any(string.IsNullOrWhiteSpace))
+                    errors.Add(new StoryValidationIssue(path + ".Sounds", "bad_value", "声音事件名不能为空"));
+                data.ActionPresentations[property.Name] = presentation;
+            }
+        }
 
         // ── 布局 ──
         private static void ParseLayouts(JObject root, StoryLayoutFile data, List<StoryValidationIssue> errors,
