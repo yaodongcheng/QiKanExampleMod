@@ -64,7 +64,7 @@ const propName = p => {
   return base[p.Prefab] || beat?.Note || p.Prefab || p.Id;
 };
 const actionName = action => {
-  const labels={act_bartender_wipe:'擦拭柜台',act_bartender_meat:'处理肉案',act_play_celtic_harp_stand:'站立弹琴',act_beggar_idle:'蹲坐等候',act_bully:'威逼',act_bullied:'受威逼',act_argue:'争执',act_argue_2:'争执',act_argue_soft_1:'低声争执',act_bar_talk_to_2:'交谈',act_stealth_mission_guard_look_around_patrolling_cautious_1:'戒备张望'};
+  const labels={act_bartender_wipe:'擦拭柜台',act_bartender_meat:'处理肉案',act_play_celtic_harp_stand:'站立弹琴',act_beggar_idle:'蹲坐等候',act_bully:'威逼',act_bullied:'受威逼',act_argue:'争执',act_argue_2:'争执',act_argue_soft_1:'低声争执',act_bar_talk_to_2:'交谈',act_main_story_troop_guard_idle_2:'站岗戒备'};
   if(labels[action])return labels[action];
   if((action||'').includes('threat'))return '威胁手势';
   if((action||'').startsWith('act_conversation_'))return '交谈手势';
@@ -334,7 +334,9 @@ function renderScene(){
       if(beat.Cmd==='inquiry'){
         if(beat.TitleKey)detail+=`<p class="small muted">弹窗标题</p><p><strong>${esc(lang(beat.TitleKey))}</strong></p>`;
         if(beat.TextKey)detail+=`<blockquote>${esc(lang(beat.TextKey))}</blockquote>`;
-        detail+=`<p class="small muted">玩家点「${esc(lang(beat.AcceptKey))}」继续看下去，点「${esc(lang(beat.CancelKey))}」中止观察。弹窗期间台本暂停，等玩家回应再往下走。</p>`;
+        detail+=beat.CancelKey
+          ? `<p class="small muted">玩家点「${esc(lang(beat.AcceptKey))}」继续看下去，点「${esc(lang(beat.CancelKey))}」中止观察。弹窗期间台本暂停，等玩家回应再往下走。</p>`
+          : `<p class="small muted">本页只显示「${esc(lang(beat.AcceptKey))}」。点击后归还镜头与玩家控制；弹窗期间台本暂停。</p>`;
       }else if(beat.Key||beat.TextKey){detail+=`<blockquote>${esc(lang(beat.Key||beat.TextKey))}</blockquote>`;}
       if(beat.Cmd==='camera_cut'||beat.Cmd==='camera_return'){const cam=beat.Case?data.cameras?.[beat.Case]:null;
         detail+=`<p class="small muted">镜头机位：${esc(beat.Case||'沿用当前机位')}${cam?`（臂长 ${cam.ArmLength} 米 / 视场 ${cam.Fov} 度）`:''}${beat.Actor?` · 拍摄对象 ${esc(name(beat.Actor))}`:''} · 过渡 ${beat.BlendSeconds??'—'} 秒</p>`;}

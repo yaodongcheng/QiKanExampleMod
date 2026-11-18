@@ -53,17 +53,22 @@ namespace TaleWorlds.Engine {
  }
 }
 namespace TaleWorlds.MountAndBlade {
+ public abstract class AgentComponent {protected readonly Agent Agent;protected AgentComponent(Agent a){Agent=a;}public virtual void OnAgentRemoved(){}public virtual void OnComponentRemoved(){} }
  public class Mission {public static Mission Current;public Scene Scene=new();public Frame GetCameraFrame()=>new();}
  public class MBAgentVisuals {public bool Valid=true;public Skeleton Skeleton=new();public Skeleton GetSkeleton()=>Skeleton;public sbyte GetRealBoneIndex(int bone)=>(sbyte)bone;public bool IsValid()=>Valid;}
  public class Agent {public string Name="actor",Action="";public bool Active=true;public float Health=100;public Vec3 Position;public Frame Frame;
-  public Mission Mission=Mission.Current;public MBAgentVisuals AgentVisuals=new();public CampaignAgentComponent Component=new();public T GetComponent<T>() where T:class=>Component as T;
+  public Mission Mission=Mission.Current;public MBAgentVisuals AgentVisuals=new();public CampaignAgentComponent Component=new();private List<AgentComponent> Extras=new();public T GetComponent<T>() where T:AgentComponent=>Component is T c?c:Extras.OfType<T>().FirstOrDefault();public void AddComponent(AgentComponent c){Extras.Add(c);}
+  public List<(sbyte Bone,string Prefab,bool Visible)> RawPrefabs=new();public int NativePrefabTouches;public int FailVisibilityIndex=-1;
+  public int AddSynchedPrefabComponentToBone(string prefab,sbyte bone){NativePrefabTouches++;RawPrefabs.Add((bone,prefab,true));return RawPrefabs.Count-1;}
+  public bool IsSynchedPrefabComponentVisible(int index){NativePrefabTouches++;return RawPrefabs[index].Visible;}
+  public void SetSynchedPrefabComponentVisibility(int index,bool visible){NativePrefabTouches++;if(visible&&index==FailVisibilityIndex)throw new InvalidOperationException("native visibility failure");var p=RawPrefabs[index];RawPrefabs[index]=(p.Bone,p.Prefab,visible);}
   public void SetActionChannel(int channel,ActionIndexCache a,bool ignorePriority=false,float blendInPeriod=0){Action=a.Name;AgentVisuals.Skeleton.Speed=1;}
  }
  public class ActionIndexCache {public string Name;public static ActionIndexCache act_none=new(){Name=""};public static ActionIndexCache Create(string s)=>new(){Name=s};}
  public struct MBActionSet {public bool IsValid=>true;public static MBActionSet GetActionSet(string s)=>new();public static bool CheckActionAnimationClipExists(MBActionSet s,ActionIndexCache a)=>a.Name.StartsWith("act_");}
 }
 namespace SandBox {
- public class CampaignAgentComponent {public AgentNavigator AgentNavigator=new();}
+ public class CampaignAgentComponent : AgentComponent {public CampaignAgentComponent():base(null){}public AgentNavigator AgentNavigator=new();}
  public class AgentNavigator {
   public Dictionary<(sbyte,string),bool> Components=new();public int Creations;public bool FailAttach;
   public bool GetPrefabVisibility(sbyte b,string n)=>Components.TryGetValue((b,n),out var v)&&v;
@@ -159,6 +164,24 @@ class Program {
  work.Begin("second");Check(!workingSound.Playing,"restarting work director releases old slots before clearing them");
  (a,b,p)=Setup();StoryLayoutRegistry.Published=new(){Definition=Def()};host=new();host.Agents["worker"]=a;var stage=new StageHarness{_host=host};stage._actors["worker"]=p;
  stage.Run(new(){Actor="worker",Action="act_harp"});p.OnTick(a,.1f);Check(SoundEvent.Created.Single().Playing&&a.Component.AgentNavigator.GetPrefabVisibility(7,"native_harp"),"actual opening actor_action consumes same presentation data");
+ // Real independent StoryProbe actors have no CampaignAgentComponent or Navigator.
+ (a,b,p)=Setup();a.Component=null;Play(a,p);
+ Check(a.RawPrefabs.Single()==((sbyte)7,"native_harp",true)&&SoundEvent.Created.Single().Playing,"independently spawned actor plays harp without a campaign navigator");
+ p.SetPaused(true);Check(!a.RawPrefabs.Single().Visible&&!SoundEvent.Created.Last().Playing,"bare actor pause cleans native prefab and music");
+ p.SetPaused(false);Play(a,p);Check(a.RawPrefabs.Count==1,"bare actor pause/resume reuses original native prefab");p.Finish("opening finished");
+ var secondLease=new PerformanceAction(b,"work-after-opening",null);b.Lease=secondLease;secondLease.OnStart(a);Play(a,secondLease);
+ Check(a.RawPrefabs.Count==1&&a.RawPrefabs.Single().Visible,"opening to work handoff reuses actor-held cache across leases");secondLease.Finish("work yield");
+ for(int i=0;i<20;i++){var repeated=new PerformanceAction(b,"repeat"+i,null);b.Lease=repeated;repeated.OnStart(a);if(!repeated.PlayAction("act_harp",Def()))throw new Exception("native repeat failed");repeated.OnTick(a,.1f);repeated.Finish("done");}
+ Check(a.RawPrefabs.Count==1&&!a.RawPrefabs.Single().Visible&&SoundEvent.Created.All(s=>!s.Playing),"twenty native lease restarts neither stack instruments nor leave music");
+ (a,b,p)=Setup();a.Component.AgentNavigator=null;Play(a,p);Check(a.RawPrefabs.Single().Visible,"component present but navigator absent uses native attachment too");p.PlayAction("act_talk");Check(!a.RawPrefabs.Single().Visible&&!SoundEvent.Created.Last().Playing,"bare actor changing pose cleans presentation");
+ (a,b,p)=Setup();a.Component=null;Play(a,p);a.Active=false;p.OnTick(a,.1f);Check(p.Ended&&!a.RawPrefabs.Single().Visible&&!SoundEvent.Created.Last().Playing,"bare corpse visual and music are cleaned");
+ (a,b,p)=Setup();a.Component=null;Play(a,p);int prefabTouches=a.NativePrefabTouches;before=SoundEvent.NativeTouches;Mission.Current=new();p.InvalidateManaged();Check(a.NativePrefabTouches==prefabTouches&&SoundEvent.NativeTouches==before,"bare actor scene switch never dereferences stale native attachment or sound");
+ (a,b,p)=Setup();a.Component=null;GameEntity.Prefabs.Add("native_bow");var instrument=TaleWorlds.ObjectSystem.MBObjectManager.Instance.Objects.OfType<InstrumentData>().Single();instrument.InstrumentEntities.Add((8,"native_bow"));a.FailVisibilityIndex=1;
+ Check(!p.PlayAction("act_harp",Def())&&a.RawPrefabs.Count==2&&a.RawPrefabs.All(x=>!x.Visible)&&SoundEvent.Created.Count==0,"second native piece failure rolls back both pieces without music");
+ (a,b,p)=Setup();a.Component=null;StoryLayoutRegistry.Published=new(){Definition=Def()};host=new();host.Agents["worker"]=a;stage=new StageHarness{_host=host};stage._actors["worker"]=p;stage.Run(new(){Actor="worker",Action="act_harp"});p.OnTick(a,.1f);
+ Check(a.RawPrefabs.Single().Visible&&SoundEvent.Created.Single().Playing,"real opening beat 17 succeeds for a bare independent actor");p.Finish("opening ended");work=new(host);Check(work.Begin("second"),"bare actor work controller starts");work.Tick(.1f);work.Tick(.1f);AgentAIController.GetBrainForAgent(a).Lease.OnTick(a,.1f);
+ Check(a.RawPrefabs.Count==1&&a.RawPrefabs.Single().Visible&&SoundEvent.Created.Last().Playing,"real bare actor work resumes same native instrument after opening");
+ int rawBefore=a.NativePrefabTouches;var status=work.Describe();Check(status.Contains("presentation=playing attached=1")&&a.NativePrefabTouches==rawBefore,"bare actor work status remains read-only");work.Stop("exit");Check(a.RawPrefabs.All(x=>!x.Visible)&&SoundEvent.Created.All(x=>!x.Playing),"bare actor work exit clears music and instrument");
  Console.WriteLine($"PASS: {count} presentation and actual lease lifecycle checks (native boundaries stubbed)");
  }
 }
@@ -173,6 +196,16 @@ class Program {
     (OUT/'Work.cs').write_text((SRC/'Interaction/StoryProbe/StoryWorkDirector.cs').read_text(encoding='utf-8-sig'), encoding='utf-8')
     (OUT/'Harness.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net9.0</TargetFramework><NoWarn>0649;0414</NoWarn></PropertyGroup></Project>', encoding='utf-8')
     subprocess.run(['dotnet', 'run', '--project', str(OUT/'Harness.csproj'), '--verbosity', 'quiet'], check=True)
+    # Old code must reproduce today's regression, rather than merely test an always-present Navigator.
+    current = (SRC/'Animation/AgentActionPresentation.cs').read_text(encoding='utf-8-sig')
+    broken = current.replace('_navigator = _agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;',
+                             '_navigator = _agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator; if (_navigator == null) return Fail("agent navigator unavailable");')
+    assert broken != current
+    (OUT/'Presentation.cs').write_text(broken, encoding='utf-8')
+    negative = subprocess.run(['dotnet', 'run', '--project', str(OUT/'Harness.csproj'), '--verbosity', 'quiet'], capture_output=True, text=True)
+    (OUT/'Presentation.cs').write_text(current, encoding='utf-8')
+    assert negative.returncode != 0 and 'valid performance starts' in negative.stderr, negative.stderr[-1000:]
+    print('PASS: requiring a Navigator reproduces the independent-actor regression')
     print('PASS: authoritative Native instrument data and 6 invalid configuration cases')
 
 

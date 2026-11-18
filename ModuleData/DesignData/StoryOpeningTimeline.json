@@ -228,7 +228,7 @@
       "At": 0.7,
       "Cmd": "actor_action",
       "Actor": "blocker",
-      "Action": "act_stealth_mission_guard_look_around_patrolling_cautious_1",
+      "Action": "act_main_story_troop_guard_idle_2",
       "Async": true
     },
     {
@@ -335,7 +335,7 @@
     {
       "At": 7.1,
       "Cmd": "camera_cut",
-      "Case": "story_observe_pair",
+      "Case": "story_observe_stage_pair",
       "Actor": "widow",
       "Anchor": "player",
       "BlendSeconds": 1.2
@@ -423,8 +423,7 @@
       "Cmd": "inquiry",
       "TitleKey": "LWN_story_observe_title",
       "TextKey": "LWN_story_observe_butcher",
-      "AcceptKey": "LWN_story_observe_continue",
-      "CancelKey": "LWN_story_observe_stop"
+      "AcceptKey": "LWN_story_observe_finish"
     },
     {
       "At": 15.5,

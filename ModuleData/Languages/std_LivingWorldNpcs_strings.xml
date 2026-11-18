@@ -5622,5 +5622,20 @@
     <string id="LWN_story_daily_outlaw_pending_2" text="It is too bright here to stay hidden." />
     <string id="LWN_story_daily_outlaw_done_1" text="Tools returned; one less trouble to worry about." />
     <string id="LWN_story_daily_outlaw_done_2" text="Take a rest; no more trouble for now." />
+    <string id="LWN_actnote_act_main_story_troop_guard_idle_2" text="standing guard" />
+    <string id="LWN_story_stage_failure" text="Scene presentation stopped: {REASON}. Details are in the runtime log." />
+    <string id="LWN_story_stage_failure_beat" text="Scene presentation stopped at beat {BEAT}: {REASON}. Details are in the runtime log." />
+    <string id="LWN_story_stage_failure_action" text="{ACTOR} could not perform the action &#x27;{ACTION}&#x27;" />
+    <string id="LWN_story_stage_failure_speech" text="{ACTOR} could not deliver the line to &#x27;{LISTENER}&#x27;" />
+    <string id="LWN_story_stage_failure_camera" text="the camera transition failed" />
+    <string id="LWN_story_stage_failure_camera_lost" text="another system took over the camera" />
+    <string id="LWN_story_stage_failure_actors" text="the scene could not acquire its actors" />
+    <string id="LWN_story_stage_failure_timeout" text="the actors did not become ready in time" />
+    <string id="LWN_story_stage_failure_interrupted" text="another activity interrupted an actor&#x27;s performance" />
+    <string id="LWN_story_stage_failure_control" text="a scene instruction failed" />
+    <string id="LWN_story_stage_failure_exception" text="an unexpected error occurred during the presentation" />
+    <string id="LWN_story_stage_failure_load" text="the scene script could not be loaded" />
+    <string id="LWN_story_stage_player" text="the player" />
+    <string id="LWN_story_observe_finish" text="Observation complete" />
 </strings>
 </base>

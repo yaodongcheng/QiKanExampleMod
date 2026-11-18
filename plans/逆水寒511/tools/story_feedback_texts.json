@@ -1323,6 +1323,10 @@
     "继续观察",
     "Keep observing"
   ],
+  "LWN_story_observe_finish": [
+    "观察完毕",
+    "Observation complete"
+  ],
   "LWN_story_observe_stop": [
     "不看了",
     "Enough for now"
@@ -1710,6 +1714,62 @@
   "LWN_story_daily_outlaw_done_1": [
     "工具还了，少件麻烦事。",
     "Tools returned; one less trouble to worry about."
+  ],
+  "LWN_actnote_act_main_story_troop_guard_idle_2": [
+    "站岗戒备",
+    "standing guard"
+  ],
+  "LWN_story_stage_failure": [
+    "场景演出已停止：{REASON}。详情已记录到运行日志。",
+    "Scene presentation stopped: {REASON}. Details are in the runtime log."
+  ],
+  "LWN_story_stage_failure_beat": [
+    "场景演出在台本第{BEAT}拍停止：{REASON}。详情已记录到运行日志。",
+    "Scene presentation stopped at beat {BEAT}: {REASON}. Details are in the runtime log."
+  ],
+  "LWN_story_stage_failure_action": [
+    "{ACTOR}没能完成动作“{ACTION}”",
+    "{ACTOR} could not perform the action '{ACTION}'"
+  ],
+  "LWN_story_stage_failure_speech": [
+    "{ACTOR}没能向“{LISTENER}”说完这句台词",
+    "{ACTOR} could not deliver the line to '{LISTENER}'"
+  ],
+  "LWN_story_stage_failure_camera": [
+    "镜头切换失败",
+    "the camera transition failed"
+  ],
+  "LWN_story_stage_failure_camera_lost": [
+    "镜头已被其他系统接管",
+    "another system took over the camera"
+  ],
+  "LWN_story_stage_failure_actors": [
+    "未能取得本场演员的控制权",
+    "the scene could not acquire its actors"
+  ],
+  "LWN_story_stage_failure_timeout": [
+    "等待演员就绪超时",
+    "the actors did not become ready in time"
+  ],
+  "LWN_story_stage_failure_interrupted": [
+    "演员的表演被其他行为打断",
+    "another activity interrupted an actor's performance"
+  ],
+  "LWN_story_stage_failure_control": [
+    "演出指令执行失败",
+    "a scene instruction failed"
+  ],
+  "LWN_story_stage_failure_exception": [
+    "演出执行时发生异常",
+    "an unexpected error occurred during the presentation"
+  ],
+  "LWN_story_stage_failure_load": [
+    "演出台本加载失败",
+    "the scene script could not be loaded"
+  ],
+  "LWN_story_stage_player": [
+    "玩家",
+    "the player"
   ],
   "LWN_story_daily_outlaw_done_2": [
     "先歇歇，别再惹事了。",

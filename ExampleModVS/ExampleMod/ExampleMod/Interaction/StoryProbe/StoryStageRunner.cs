@@ -34,6 +34,7 @@ namespace LivingWorldNpcs
         private float _readyWait;
         private bool _actorsAcquired;
         private bool _waitingInquiry, _waitingCamera;
+        private bool _failureReported;
         private int _runtimeToken;
         private int _inquiryRound;
         private StageBeat _openingCameraBeat;
@@ -83,10 +84,13 @@ namespace LivingWorldNpcs
         public bool Begin(string scriptName = "StoryOpeningTimeline")
         {
             Stop("restart");
+            _failureReported = false;
+            _runtimeToken = StoryProbeState.RuntimeToken;
             _script = StoryStageDefs.Load(scriptName);
             if (_script == null)
             {
                 DebugLogger.Log("[StoryStage] Begin failed: script not loaded");
+                Stop("script not loaded", "LWN_story_stage_failure_load");
                 return false;
             }
 
@@ -125,6 +129,8 @@ namespace LivingWorldNpcs
         public void RunAtom(StageBeat beat)
         {
             if (beat == null) return;
+            _failureReported = false;
+            _runtimeToken = StoryProbeState.RuntimeToken;
             if (_script == null) _script = StoryStageDefs.Load("StoryOpeningTimeline");
             if (_anchors.Count == 0) ResolveAllAnchors();
             if (!string.IsNullOrEmpty(beat.Actor) && beat.Cmd != null && beat.Cmd.StartsWith("actor_"))
@@ -139,7 +145,7 @@ namespace LivingWorldNpcs
                 _actorInterrupted = null;
                 _actorOwner = "stage-" + Guid.NewGuid().ToString("N");
                 _running = true;
-                if (!AcquireActors()) Stop("manual actor unavailable");
+                if (!AcquireActors()) Stop("manual actor unavailable", "LWN_story_stage_failure_actors");
                 else _actorsAcquired = true;
             }
             else Execute(beat, -1);
@@ -154,7 +160,7 @@ namespace LivingWorldNpcs
             return false;
         }
 
-        public void Stop(string reason)
+        public void Stop(string reason, string failureKey = null, StageBeat failedBeat = null, int failedIndex = -1)
         {
             bool hadResources = _running || _frozenPlayer != null || CameraService.IsHeldBy(_cameraOwner);
             _running = false;
@@ -169,6 +175,35 @@ namespace LivingWorldNpcs
             ReturnCamera();
             if (hadResources)
                 DebugLogger.Log($"[StoryStage] stopped: {reason} (at {_time:F2}s, next={_next}/{BeatCount})");
+            if (failureKey != null) ReportFailure(failureKey, failedBeat, failedIndex);
+        }
+
+        private string FailureActorName(string id)
+        {
+            if (id == "player") return LWNTextHelper.ResolveText("LWN_story_stage_player", "the player");
+            var def = StoryProbeDefs.GetNpc(id);
+            return def == null ? (id ?? "") : LWNTextHelper.ResolveText(def.NameKey, def.NameFallback ?? id);
+        }
+
+        private void ReportFailure(string failureKey, StageBeat beat, int index)
+        {
+            // 同一轮失败只报一次；旧场景/重置后的回调不能在新场景冒出提示。
+            if (_failureReported || Mission.Current != _mission || !StoryProbeState.IsRuntimeCurrent(_runtimeToken)) return;
+            _failureReported = true;
+            try
+            {
+                string detail = LWNTextHelper.ResolveCompound(failureKey, "A scene operation could not be completed.",
+                    ("ACTOR", FailureActorName(beat?.Actor)), ("ACTION", beat?.Action ?? ""),
+                    ("LISTENER", FailureActorName(beat?.Listener)));
+                string message = index >= 0
+                    ? LWNTextHelper.ResolveCompound("LWN_story_stage_failure_beat",
+                        "Scene presentation stopped at beat {BEAT}: {REASON}. Details are in the runtime log.",
+                        ("BEAT", index.ToString()), ("REASON", detail))
+                    : LWNTextHelper.ResolveCompound("LWN_story_stage_failure",
+                        "Scene presentation stopped: {REASON}. Details are in the runtime log.", ("REASON", detail));
+                InformationManager.DisplayMessage(new InformationMessage(message));
+            }
+            catch (Exception ex) { DebugLogger.Log("[StoryStage] failure notification failed: " + ex.Message); }
         }
 
         private bool AcquireActors()
@@ -239,7 +274,7 @@ namespace LivingWorldNpcs
                     {
                         OpeningCameraFailed = true;
                         DebugLogger.Log("[StoryStage] opening camera unavailable after retries");
-                        Stop("opening camera unavailable");
+                        Stop("opening camera unavailable", "LWN_story_stage_failure_camera");
                         return;
                     }
                 }
@@ -247,12 +282,12 @@ namespace LivingWorldNpcs
             }
             if (_actorInterrupted != null || _actors.Values.Any(a => a.Ended))
             {
-                Stop("actor interrupted: " + _actorInterrupted);
+                Stop("actor interrupted: " + _actorInterrupted, "LWN_story_stage_failure_interrupted");
                 return;
             }
             if (_waitingCamera)
             {
-                if (!CameraService.IsHeldBy(_cameraOwner)) { Stop("observation camera ownership lost"); return; }
+                if (!CameraService.IsHeldBy(_cameraOwner)) { Stop("observation camera ownership lost", "LWN_story_stage_failure_camera_lost"); return; }
                 if (CameraService.Machine.BlendProgress < 1f) return;
                 _waitingCamera = false;
             }
@@ -261,7 +296,7 @@ namespace LivingWorldNpcs
             {
                 if (_openingCameraBeat != null && !CameraService.IsHeldBy(_cameraOwner))
                 {
-                    Stop("opening camera ownership lost");
+                    Stop("opening camera ownership lost", "LWN_story_stage_failure_camera_lost");
                     return;
                 }
                 if (!OpeningCameraReady) return;
@@ -271,13 +306,14 @@ namespace LivingWorldNpcs
             if (HoldWhile != null && HoldWhile()) return;
             if (!_actorsAcquired)
             {
-                if (!AcquireActors()) { Stop("actor group unavailable"); return; }
+                if (!AcquireActors()) { Stop("actor group unavailable", "LWN_story_stage_failure_actors"); return; }
                 _actorsAcquired = true;
             }
             if (_actors.Values.Any(a => !a.CanControl))
             {
                 _readyWait += dt;
-                if (_readyWait > StoryProbeTuning.Current.Performance.ActorReadyTimeoutSec) Stop("actor readiness timeout");
+                if (_readyWait > StoryProbeTuning.Current.Performance.ActorReadyTimeoutSec)
+                    Stop("actor readiness timeout", "LWN_story_stage_failure_timeout");
                 return; // 演员尚未 OnStart：不推进台本、不冻结玩家、不写演员身体。
             }
             _time += dt;
@@ -346,7 +382,11 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[StoryStage] #{index} '{b.Cmd}' failed: {ex.Message}");
                 if (b.Cmd == "player_freeze" || b.Cmd == "player_release" || b.Cmd == "camera_cut" || b.Cmd == "camera_return"
                     || b.Cmd == "inquiry" || (b.Cmd != null && b.Cmd.StartsWith("actor_")))
-                    Stop("control atom failed");
+                    Stop("control atom failed: " + ex.Message,
+                        b.Cmd == "actor_action" ? "LWN_story_stage_failure_action"
+                        : b.Cmd == "actor_say" ? "LWN_story_stage_failure_speech"
+                        : b.Cmd == "camera_cut" || b.Cmd == "camera_return" ? "LWN_story_stage_failure_camera"
+                        : "LWN_story_stage_failure_control", b, index);
             }
         }
 
@@ -421,13 +461,14 @@ namespace LivingWorldNpcs
             _waitingInquiry = true;
             bool Current() => _running && _waitingInquiry && _actorOwner == session && _inquiryRound == round
                 && Mission.Current == _mission && StoryProbeState.IsRuntimeCurrent(_runtimeToken);
+            bool canCancel = !string.IsNullOrEmpty(beat.CancelKey);
             InformationManager.ShowInquiry(new InquiryData(
                 LWNTextHelper.ResolveText(beat.TitleKey, "Look around"),
-                LWNTextHelper.ResolveText(beat.TextKey, beat.Note ?? ""), true, true,
+                LWNTextHelper.ResolveText(beat.TextKey, beat.Note ?? ""), true, canCancel,
                 LWNTextHelper.ResolveText(beat.AcceptKey, "Continue looking"),
-                LWNTextHelper.ResolveText(beat.CancelKey, "Enough"),
+                canCancel ? LWNTextHelper.ResolveText(beat.CancelKey, "Enough") : "",
                 () => { if (Current()) _waitingInquiry = false; },
-                () => { if (!Current()) return; _waitingInquiry = false; Stop("observation declined"); }));
+                canCancel ? (Action)(() => { if (!Current()) return; _waitingInquiry = false; Stop("observation declined"); }) : null));
             DebugLogger.Log("[StoryStage] inquiry " + beat.TextKey);
         }
 

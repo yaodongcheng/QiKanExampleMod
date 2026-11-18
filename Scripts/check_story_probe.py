@@ -548,7 +548,7 @@ def check_stage(module, problems):
         if cmd == "camera_cut" and not b.get("Case"):
             problems.append("stage[%d]: camera_cut without Case" % i)
         if cmd == "inquiry":
-            for field in ("TextKey", "TitleKey", "AcceptKey", "CancelKey"):
+            for field in ("TextKey", "TitleKey", "AcceptKey"):
                 if not b.get(field): problems.append("stage[%d]: inquiry missing %s" % (i, field))
         if b.get("Actor") and b["Actor"] not in listeners - {"player"}:
             problems.append("stage[%d]: unknown Actor '%s'" % (i, b["Actor"]))
@@ -717,8 +717,21 @@ def _load_lang_cached(module, cn):
 HUMAN_SET_CACHE = {}
 
 
+def declared_actions(game_root, module=None):
+    """动作名声明与动画映射是两件事；老版本缺声明时会退化成索引0。"""
+    names = set()
+    paths = [os.path.join(game_root, "Modules", mod, "ModuleData", "action_types.xml")
+             for mod in ("Native", "SandBoxCore", "SandBox")]
+    if module:
+        paths.append(os.path.join(module, "ModuleData", "action_types.xml"))
+    for path in paths:
+        if os.path.exists(path):
+            names.update(a.get("name") for a in ET.parse(path).getroot().iter("action") if a.get("name"))
+    return names
+
+
 def human_playable(game_root, module=None):
-    """`monsters.xml` 写明 human 的默认 action_set = as_human_warrior ⇒ 只有这里的动作 NPC 能播。"""
+    """剧情演员走warrior集；动作必须既有名字声明，又有该集的动画映射。"""
     key = ("human_plays", game_root, module)
     if key in HUMAN_SET_CACHE:
         return HUMAN_SET_CACHE[key]
@@ -734,6 +747,7 @@ def human_playable(game_root, module=None):
         for action_set in ET.parse(lwn).getroot().iter("action_set"):
             if action_set.get("id") == "as_human_warrior":
                 acts.update(a.get("type") for a in action_set.findall("action") if a.get("type"))
+    acts &= declared_actions(game_root, module)
     HUMAN_SET_CACHE[key] = acts
     return acts
 
@@ -784,6 +798,7 @@ def check_references(module, problems, cast, stage, scene=None):
 
     items = known_items(game_root)
     acts = known_actions(game_root)
+    playable = human_playable(game_root, module)
     prefabs, prefab_tags = known_prefabs(game_root, scene)
     templates = known_templates(game_root)
     cameras = known_camera_cases(module)
@@ -822,6 +837,9 @@ def check_references(module, problems, cast, stage, scene=None):
                 for a in (e.get(field) or []):
                     if a not in acts:
                         problems.append("ref: event %s %s '%s' is NOT in action_sets" % (e.get("Index"), field, a))
+                    elif a not in playable:
+                        problems.append("ref: event %s %s '%s' is not in as_human_warrior (NPC cannot play it)"
+                                        % (e.get("Index"), field, a))
 
     # ── 台本里的 prefab / 动作 / 机位 / 锚点标签 ──
     if stage:
@@ -833,6 +851,8 @@ def check_references(module, problems, cast, stage, scene=None):
                 a = b.get("Action")
                 if a and a not in acts:
                     problems.append("ref: stage[%d] action '%s' is NOT in action_sets" % (i, a))
+                elif a and a not in playable:
+                    problems.append("ref: stage[%d] action '%s' is not in as_human_warrior (NPC cannot play it)" % (i, a))
             if b.get("Cmd") == "camera_cut":
                 c = b.get("Case")
                 if c and c not in cameras:
@@ -2352,6 +2372,27 @@ def check_stage_v2(module, problems):
     return positive
 
 
+def behavior_action_issues(data, playable):
+    """正式发布的群戏动作也走PerformanceAction，不能只验证选角源或动作名字存在。"""
+    issues = []
+    behaviors = data.get("Behaviors") or {}
+    if not isinstance(behaviors, dict):
+        return issues
+    for behavior_id, behavior in behaviors.items():
+        if not isinstance(behavior, dict):
+            continue
+        for field in ("ActionsA", "ActionsB"):
+            actions = behavior.get(field)
+            if not isinstance(actions, list):
+                continue
+            for index, action in enumerate(actions):
+                if isinstance(action, str) and action and action not in playable:
+                    issues.append({"path": "Behaviors.%s.%s[%d]" % (behavior_id, field, index),
+                                   "code": "unplayable_action",
+                                   "message": "'%s' is not in as_human_warrior (NPC cannot play it)" % action})
+    return issues
+
+
 def point_action_issues(data, csv_points, playable):
     """岗位动作也必须在 NPC 实际执行的 warrior 集中；不存在或仅职业集注册均拒绝。"""
     issues = []
@@ -2467,6 +2508,7 @@ def check_stage_v2_formal(module, problems):
     issues = list(csv_issues) + stage_v2_issues(
         data, stage_v2_cast_ids(module), formal=True, source="StoryScenePlan.json", csv_points=csv_rows)
     issues += point_action_issues(data, csv_rows, human_playable(_game_root(module), module))
+    issues += behavior_action_issues(data, human_playable(_game_root(module), module))
     # 首遇与第二阶段各有唯一维护源，防止只改生成物或漏重生成。
     design = os.path.dirname(path)
     gate_source = load_data_json(os.path.join(design, "StoryGateSetup.json")) or {}

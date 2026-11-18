@@ -274,7 +274,8 @@ namespace LivingWorldNpcs
         {
             float margin = 20f;
             float clampedY = MBMath.ClampFloat(pixelY, margin, screenHeight - margin);
-            float uiY = (clampedY * (1.0f / uiScale)) - (bubbleHeight * 0.5f);
+            // 与头顶投影一致：容器底边是锚点，内容在 XML 中按实际高度贴底。
+            float uiY = (clampedY * (1.0f / uiScale)) - bubbleHeight;
             // 最终保护：widget 不超出 margin 边界
             float minUiY = margin * (1.0f / uiScale);
             float maxUiY = (screenHeight - margin) * (1.0f / uiScale) - bubbleHeight;

@@ -45,7 +45,7 @@ namespace LivingWorldNpcs
 
         /// <summary>actor_say 的真实听话者：player 或已登记 NPC ID。</summary>
         public string Listener;
-        /// <summary>inquiry：叙事弹窗的标题、继续和中止按钮本地化键。</summary>
+        /// <summary>inquiry：标题与确认键必填；不填CancelKey时仅显示确认按钮。</summary>
         public string TitleKey, AcceptKey, CancelKey;
 
         /// <summary>prop_spawn 的预制品名（必须是本场景已加载的）。</summary>
@@ -145,8 +145,8 @@ namespace LivingWorldNpcs
                         || float.IsNaN(beat.BlendSeconds) || float.IsInfinity(beat.BlendSeconds) || beat.BlendSeconds < 0f)
                         throw new InvalidDataException("Invalid beat or BlendSeconds (must be finite and non-negative)");
                     else if (beat.Cmd == "inquiry" && (string.IsNullOrEmpty(beat.TitleKey) || string.IsNullOrEmpty(beat.TextKey)
-                        || string.IsNullOrEmpty(beat.AcceptKey) || string.IsNullOrEmpty(beat.CancelKey)))
-                        throw new InvalidDataException("Inquiry requires TitleKey, TextKey, AcceptKey and CancelKey");
+                        || string.IsNullOrEmpty(beat.AcceptKey)))
+                        throw new InvalidDataException("Inquiry requires TitleKey, TextKey and AcceptKey");
                 script.Beats = StableSortByAt(script.Beats);
                 _cache[scriptName] = script;
                 DebugLogger.Log($"[StoryStage] loaded '{scriptName}' beats={script.Beats.Count} ({path})");

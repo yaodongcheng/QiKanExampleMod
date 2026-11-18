@@ -394,6 +394,14 @@
 		<action
 			type="act_bully"
 			animation="anim_bully" />
+		<!-- 2026-11-18：观察开场与群戏也使用这些职业动作；逐条沿用Native的clip映射。
+		     只在职业集登记会使PerformanceAction拒绝，第22拍之前的准备无法完成。 -->
+		<action
+			type="act_bullied"
+			animation="anim_bullied" />
+		<action
+			type="act_bar_talk_to_2"
+			animation="anim_barmaid_barhangout_left" />
 		<action
 			type="act_applaud_3"
 			animation="anim_applaud_3" />
@@ -415,8 +423,5 @@
 		<action
 			type="act_argue_soft_1"
 			animation="anim_npc_argue_soft_male_1" />
-		<action
-			type="act_stealth_mission_guard_look_around_patrolling_cautious_1"
-			animation="anim_guard_idle_look_around_cautious_1" />
 </action_set>
 </action_sets>

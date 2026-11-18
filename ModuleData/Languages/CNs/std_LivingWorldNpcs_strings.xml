@@ -5727,5 +5727,20 @@
     <string id="LWN_story_daily_outlaw_pending_2" text="这地方太亮，藏不住人。" />
     <string id="LWN_story_daily_outlaw_done_1" text="工具还了，少件麻烦事。" />
     <string id="LWN_story_daily_outlaw_done_2" text="先歇歇，别再惹事了。" />
+    <string id="LWN_actnote_act_main_story_troop_guard_idle_2" text="站岗戒备" />
+    <string id="LWN_story_stage_failure" text="场景演出已停止：{REASON}。详情已记录到运行日志。" />
+    <string id="LWN_story_stage_failure_beat" text="场景演出在台本第{BEAT}拍停止：{REASON}。详情已记录到运行日志。" />
+    <string id="LWN_story_stage_failure_action" text="{ACTOR}没能完成动作“{ACTION}”" />
+    <string id="LWN_story_stage_failure_speech" text="{ACTOR}没能向“{LISTENER}”说完这句台词" />
+    <string id="LWN_story_stage_failure_camera" text="镜头切换失败" />
+    <string id="LWN_story_stage_failure_camera_lost" text="镜头已被其他系统接管" />
+    <string id="LWN_story_stage_failure_actors" text="未能取得本场演员的控制权" />
+    <string id="LWN_story_stage_failure_timeout" text="等待演员就绪超时" />
+    <string id="LWN_story_stage_failure_interrupted" text="演员的表演被其他行为打断" />
+    <string id="LWN_story_stage_failure_control" text="演出指令执行失败" />
+    <string id="LWN_story_stage_failure_exception" text="演出执行时发生异常" />
+    <string id="LWN_story_stage_failure_load" text="演出台本加载失败" />
+    <string id="LWN_story_stage_player" text="玩家" />
+    <string id="LWN_story_observe_finish" text="观察完毕" />
 </strings>
 </base>

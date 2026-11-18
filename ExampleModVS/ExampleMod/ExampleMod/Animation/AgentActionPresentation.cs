@@ -19,14 +19,15 @@ namespace LivingWorldNpcs
     /// <summary>
     /// 一份 PerformanceAction 独占的道具与3D声音。这里只管配套，不调度身体动画。
     /// 原版链路：PlayMusicPoint → AnimationPoint → AgentNavigator.SetPrefabVisibility。
-    /// Navigator缓存同一骨骼/prefab，暂停恢复不会重复创建挂件；不改装备或物品栏。
+    /// 有Navigator时复用其缓存；独立生成的Agent直接走同一原生挂接API，缓存由Agent持有。
+    /// 不创建城镇AI，不改装备或物品栏。
     /// </summary>
     internal sealed class AgentActionPresentation
     {
         private readonly Agent _agent;
         private readonly Mission _mission;
         private readonly string _owner;
-        private readonly List<Tuple<sbyte, string, bool>> _attachments = new List<Tuple<sbyte, string, bool>>();
+        private readonly List<Tuple<sbyte, string, bool, int>> _attachments = new List<Tuple<sbyte, string, bool, int>>();
         private AgentNavigator _navigator;
         private MBAgentVisuals _visuals;
         private ActionPresentationDef _definition;
@@ -65,21 +66,48 @@ namespace LivingWorldNpcs
                     if (!Matches(instrument)) instrument = MBObjectManager.Instance.GetObject<InstrumentData>(Matches);
                     if (!Matches(instrument)) return Fail("no registered instrument for " + action);
                     _navigator = _agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
-                    if (_navigator == null) return Fail("agent navigator unavailable");
                     // 先查整套，避免原版缺prefab时悄悄用 rock_001 代替。
                     foreach (var item in instrument.InstrumentEntities)
                     {
                         sbyte bone = _agent.AgentVisuals.GetRealBoneIndex(item.Item1);
                         if (bone < 0 || !GameEntity.PrefabExists(item.Item2))
                             return Fail("instrument bone/prefab missing: " + item.Item2);
-                        _attachments.Add(Tuple.Create(bone, item.Item2, _navigator.GetPrefabVisibility(bone, item.Item2)));
                     }
-                    foreach (var item in _attachments) _navigator.SetPrefabVisibility(item.Item1, item.Item2, true);
+                    AgentPresentationPrefabs cache = null;
+                    if (_navigator == null)
+                    {
+                        cache = _agent.GetComponent<AgentPresentationPrefabs>();
+                        if (cache == null)
+                        {
+                            cache = new AgentPresentationPrefabs(_agent);
+                            _agent.AddComponent(cache);
+                        }
+                    }
+                    foreach (var item in instrument.InstrumentEntities)
+                    {
+                        sbyte bone = _visuals.GetRealBoneIndex(item.Item1);
+                        if (_navigator != null)
+                        {
+                            _attachments.Add(Tuple.Create(bone, item.Item2, _navigator.GetPrefabVisibility(bone, item.Item2), -1));
+                            _navigator.SetPrefabVisibility(bone, item.Item2, true);
+                        }
+                        else
+                        {
+                            int index;
+                            bool existing = cache.TryGet(bone, item.Item2, out index);
+                            bool wasVisible = existing && _agent.IsSynchedPrefabComponentVisible(index);
+                            if (!existing) index = cache.Add(bone, item.Item2);
+                            // 新挂件只归本次演出：先登记，再显示，失败可按实际句柄回滚。
+                            _attachments.Add(Tuple.Create(bone, item.Item2, wasVisible, index));
+                            _agent.SetSynchedPrefabComponentVisibility(index, true);
+                        }
+                    }
                 }
                 _state = "waiting-action";
                 _reason = "";
                 DebugLogger.Log("[ActionPresentation] begin owner=" + _owner + " action=" + action
-                    + " instrument=" + (definition.Instrument ?? "-") + " prefabs=" + _attachments.Count);
+                    + " instrument=" + (definition.Instrument ?? "-") + " prefabs=" + _attachments.Count
+                    + " attachment=" + (_navigator == null ? "agent-native" : "navigator"));
                 return true;
             }
             catch (Exception ex) { return Fail(ex.GetType().Name + ": " + ex.Message); }
@@ -133,7 +161,11 @@ namespace LivingWorldNpcs
             if (hasVisuals)
             {
                 foreach (var item in _attachments)
-                    try { _navigator?.SetPrefabVisibility(item.Item1, item.Item2, item.Item3); }
+                    try
+                    {
+                        if (item.Item4 >= 0) _agent.SetSynchedPrefabComponentVisibility(item.Item4, item.Item3);
+                        else _navigator?.SetPrefabVisibility(item.Item1, item.Item2, item.Item3);
+                    }
                     catch (Exception ex) { LogCleanup(ex); }
                 // 不覆盖已接手的战斗/绑缚动作倍率。
                 try
@@ -167,5 +199,26 @@ namespace LivingWorldNpcs
 
         private void LogCleanup(Exception ex)
             => DebugLogger.Log("[ActionPresentation] cleanup owner=" + _owner + " " + ex.Message);
+    }
+
+    /// <summary>
+    /// 无城镇Navigator的演员也能复用原版Agent挂件。只缓存本Agent的原生句柄，不运行AI或写动画。
+    /// 挂件生命周期归引擎，显示/隐藏归演出租约；多次暂停、回岗或开场重播不重复创建。
+    /// </summary>
+    internal sealed class AgentPresentationPrefabs : AgentComponent
+    {
+        private readonly Dictionary<Tuple<sbyte, string>, int> _indices = new Dictionary<Tuple<sbyte, string>, int>();
+        public AgentPresentationPrefabs(Agent agent) : base(agent) { }
+        public bool TryGet(sbyte bone, string prefab, out int index)
+            => _indices.TryGetValue(Tuple.Create(bone, prefab), out index);
+        public int Add(sbyte bone, string prefab)
+        {
+            int index = Agent.AddSynchedPrefabComponentToBone(prefab, bone);
+            if (index < 0) throw new InvalidOperationException("agent prefab attachment failed: " + prefab);
+            _indices.Add(Tuple.Create(bone, prefab), index);
+            return index;
+        }
+        public override void OnAgentRemoved() => _indices.Clear();
+        public override void OnComponentRemoved() => _indices.Clear();
     }
 }

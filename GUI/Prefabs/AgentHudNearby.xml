@@ -11,7 +11,7 @@
 
               <!--
                  内容容器：负责坐标偏移
-                 SuggestedHeight 设大一点以容纳垂直堆叠的内容
+                 固定尺寸只用于坐标与屏幕边缘保护；实际内容贴底，不能从顶部留下空白。
               -->
               <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                       SuggestedWidth="300" SuggestedHeight="150"
@@ -22,9 +22,9 @@
 
                 <Children>
                   <!-- 使用 ListPanel 实现垂直堆叠：从上到下为 警戒眼睛 -> 名字 -> 说话 -> 血条 -> 伤害 -->
-                  <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                  <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                              Id="LWN_AgentHud_Main" StackLayout.LayoutMethod="VerticalBottomToTop"
-                             HorizontalAlignment="Center" VerticalAlignment="Center">
+                             HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="10">
                     <Children>
 
                       <!-- 0. 警戒值眼睛区域 — 动态颜色绑定 -->

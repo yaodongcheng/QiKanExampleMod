@@ -288,7 +288,7 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[StoryStage] tick failed: {ex.Message}");
-                _stage?.Stop("tick exception");
+                if (_stage?.Active == true) _stage.Stop("tick exception: " + ex.Message, "LWN_story_stage_failure_exception");
             }
 
             // 延迟队列（倒序移除，回调里可能再排新的）
@@ -314,7 +314,7 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[StoryProbe] tick failed: {ex.Message}");
-                _stage?.Stop("story tick exception");
+                if (_stage?.Active == true) _stage.Stop("story tick exception: " + ex.Message, "LWN_story_stage_failure_exception");
                 if (Phase == StoryProbePhase.Jail && StoryProbeState.Phase == StoryProbePhase.Jail)
                 {
                     StoryProbeBehavior.AbortPrisonTransition("jail setup exception");
@@ -1151,7 +1151,7 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[StoryProbe] defeat presentation failed: {ex.Message}");
-                _stage?.Stop("defeat presentation exception");
+                if (_stage?.Active == true) _stage.Stop("defeat presentation exception: " + ex.Message, "LWN_story_stage_failure_exception");
             }
         }
 
