@@ -24,7 +24,7 @@ namespace LivingWorldNpcs
             {
                 "enable", "disable", "city", "status", "crime", "quests", "enter", "intro", "phase", "where", "spawn",
                 "check", "roll", "learn", "resolve", "strip", "restore", "reset", "talk", "goal",
-                "life", "event", "dialogue", "goto", "abort", "money", "stage", "atom", "action", "reload", "hud",
+                "life", "lesson", "combat", "event", "dialogue", "goto", "abort", "money", "stage", "atom", "action", "reload", "hud",
                 "script", "population", "layout", "intercept", "work", "group", "persona", "gate", "trace", "scene", "environment", "help",
             };
 
@@ -341,6 +341,18 @@ namespace LivingWorldNpcs
                         return $"Usage: custom.story_probe goal 0..4 (current={StoryProbeState.Goal})";
                     }
 
+                    case "lesson":
+                    {
+                        var host = StoryProbeMissionBehavior.Current;
+                        string action = Arg(args, used, 0);
+                        if (string.IsNullOrEmpty(action) || action == "status") return host?.ExistingPractice?.Describe() ?? "OK: practice inactive";
+                        if (action == "reload") return host?.Practice?.Reload() ?? "Error: lesson data unavailable.";
+                        if (action == "cancel") { host?.ExistingPractice?.Stop("console cancelled"); return "OK: practice cancelled; permission revoked."; }
+                        return "Usage: custom.story_probe lesson status|cancel|reload";
+                    }
+
+                    case "combat":
+                        return "OK: " + (StoryProbeMissionBehavior.Current?.DescribeStoryFights() ?? CombatEncounter.Describe());
                     case "life":
                         return HandleLife(Arg(args, used, 0), Arg(args, used, 1), Arg(args, used, 2));
 
@@ -1258,9 +1270,13 @@ namespace LivingWorldNpcs
                     if (session == null) return "OK: no active story dialogue.";
                     var node = session.Definition.FindNode(session.CurrentNode);
                     if (node == null) return "OK: no shown node yet.";
-                    var lines = new List<string> { "OK: node=" + node.Id + " definition options (including condition-hidden options); previews only; no roll/effects." };
-                    foreach (var option in node.Options)
+                    var menu = session.Definition.OptionsNode(node);
+                    var lines = new List<string> { "OK: node=" + node.Id + " menu=" + menu.Id
+                        + " requires=" + string.Join(",", menu.Requires)
+                        + " definition options (including condition-hidden options); previews only; no roll/effects." };
+                    foreach (var option in session.Definition.OptionsFor(node))
                     {
+                        if (option.NextNode == node.Id || option.Check?.Success == node.Id || option.Check?.Fail == node.Id) continue;
                         string target = option.Check?.Target;
                         if (string.IsNullOrEmpty(target) || target == "npc" || target == "questioner") target = session.Request.ActorId;
                         if (option.Check == null) lines.Add("  " + option.Id + " check=none hintKey=" + (option.HintKey ?? "default"));
@@ -1285,7 +1301,8 @@ namespace LivingWorldNpcs
                     foreach (var node in definition.Nodes)
                         lines.Add("  " + node.Id + " speaker=" + node.Speaker + " listener=" + node.Listener
                             + " text=" + node.TextKey + " next=" + (node.NextNode ?? "options/close")
-                            + " options=" + node.Options.Count);
+                            + " menu=" + (node.OptionsFrom ?? node.Id)
+                            + " options=" + definition.OptionsFor(node).Count());
                     return string.Join("\n", lines);
                 }
 
@@ -1450,7 +1467,7 @@ namespace LivingWorldNpcs
                    "phase first|second | where | persona [actorId] | spawn | check <ability> | roll <ability> <0-100> | " +
                    "learn <ability> | resolve <ability> | strip | restore | reset | talk <npc> | goal <0..4> | " +
                    "gate [grant|revoke] | " +
-                   "life debug on|off|status|list|force|say <speaker> <listener>|bark <npc>|facing <npc>|release <npc>|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +
+                   "lesson status|cancel|reload | combat status | life debug on|off|status|list|force|say <speaker> <listener>|bark <npc>|facing <npc>|release <npc>|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +
                    "stage list|only <n>|begin|skip|reload|status|anchor | atom <name> <args> | action <npc> <act> | " +
                    "script list|status|validate [file] | population status|verify | " +
                    "layout list|verify|snapshot|prep|lint-file | environment status|time|weather|snowcover|set|reset|help | intercept status | work status|list|force <npc> | group status | reload | help";

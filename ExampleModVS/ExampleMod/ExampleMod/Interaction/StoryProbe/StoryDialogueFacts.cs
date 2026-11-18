@@ -71,6 +71,14 @@ namespace LivingWorldNpcs
                 arg = term.Substring(at + 1);
             }
 
+            if (name == "lesson_active")
+            {
+                var practice = StoryProbeMissionBehavior.Current?.ExistingPractice;
+                value = practice?.Active == true && practice.Actor == ctx.ActorId
+                    && (string.IsNullOrEmpty(arg) || practice.LessonId == arg);
+                return true;
+            }
+
             if (name == "phase")
             {
                 if (string.IsNullOrEmpty(arg)) { error = "phase 缺参数"; return false; }

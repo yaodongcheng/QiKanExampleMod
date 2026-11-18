@@ -1,0 +1,256 @@
+Name,Group,Zh,Versions,Note
+facegen_teeth,base,牙齿（脸基座）,v1.2.12|v1.5.7,标志=do_blink
+female_custom,base,自定义女脸,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+female_facegen,base,捏脸女脸,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+male_custom,base,自定义男脸,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+male_facegen,base,捏脸男脸,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+portraits,base,肖像默认脸,v1.2.12|v1.5.7,
+arrow_death_1,combat,中箭倒地（变体 1）,v1.2.12|v1.5.7,
+arrow_death_2,combat,中箭倒地（变体 2）,v1.2.12|v1.5.7,
+arrow_death_3,combat,中箭倒地（变体 3）,v1.2.12|v1.5.7,
+arrow_death_4,combat,中箭倒地（变体 4）,v1.2.12|v1.5.7,
+arrow_death_5,combat,中箭倒地（变体 5）,v1.2.12|v1.5.7,
+arrow_death_6,combat,中箭倒地（变体 6）,v1.2.12|v1.5.7,
+arrow_death_7,combat,中箭倒地（变体 7）,v1.2.12|v1.5.7,
+arrow_death_8,combat,中箭倒地（变体 8）,v1.2.12|v1.5.7,
+arrow_death_9,combat,中箭倒地（变体 9）,v1.2.12|v1.5.7,
+death,combat,死亡,v1.2.12|v1.5.7,
+death2,combat,死亡（另一种）,v1.2.12|v1.5.7,
+hitfacefront,combat,正面受击,v1.2.12|v1.5.7,
+hitfaceleft,combat,左侧受击,v1.2.12|v1.5.7,
+hitfaceright,combat,右侧受击,v1.2.12|v1.5.7,
+hitfaceup,combat,上方受击,v1.2.12|v1.5.7,
+convo_aggressive,convo,对话-挑衅,v1.2.12|v1.5.7,
+convo_angry,convo,对话-生气,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_angry_voice,convo,对话-生气（带声）,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_annoyed,convo,对话-不耐烦,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_approving,convo,对话-认可,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_astonished,convo,对话-惊愕,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_bared_teeth,convo,对话-龇牙,v1.2.12|v1.5.7,
+convo_beaten,convo,对话-被打垮,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_bemused,convo,对话-觉得好笑,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_bored,convo,对话-无聊,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_bored2,convo,对话-无聊2,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_calm_friendly,convo,对话-平和友善,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_confused_annoyed,convo,对话-困惑又恼火,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_confused_normal,convo,对话-困惑,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_confused_voice,convo,对话-困惑（带声）,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_contemptuous,convo,对话-轻蔑,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_delighted,convo,对话-欣喜,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_disbelief,convo,对话-难以置信,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_disgusted,convo,对话-嫌恶,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_dismayed,convo,对话-沮丧,v1.2.12|v1.5.7,
+convo_empathic_voice,convo,对话-共情,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_evil_smile,convo,对话-坏笑,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_excited,convo,对话-兴奋,v1.2.12|v1.5.7,标志=do_blink
+convo_focused_happy,convo,对话-专注而愉快,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_focused_voice,convo,对话-专注（带声）,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_furious,convo,对话-暴怒,v1.2.12|v1.5.7,标志=do_blink
+convo_grateful,convo,对话-感激,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_grave,convo,对话-凝重,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_happy,convo,对话-愉快,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_huge_smile,convo,对话-大笑脸,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_innocent_smile,convo,对话-无辜地笑,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_insulted,convo,对话-被冒犯,v1.2.12|v1.5.7,标志=do_blink
+convo_irritable,convo,对话-烦躁,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_merry,convo,对话-欢快,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_mocking_aristocratic,convo,对话-贵族式嘲弄,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_mocking_revenge,convo,对话-嘲弄（复仇）,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_mocking_teasing,convo,对话-戏谑,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_nervous,convo,对话-紧张,v1.2.12|v1.5.7,标志=do_blink
+convo_nervous2,convo,对话-紧张2,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_nonchalant,convo,对话-漫不经心,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_normal,convo,对话-平静（默认待机）,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_pondering,convo,对话-沉吟,v1.2.12|v1.5.7,标志=do_blink
+convo_predatory,convo,对话-猎食者般的压迫,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_relaxed_happy,convo,对话-放松愉快,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_shocked,convo,对话-震惊,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_snide_voice,convo,对话-阴阳怪气,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_stern,convo,对话-严厉,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_thinking,convo,对话-思考,v1.2.12|v1.5.7,标志=do_blink
+convo_uncomfortable,convo,对话-不自在,v1.2.12|v1.5.7,标志=do_blink
+convo_uncomfortable_voice,convo,对话-不自在（带声）,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_undecided_closed,convo,对话-迟疑（闭嘴）,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_undecided_open,convo,对话-迟疑（开口）,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_very_stern,convo,对话-极严厉,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+convo_worried,convo,对话-担忧,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+negative_ag,convo_variant,对话反应-否定·强势,v1.2.12|v1.5.7,标志=do_blink
+negative_co1,convo_variant,对话反应-否定·收敛,v1.2.12|v1.5.7,标志=do_blink
+negative_co2,convo_variant,对话反应-否定·收敛2,v1.2.12|v1.5.7,标志=do_blink
+negative_hi,convo_variant,对话反应-否定·带派,v1.2.12|v1.5.7,标志=do_blink
+negative_ne,convo_variant,对话反应-否定·紧张,v1.2.12|v1.5.7,标志=do_blink
+negative_no,convo_variant,对话反应-否定·平常,v1.2.12|v1.5.7,标志=do_blink
+negative_we,convo_variant,对话反应-否定·疲惫,v1.2.12|v1.5.7,标志=do_blink
+positive_ag,convo_variant,对话反应-认同·强势,v1.2.12|v1.5.7,标志=do_blink
+positive_co1,convo_variant,对话反应-认同·收敛,v1.2.12|v1.5.7,标志=do_blink
+positive_co2,convo_variant,对话反应-认同·收敛2,v1.2.12|v1.5.7,标志=do_blink
+positive_hi,convo_variant,对话反应-认同·带派,v1.2.12|v1.5.7,标志=do_blink
+positive_ne,convo_variant,对话反应-认同·紧张,v1.2.12|v1.5.7,标志=do_blink
+positive_no,convo_variant,对话反应-认同·平常,v1.2.12|v1.5.7,标志=do_blink
+positive_we,convo_variant,对话反应-认同·疲惫,v1.2.12|v1.5.7,标志=do_blink
+stand_ag,convo_variant,对话反应-站姿·强势,v1.2.12|v1.5.7,标志=do_blink
+stand_co2,convo_variant,对话反应-站姿·收敛2,v1.2.12|v1.5.7,标志=do_blink
+stand_ne,convo_variant,对话反应-站姿·紧张,v1.2.12|v1.5.7,标志=do_blink
+stand_we,convo_variant,对话反应-站姿·疲惫,v1.2.12|v1.5.7,
+start_ag,convo_variant,对话反应-起手·强势,v1.2.12|v1.5.7,标志=do_blink
+start_ne,convo_variant,对话反应-起手·紧张,v1.2.12|v1.5.7,标志=do_blink
+trivial_ag,convo_variant,对话反应-敷衍·强势,v1.2.12|v1.5.7,标志=do_blink
+trivial_co1,convo_variant,对话反应-敷衍·收敛,v1.2.12|v1.5.7,标志=do_blink
+trivial_co2,convo_variant,对话反应-敷衍·收敛2,v1.2.12|v1.5.7,标志=do_blink
+trivial_hi,convo_variant,对话反应-敷衍·带派,v1.2.12|v1.5.7,标志=do_blink
+trivial_ne,convo_variant,对话反应-敷衍·紧张,v1.2.12|v1.5.7,标志=do_blink
+trivial_no,convo_variant,对话反应-敷衍·平常,v1.2.12|v1.5.7,标志=do_blink
+trivial_we,convo_variant,对话反应-敷衍·疲惫,v1.2.12|v1.5.7,标志=do_blink
+unsure_ag,convo_variant,对话反应-迟疑·强势,v1.2.12|v1.5.7,标志=do_blink
+unsure_co1,convo_variant,对话反应-迟疑·收敛,v1.2.12|v1.5.7,标志=do_blink
+unsure_co2,convo_variant,对话反应-迟疑·收敛2,v1.2.12|v1.5.7,标志=do_blink
+unsure_hi,convo_variant,对话反应-迟疑·带派,v1.2.12|v1.5.7,标志=do_blink
+unsure_ne,convo_variant,对话反应-迟疑·紧张,v1.2.12|v1.5.7,标志=do_blink
+unsure_no,convo_variant,对话反应-迟疑·平常,v1.2.12|v1.5.7,标志=do_blink
+unsure_we,convo_variant,对话反应-迟疑·疲惫,v1.2.12|v1.5.7,标志=do_blink
+very_negative_ag,convo_variant,对话反应-强烈否定·强势,v1.2.12|v1.5.7,标志=do_blink
+very_negative_co1,convo_variant,对话反应-强烈否定·收敛,v1.2.12|v1.5.7,标志=do_blink
+very_negative_co2,convo_variant,对话反应-强烈否定·收敛2,v1.2.12|v1.5.7,标志=do_blink
+very_negative_hi,convo_variant,对话反应-强烈否定·带派,v1.2.12|v1.5.7,标志=do_blink
+very_negative_ne,convo_variant,对话反应-强烈否定·紧张,v1.2.12|v1.5.7,标志=do_blink
+very_negative_no,convo_variant,对话反应-强烈否定·平常,v1.2.12|v1.5.7,标志=do_blink
+very_negative_we,convo_variant,对话反应-强烈否定·疲惫,v1.2.12|v1.5.7,标志=do_blink
+very_positive_ag,convo_variant,对话反应-强烈认同·强势,v1.2.12|v1.5.7,标志=do_blink
+very_positive_co1,convo_variant,对话反应-强烈认同·收敛,v1.2.12|v1.5.7,标志=do_blink
+very_positive_co2,convo_variant,对话反应-强烈认同·收敛2,v1.2.12|v1.5.7,标志=do_blink
+very_positive_hi,convo_variant,对话反应-强烈认同·带派,v1.2.12|v1.5.7,标志=do_blink
+very_positive_ne,convo_variant,对话反应-强烈认同·紧张,v1.2.12|v1.5.7,标志=do_blink
+very_positive_no,convo_variant,对话反应-强烈认同·平常,v1.2.12|v1.5.7,标志=do_blink
+very_positive_we,convo_variant,对话反应-强烈认同·疲惫,v1.2.12|v1.5.7,标志=do_blink
+cutscene_expression_1,cutscene,,v1.2.12|v1.5.7,登记有、资产缺失（播不出来）
+cutscene_expression_2,cutscene,,v1.2.12|v1.5.7,登记有、资产缺失（播不出来）
+declare_dragon_banner_face_01,cutscene,举旗宣言过场表情 01,v1.2.12|v1.5.7,
+declare_dragon_banner_face_02,cutscene,举旗宣言过场表情 02,v1.2.12|v1.5.7,
+declare_dragon_banner_face_03,cutscene,举旗宣言过场表情 03,v1.2.12|v1.5.7,
+declare_dragon_banner_face_04,cutscene,举旗宣言过场表情 04,v1.2.12|v1.5.7,
+declare_dragon_banner_face_05,cutscene,举旗宣言过场表情 05,v1.2.12|v1.5.7,
+declare_dragon_banner_face_06,cutscene,举旗宣言过场表情 06,v1.2.12|v1.5.7,
+declare_dragon_banner_face_07,cutscene,举旗宣言过场表情 07,v1.2.12|v1.5.7,
+declare_dragon_banner_face_08,cutscene,举旗宣言过场表情 08,v1.2.12|v1.5.7,
+declare_dragon_banner_face_09,cutscene,举旗宣言过场表情 09,v1.2.12|v1.5.7,
+declare_dragon_banner_face_10,cutscene,举旗宣言过场表情 10,v1.2.12|v1.5.7,
+declare_dragon_banner_face_11,cutscene,举旗宣言过场表情 11,v1.2.12|v1.5.7,
+declare_dragon_banner_face_12,cutscene,举旗宣言过场表情 12,v1.2.12|v1.5.7,
+aim,emotion,瞄准,v1.2.12|v1.5.7,标志=look_at_player
+aim_shake,emotion,瞄准发抖,v1.2.12|v1.5.7,标志=look_at_player
+angry,emotion,生气,v1.2.12|v1.5.7,
+archers,emotion,口令-弓手,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+attack,emotion,口令-进攻,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+carry_on,emotion,继续干,v1.2.12|v1.5.7,资产有、登记表没有（可直接调）
+cavalry,emotion,口令-骑兵,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+complimented,emotion,被夸得受用,v1.2.12|v1.5.7,
+confused,emotion,困惑,v1.2.12|v1.5.7,
+cry,emotion,哭,v1.2.12|v1.5.7,
+drink,emotion,喝酒,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+drink2,emotion,喝酒2,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+eat_all,emotion,吃东西-狼吞虎咽,v1.2.12|v1.5.7,标志=do_blink
+eat_happy,emotion,吃东西-开心,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+eat_pleased,emotion,吃东西-满意,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+eat_weird,emotion,吃东西-古怪,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+eat_worried,emotion,吃东西-担心,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+everyone,emotion,口令-全员,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+extremepain,emotion,剧痛,v1.2.12|v1.5.7,资产有、登记表没有（可直接调）
+followme,emotion,口令-跟我来,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+grunt,emotion,闷哼,v1.2.12|v1.5.7,
+happy,emotion,开心,v1.2.12|v1.5.7,
+hard_laugh,emotion,大笑,v1.2.12|v1.5.7,
+hit,emotion,挨打,v1.2.12|v1.5.7,标志=look_at_player
+impressed,emotion,佩服,v1.2.12|v1.5.7,
+infantry,emotion,口令-步兵,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+laugh,emotion,,v1.2.12|v1.5.7,登记有、资产缺失（播不出来）
+lift,emotion,举起,v1.2.12|v1.5.7,标志=look_at_player
+move,emotion,口令-前进,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+pain,emotion,疼痛,v1.2.12|v1.5.7,标志=look_at_player
+parry,emotion,格挡,v1.2.12|v1.5.7,标志=look_at_player
+pleasure_to_meet_you,emotion,幸会,v1.2.12|v1.5.7,资产有、登记表没有（可直接调）
+power,emotion,强势,v1.2.12|v1.5.7,
+rage,emotion,暴怒,v1.2.12|v1.5.7,标志=do_blink
+release,emotion,松手放箭,v1.2.12|v1.5.7,标志=look_at_player
+retreat,emotion,口令-撤退,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+sad_face_cutscene,emotion,悲伤（过场，1.5.7+）,v1.5.7,标志=do_blink
+scared,emotion,害怕,v1.2.12|v1.5.7,标志=look_at_player
+scream,emotion,尖叫,v1.2.12|v1.5.7,标志=look_at_player
+shocked,emotion,震惊,v1.2.12|v1.5.7,标志=look_at_player
+shout,emotion,高喊,v1.2.12|v1.5.7,标志=look_at_player
+smirk,emotion,得意地笑,v1.2.12|v1.5.7,
+smirkcon,emotion,得意地笑（变体）,v1.2.12|v1.5.7,
+sneer,emotion,冷笑,v1.2.12|v1.5.7,标志=look_at_player
+suspicious,emotion,起疑,v1.2.12|v1.5.7,
+terrified,emotion,惊恐,v1.2.12|v1.5.7,
+test,emotion,测试,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+test1,emotion,测试1,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+test2,emotion,测试2,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+victory,emotion,胜利,v1.2.12|v1.5.7,标志=look_at_player
+wow,emotion,惊叹,v1.2.12|v1.5.7,标志=look_at_player
+yeah,emotion,应声,v1.2.12|v1.5.7,标志=look_at_player
+yell,emotion,喊叫,v1.2.12|v1.5.7,标志=look_at_player
+your_money,emotion,你的钱（递钱）,v1.2.12|v1.5.7,资产有、登记表没有（可直接调）
+idle_angry,idle,常驻-生气,v1.2.12|v1.5.7,标志=do_blink
+idle_bandit,idle,常驻-匪气,v1.2.12|v1.5.7,
+idle_cheering1,idle,常驻-欢呼1,v1.2.12|v1.5.7,标志=do_blink
+idle_cheering2,idle,常驻-欢呼2,v1.2.12|v1.5.7,标志=do_blink
+idle_cheering3,idle,常驻-欢呼3,v1.2.12|v1.5.7,
+idle_concentration,idle,常驻-专注,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+idle_condescend,idle,常驻-居高临下,v1.2.12|v1.5.7,标志=do_blink
+idle_despise,idle,常驻-鄙夷,v1.2.12|v1.5.7,
+idle_displeased,idle,常驻-不悦,v1.2.12|v1.5.7,标志=do_blink
+idle_drunk,idle,常驻-醉,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+idle_epicwin,idle,常驻-大获全胜,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+idle_flirty,idle,常驻-调情,v1.2.12|v1.5.7,标志=do_blink
+idle_furious,idle,常驻-暴怒,v1.2.12|v1.5.7,标志=do_blink
+idle_guard,idle,常驻-守卫,v1.2.12|v1.5.7,标志=do_blink
+idle_hero_low_hp,idle,常驻-濒死,v1.2.12|v1.5.7,资产有、登记表没有（可直接调）
+idle_insulted,idle,常驻-被冒犯,v1.2.12|v1.5.7,标志=do_blink
+idle_lookaround,idle,常驻-四处张望,v1.2.12|v1.5.7,
+idle_nervous,idle,常驻-紧张,v1.2.12|v1.5.7,标志=do_blink
+idle_noble,idle,常驻-贵族气,v1.2.12|v1.5.7,标志=look_at_player
+idle_normal,idle,常驻-平常,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+idle_old,idle,常驻-老态,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+idle_pleased,idle,常驻-满意,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+idle_repulsed,idle,常驻-厌恶,v1.2.12|v1.5.7,
+idle_scared,idle,常驻-害怕,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+idle_sick,idle,常驻-病态,v1.2.12|v1.5.7,标志=do_blink
+idle_sleep,idle,常驻-睡着,v1.2.12|v1.5.7,
+idle_sneer,idle,常驻-冷笑,v1.2.12|v1.5.7,资产有、登记表没有（可直接调）
+idle_survive,idle,常驻-劫后余生,v1.2.12|v1.5.7,标志=look_at_player
+idle_terrified,idle,常驻-惊恐,v1.2.12|v1.5.7,标志=do_blink/look_at_player
+idle_tired,idle,常驻-疲惫,v1.2.12|v1.5.7,
+idle_tired2,idle,常驻-疲惫2,v1.2.12|v1.5.7,资产有、登记表没有（可直接调）
+lookdirection_0,look,看向方位 0（12 向）,v1.2.12|v1.5.7,
+lookdirection_11,look,看向方位 11（12 向）,v1.2.12|v1.5.7,
+lookdirection_12,look,看向方位 12（12 向）,v1.2.12|v1.5.7,
+lookdirection_2,look,看向方位 2（12 向）,v1.2.12|v1.5.7,
+lookdirection_3,look,看向方位 3（12 向）,v1.2.12|v1.5.7,
+lookdirection_4,look,看向方位 4（12 向）,v1.2.12|v1.5.7,
+lookdirection_5,look,看向方位 5（12 向）,v1.2.12|v1.5.7,
+lookdirection_6,look,看向方位 6（12 向）,v1.2.12|v1.5.7,
+lookdirection_7,look,看向方位 7（12 向）,v1.2.12|v1.5.7,
+lookdirection_8,look,看向方位 8（12 向）,v1.2.12|v1.5.7,
+lookdirection_9,look,看向方位 9（12 向）,v1.2.12|v1.5.7,
+lookdown,look,低头,v1.2.12|v1.5.7,标志=do_blink
+lookleft,look,看左,v1.2.12|v1.5.7,标志=do_blink
+lookright,look,看右,v1.2.12|v1.5.7,标志=do_blink
+lookstupid,look,发呆,v1.2.12|v1.5.7,标志=do_blink
+lookup,look,抬头,v1.2.12|v1.5.7,标志=do_blink
+pose_1,pose,过场摆姿 1,v1.2.12|v1.5.7,
+pose_2,pose,过场摆姿 2,v1.2.12|v1.5.7,
+pose_3,pose,过场摆姿 3,v1.2.12|v1.5.7,
+pose_4,pose,过场摆姿 4,v1.2.12|v1.5.7,
+pose_5,pose,过场摆姿 5,v1.2.12|v1.5.7,
+pose_6,pose,过场摆姿 6,v1.2.12|v1.5.7,
+pose_7,pose,过场摆姿 7,v1.2.12|v1.5.7,
+pose_8,pose,过场摆姿 8,v1.2.12|v1.5.7,
+pose_9,pose,过场摆姿 9,v1.2.12|v1.5.7,
+talking_angry,talking,说话-生气,v1.2.12|v1.5.7,标志=do_blink
+talking_engaged,talking,说话-投入,v1.2.12|v1.5.7,标志=do_blink
+talking_happy,talking,说话-高兴,v1.2.12|v1.5.7,标志=do_blink
+talking_mean,talking,说话-刻薄,v1.2.12|v1.5.7,标志=do_blink
+talking_normal,talking,说话-平静,v1.2.12|v1.5.7,标志=do_blink
+talking_sad,talking,说话-悲伤,v1.2.12|v1.5.7,标志=do_blink
+face_smile1,test,微笑（测试）,v1.2.12|v1.5.7,资产有、登记表没有（可直接调）
+face_smiling_hard,test,大笑（测试）,v1.2.12|v1.5.7,资产有、登记表没有（可直接调）

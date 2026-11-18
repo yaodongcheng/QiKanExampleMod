@@ -44,7 +44,13 @@ def definitions():
     for fn in sorted(os.listdir(folder)):
         if fn.endswith(".dialog.json"):
             with io.open(os.path.join(folder, fn), encoding="utf-8-sig") as source:
-                yield fn, json.load(source)
+                data = json.load(source)
+                by_id = {n["Id"]: n for n in data["Nodes"]}
+                for n in data["Nodes"]:
+                    if n.get("OptionsFrom"):
+                        n["Options"] = [o for o in by_id[n["OptionsFrom"]]["Options"]
+                                        if n["Id"] not in (o.get("NextNode"), o.get("Check", {}).get("Success"), o.get("Check", {}).get("Fail"))]
+                yield fn, data
 
 
 def node_of(key):

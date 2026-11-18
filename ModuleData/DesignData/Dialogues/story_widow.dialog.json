@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_widow",
-  "ContentVersion": 9,
+  "ContentVersion": 11,
   "EntryOption": "LWN_story_widow_entry",
   "EntryOptionZh": "[说两句] 领班，演得真好。",
   "SkipVanillaOpening": true,
@@ -277,20 +277,8 @@
         "act_conversation_hip_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "widow_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "widow_hub"
     },
     {
       "Id": "widow_ask_sister",
@@ -350,20 +338,8 @@
         "act_conversation_hip_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "widow_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "widow_hub"
     },
     {
       "Id": "widow_ask_rival",
@@ -375,20 +351,8 @@
         "act_conversation_hip_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "widow_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "widow_hub"
     },
     {
       "Id": "widow_deal",
@@ -497,20 +461,8 @@
         "act_conversation_hip_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "widow_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "widow_hub"
     },
     {
       "Id": "widow_quest_accept",
@@ -700,32 +652,8 @@
         "act_conversation_hip_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "widow_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "widow_hub"
     },
     {
       "Id": "event_3_join_line1",
@@ -755,7 +683,7 @@
           "PlayerKey": "LWN_story_event3_opt_side_widow",
           "PlayerKeyZh": "[帮腔] 客人想听哪家是他们的事，你把路堵上，她的生意怎么做？",
           "HintKey": "LWN_story_hint_event3_opt_side_widow",
-          "HintKeyZh": "替宋玉娘说话，试着调解戏班争执。",
+          "HintKeyZh": "替玉娘调解争执",
           "Requires": [
             "!asked:attempt_LWN_story_event3_opt_side_widow"
           ],
@@ -845,7 +773,7 @@
           "PlayerKey": "LWN_story_event3_opt_side_widow",
           "PlayerKeyZh": "[帮腔] 客人想听哪家是他们的事，你把路堵上，她的生意怎么做？",
           "HintKey": "LWN_story_hint_event3_opt_side_widow",
-          "HintKeyZh": "替宋玉娘说话，试着调解戏班争执。",
+          "HintKeyZh": "替玉娘调解争执",
           "Requires": [
             "!asked:attempt_LWN_story_event3_opt_side_widow"
           ],
@@ -1064,32 +992,8 @@
         "act_conversation_hip_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_widow_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "widow_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "widow_hub"
     },
     {
       "Id": "widow_methods_hub",
@@ -1195,32 +1099,8 @@
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
-      "Options": [
-        {
-          "Id": "back_methods",
-          "Speaker": "player",
-          "Listener": "npc",
-          "PlayerKey": "LWN_story_widow_lesson_opt_back_methods",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_widow_lesson_back_methods",
-          "HintKeyZh": "回到交涉与身份的话题。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "widow_methods_hub"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "widow_methods_hub"
     },
     {
       "Id": "widow_learn_identity_1",
@@ -1243,32 +1123,8 @@
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
-      "Options": [
-        {
-          "Id": "back_methods",
-          "Speaker": "player",
-          "Listener": "npc",
-          "PlayerKey": "LWN_story_widow_lesson_opt_back_methods",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_widow_lesson_back_methods",
-          "HintKeyZh": "回到交涉与身份的话题。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "widow_methods_hub"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "widow_methods_hub"
     },
     {
       "Id": "widow_business_hub",

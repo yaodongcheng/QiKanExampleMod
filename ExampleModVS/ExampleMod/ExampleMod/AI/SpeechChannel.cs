@@ -53,6 +53,7 @@ namespace LivingWorldNpcs
         public string CurrentAction;  // 本 agent 当前动作类名（FightEnemyAction/MoveToPositionAction…）
         public string Intent;         // 本 agent 当前 NpcIntentType
         public string LastLine;       // 上一句（对话接力）
+        public string KnownConflict;  // 本人知情的实际冲突；在主线程取快照，异步润色不读原生人物
         public float Agree;           // 会话内当前倾向（0~1；非对话语境 = 无关）
         public int Round;             // 会话轮次
         // 🔴 2026-08-19（内心独白）：true = 说给自己听的心声（括号包裹，说出顾虑——
@@ -80,6 +81,7 @@ namespace LivingWorldNpcs
                 Listener = listener,
                 StimulusType = stimulus,
                 Topic = topic,
+                KnownConflict = CombatEncounter.KnownReason(brain?.Owner, speaker),
             };
             try
             {
@@ -429,7 +431,9 @@ namespace LivingWorldNpcs
                 // 本地化：LWN_speech_situation_surrender（认输求饶处境，双桶；{HP} = 血况后缀，可空）
                 if (intent == "Surrendering") return LWNTextHelper.ResolveCompound("LWN_speech_situation_surrender", ("HP", hp));
                 // 本地化：LWN_speech_situation_fighting（厮杀处境，双桶；{HP} = 血况后缀，可空）
-                if (intent == "Fighting" || action == "FightEnemyAction") return LWNTextHelper.ResolveCompound("LWN_speech_situation_fighting", ("HP", hp));
+                if (intent == "Fighting" || action == "FightEnemyAction")
+                    return LWNTextHelper.ResolveCompound("LWN_speech_situation_fighting", ("HP", hp))
+                        + (string.IsNullOrEmpty(context.KnownConflict) ? "" : "\n" + context.KnownConflict);
                 switch (stim)
                 {
                     // 本地化：LWN_speech_situation_attacked（被攻击处境，双桶；{HP} = 血况后缀，可空）

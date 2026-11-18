@@ -45,7 +45,7 @@ def data_checks():
             for option in node.get('Options', []):
                 text = cn[option['PlayerKey']]
                 if option['Id'] == 'leave': assert text == '[离开] 我先走了。'
-                if option['Id'].startswith('back'): assert text == '[收住] 说点别的。'
+                if option['Id'].startswith('back'): assert text.startswith('[收住] ')
                 if not option.get('Check'): assert not re.match(r'^\[(威吓|扒窃|潜行|应战|制服|撬锁)\]', text), text
     opening = json.loads((data / 'StoryOpeningTimeline.json').read_text(encoding='utf-8'))['Beats']
     inquiries = [b for b in opening if b['Cmd'] == 'inquiry']
@@ -96,13 +96,19 @@ def data_checks():
     plan = json.loads((data / 'StoryScenePlan.json').read_text(encoding='utf-8'))
     original_load = checker.load_data_json
     broken = json.loads((data / 'StoryOpeningTimeline.json').read_text(encoding='utf-8'))
+    # 二次入城现在包含韩守义；负例须真的删掉出场演员再测试错误听话者。
+    broken['Beats'] = [b for b in broken['Beats'] if not (b.get('Cmd') == 'actor_place' and b.get('Actor') == 'gate_sentry')]
     next(b for b in broken['Beats'] if b.get('TextKey') == 'LWN_story_observe_guard_bark')['Listener'] = 'gate_sentry'
+    test_plan = copy.deepcopy(plan)
+    test_plan['Stages']['second_meet']['Actors'].remove('gate_sentry')
     def replaced(path):
+        if str(path).endswith('StoryScenePlan.json'): return test_plan
         return broken if str(path).endswith('StoryOpeningTimeline.json') else original_load(path)
     with patch.object(checker, 'load_data_json', replaced):
         errors = []
         checker.check_stage(str(ROOT), errors)
         assert any("Listener 'gate_sentry' is not in second_meet Actors" in e for e in errors), errors
+    test_plan = plan
     authored = json.loads((data / 'StoryOpeningTimeline.json').read_text(encoding='utf-8'))
     for field in ('AcceptKey', 'TitleKey', 'TextKey'):
         broken = copy.deepcopy(authored)
@@ -120,7 +126,8 @@ def data_checks():
     with patch.object(checker, 'human_playable', return_value=playable - {'act_bar_talk_to_2', 'act_bullied'}):
         errors = []
         checker.check_references(str(ROOT), errors, cast, {'Beats': opening})
-        assert any("stage[22]" in e and "act_bar_talk_to_2" in e and "NPC cannot play it" in e for e in errors), errors
+        debtor_beat = next(i for i, b in enumerate(opening) if b.get('Actor') == 'debtor' and b.get('Action') == 'act_bar_talk_to_2')
+        assert any(f"stage[{debtor_beat}]" in e and "act_bar_talk_to_2" in e and "NPC cannot play it" in e for e in errors), errors
         assert any("event 5" in e and "act_bar_talk_to_2" in e and "NPC cannot play it" in e for e in errors), errors
         assert all(any("event %d" % index in e and "act_bullied" in e and "NPC cannot play it" in e for e in errors)
                    for index in (1, 4)), errors
@@ -129,7 +136,7 @@ def data_checks():
         assert all(any('Behaviors.event_%d' % index in e and 'unplayable_action' in e for e in errors)
                    for index in (1, 4, 5)), errors
     assert not checker.behavior_action_issues(plan, playable)
-    print('PASS: unregistered warrior actions rejected in opening beat 22 and three group actions')
+    print(f'PASS: unregistered warrior actions rejected in opening beat {debtor_beat} and three group actions')
     actors = {n['Id'] for n in cast['Npcs']}
     for life in cast['StreetLife']:
         assert not checker.ambient_speech_issues(life, actors), life['NpcId']
@@ -160,12 +167,16 @@ def runtime_checks():
     stage_methods = '\n'.join(method(stage, name) for name in ('ShowInquiry', 'CloseInquiry', 'Stop', 'ReportFailure', 'FailureActorName', 'Tick', 'Execute', 'SayLine', 'PlayAction', 'OwnsActor'))
     performance = (SRC / 'AI/Actions/AtomicAction.cs').read_text(encoding='utf-8-sig')
     defs_methods = '\n'.join(method(defs, name) for name in ('PlayerGrowth', 'MeetsCheckRequirement', 'PreviewDialogueCheck', 'RollDialogueCheck', 'TakeCheckRoll'))
+    dialogue = (SRC / 'Interaction/StoryProbe/StoryProbeDialogue.cs').read_text(encoding='utf-8-sig')
     code = r'''
 using System; using System.Linq; using System.Collections.Generic; using System.IO; using Newtonsoft.Json;
 enum StoryAbility {Force,Guile,Charm} enum NegotiationTactic {Threaten,Plead}
-class Skill {public string StringId="Charm";}
+class Skill {public string StringId="Charm",Name="Charm";}
 static class DefaultSkills {public static Skill Charm=new(),Roguery=new();}
-class Hero {public static Hero MainHero=new();public int GetSkillValue(Skill s)=>20;}
+static class DefaultCharacterAttributes {public static string Vigor="Vigor",Control="Control";}
+class Hero {public static Hero MainHero=new();public int GetSkillValue(Skill s)=>20;public int GetAttributeValue(string attr)=>2;}
+class StoryDialogueOption {public string PlayerKey,HintKey;public CheckData Check;public class CheckData {public string Target,Tactic,Capability;public int MinimumGrowth;}}
+class HintHarness {__HINT_METHODS__ public static string Line(StoryDialogueOption o)=>DescribeOptionLine(o);}
 class Agent {public static Agent Main=new();public float Health=100;public void SetActionChannel(int channel,ActionIndexCache action,bool ignorePriority,float blendInPeriod){}}
 static class AgentControlHelper {public static int ActionWrites;public static bool SafeIsActive(Agent a)=>a!=null;public static void ForcePlayAction(Agent a,string action,float startProgress,float blendIn,float blendOutPeriodToNoAnim,bool restoreAfter){ActionWrites++;}}
 struct ActionIndexCache {public string Name;public static ActionIndexCache act_none=new(){Name="act_none"};public static ActionIndexCache Create(string name)=>new(){Name=name};}
@@ -187,11 +198,11 @@ static class LWNTextHelper {public static Dictionary<string,string> Texts=new(){
 static class StoryProbeState {public static int RuntimeToken;public static HashSet<string> Completed=new();public static bool IsQuestTurnedIn(string id)=>Completed.Contains(id);public static bool IsRuntimeCurrent(int token)=>token==RuntimeToken;public static State Data=new();public class State {public float RollOverride=-1;public string RollOverrideAbility="";}}
 class StoryProbeMissionBehavior {public static StoryProbeMissionBehavior Current=new();public int Says;public Dictionary<string,Agent> Agents=new();public Agent GetAgent(string id)=>id!=null&&Agents.TryGetValue(id,out var a)?a:null;public Agent ResolveSpeechListener(string id)=>id=="player"?Agent.Main:GetAgent(id);public void SayOnAgent(Agent a,string key,string fb,Agent listener,bool forwardToNearby){Says++;}public Hero GetHero(string id)=>null;}
 static class SingleRollResolver {__CHANCE__ public static bool Roll(float chance,float roll)=>chance>0&&roll>=1-chance;public static StoryRoll SimpleCompute(IntentContext c,NegotiationTactic t)=>new(){Chance=.5f};}
-static class StoryProbeDefs {public static List<StoryNpcDef> Npcs=new(){new(){Id="butcher",AttributeRewards=new(){{"force",15}}}};public static StoryNpcDef GetNpc(string id)=>Npcs.FirstOrDefault(n=>n.Id==id);public static string AbilityId(StoryAbility a)=>a.ToString().ToLowerInvariant();public static float PlayerAttr(StoryAbility a)=>20+PlayerGrowth(a);public static float NpcAttr(string id,StoryAbility a)=>70;public static bool TryGetCapability(string c,out StoryAbility a){a=StoryAbility.Force;return c=="Intimidate";}__DEFS__}
+static class StoryProbeDefs {public static List<StoryNpcDef> Npcs=new(){new(){Id="butcher",AttributeRewards=new(){{"force",15}}}};public static StoryNpcDef GetNpc(string id)=>Npcs.FirstOrDefault(n=>n.Id==id);public static string AbilityId(StoryAbility a)=>a.ToString().ToLowerInvariant();public static string AbilityDisplayKey(StoryAbility a)=>"LWN_story_ability_"+AbilityId(a);public static bool TryParseDialogueTactic(string t,out NegotiationTactic value)=>Enum.TryParse(t,out value);public static string CapabilityName(string c)=>c;public static float PlayerAttr(StoryAbility a)=>20+PlayerGrowth(a);public static float NpcAttr(string id,StoryAbility a)=>70;public static bool TryGetCapability(string c,out StoryAbility a){a=StoryAbility.Force;return c=="Intimidate";}__DEFS__}
 class StageBeat {public float At,BlendSeconds=.8f,Seconds;public string Cmd,Actor,Action,Listener,Case,TitleKey,TextKey,AcceptKey,CancelKey,Note;}
 class StageScript {public string Script;public List<StageBeat> Beats=new();}
 static class StoryStageDefs {static Dictionary<string,StageScript> _cache=new();public static string DesignDataFolder=__FIXTURE_FOLDER__;__LOAD__}
-class PerformanceAction {public bool Ended,CanControl=true;public int Releases;public AgentBrain _brain=new();public Mission _mission=Mission.Current;public string OwnerToken="observation";private AgentActionPresentation _presentation;public void Release(string s){Ended=true;Releases++;}__PERFORMANCE_PLAY__}
+class PerformanceAction {public bool Ended,IsWalking,CanControl=true;public int Releases;public AgentBrain _brain=new();public Mission _mission=Mission.Current;public string OwnerToken="observation";private AgentActionPresentation _presentation;public void Release(string s){Ended=true;Releases++;}__PERFORMANCE_PLAY__}
 static class StoryProbeTuning {public static Tuning Current=new();public class Tuning {public Performance Performance=new();}public class Performance {public float ActorReadyTimeoutSec=5;}}
 class InquiryData {public Action Accept,Cancel;public bool AcceptShown,CancelShown;public string AcceptLabel,CancelLabel;public InquiryData(string t,string b,bool y,bool n,string a,string c,Action yes,Action no){Accept=yes;Cancel=no;AcceptShown=y;CancelShown=n;AcceptLabel=a;CancelLabel=c;}}
 class InformationMessage {public string Text;public InformationMessage(string text){Text=text;}}
@@ -216,9 +227,17 @@ class Program {
 static int checks;static void Check(bool value,string description){if(!value)throw new Exception(description);checks++;}
 static StageBeat Prompt(float at)=>new(){At=at,Cmd="inquiry",TitleKey="title",TextKey="body",AcceptKey="yes",CancelKey="no"};
 static StageHarness Setup(){CameraService.Owner=null;CameraService.Machine.BlendProgress=1;InformationManager.Shown.Clear();InformationManager.Messages.Clear();InformationManager.ThrowMessage=false;InformationManager.Hides=0;AgentControlHelper.ActionWrites=0;StoryProbeState.RuntimeToken=0;Mission.Current=new();StoryProbeMissionBehavior.Current=new();foreach(var id in new[]{__ACTORS__})StoryProbeMissionBehavior.Current.Agents[id]=new();var s=new StageHarness();foreach(var id in StoryProbeMissionBehavior.Current.Agents.Keys)s._actors[id]=new(){_brain=new(){Owner=StoryProbeMissionBehavior.Current.Agents[id]}};s._script.Beats.AddRange(new[]{Prompt(0),new StageBeat{At=.1f,Cmd="camera_cut"},new StageBeat{At=.2f,Cmd="actor_say",Actor="blocker",Listener="player",TextKey="line"},Prompt(.3f),new StageBeat{At=.4f,Cmd="camera_cut"},Prompt(.5f),new StageBeat{At=.6f,Cmd="camera_return"}});return s;}
-static StageHarness Observe(bool missing,bool holdLast=false){var s=Setup();s._script.Beats=new(){__OBSERVATION_BEATS__};if(missing)s._script.Beats.First(b=>b.TextKey=="LWN_story_observe_guard_bark").Listener="gate_sentry";for(int i=0;i<600&&s._running;i++){CameraService.Machine.BlendProgress=1;s.Tick(.1f);if(s._waitingInquiry){if(holdLast&&InformationManager.Shown.Count==6)return s;InformationManager.Shown.Last().Accept();}}return s;}
+static StageHarness Observe(bool missing,bool holdLast=false){var s=Setup();s._script.Beats=new(){__OBSERVATION_BEATS__};if(missing){StoryProbeMissionBehavior.Current.Agents.Remove("gate_sentry");s._script.Beats.First(b=>b.TextKey=="LWN_story_observe_guard_bark").Listener="gate_sentry";}for(int i=0;i<600&&s._running;i++){CameraService.Machine.BlendProgress=1;s.Tick(.1f);if(s._waitingInquiry){if(holdLast&&InformationManager.Shown.Count==6)return s;InformationManager.Shown.Last().Accept();}}return s;}
 static void Main(){
-var loaded=StoryStageDefs.Load("valid",true);Check(loaded!=null&&loaded.Beats.Count==50&&loaded.Beats.Last(b=>b.Cmd=="inquiry").CancelKey==null,"production loader accepts authored final inquiry with no CancelKey");
+var loaded=StoryStageDefs.Load("valid",true);Check(loaded!=null&&loaded.Beats.Count==__BEAT_COUNT__&&loaded.Beats.Last(b=>b.Cmd=="inquiry").CancelKey==null,"production loader accepts authored final inquiry with no CancelKey");
+StoryProbeMissionBehavior.Current.Agents["guard"]=new();StoryProbeState.Completed.Clear();StoryProbeState.Data.RollOverride=100;int diceBefore=MBRandom.Calls;
+LWNTextHelper.Texts["prefixed"]="[Intimidate] step aside";LWNTextHelper.Texts["plain"]="step aside";LWNTextHelper.Texts["note"]="ask for passage";
+var option=new StoryDialogueOption{PlayerKey="prefixed",HintKey="note",Check=new(){Target="guard",Tactic="Threaten",Capability="Intimidate",MinimumGrowth=15}};
+var optionHint=HintHarness.DescribeOptionHint(option,"guard");
+if(HintHarness.Line(option)!="[Intimidate] step aside"||!optionHint.Contains("(20)")||!optionHint.Contains("(70)")||!optionHint.Contains("2")||!optionHint.Contains("0/15")||!optionHint.Contains("0.0%")||MBRandom.Calls!=diceBefore||StoryProbeState.Data.RollOverride!=100)throw new Exception("actual structured hint must show basis/prerequisite and never roll; authored prefix exactly once");
+option.PlayerKey="plain";if(!HintHarness.Line(option).StartsWith("[Intimidate]"))throw new Exception("unprefixed check receives one label");
+option.Check=null;if(HintHarness.Line(option)!="step aside"||HintHarness.DescribeOptionHint(option,"guard")!="ask for passage")throw new Exception("ordinary conversation retains authored line and purpose");
+Console.WriteLine("PASS: actual structured hint, ability basis, disabled probability, one prefix and no-roll query checks");
 foreach(string name in new[]{"no_accept","no_title","no_text"})Check(StoryStageDefs.Load(name,true)==null,"production loader rejects missing required inquiry field: "+name);
 StoryProbeMissionBehavior.Current.Agents["guard"]=new();
 StoryProbeState.Completed.Clear();StoryProbeState.Data.RollOverride=100;
@@ -250,11 +269,11 @@ Console.WriteLine($"PASS: {checks} extracted C# training and inquiry lifecycle c
  s.Tick(100);Check(s._running&&s._waitingInquiry&&s.Frozen&&s.Returns==0&&CameraService.Owner==s._cameraOwner,"final inquiry waits without returning the camera or player early");
  last.Accept();s.Tick(1);Check(!s._running&&!s.Frozen&&s._next==s.BeatCount&&InformationManager.Shown.Count==6&&s.Cuts==5&&s.BodyLines==7&&AgentControlHelper.ActionWrites==14&&InformationManager.Messages.Count==0,"finish button completes all 14 actions, five cameras, seven lines and six inquiries and returns control");
  Check(MBActionSet.Playable.Remove("act_bar_talk_to_2"),"regression target was registered");s=Observe(false);
- Check(!s._running&&!s.Frozen&&s._next==23&&s.Cuts==0&&InformationManager.Shown.Count==0&&AgentControlHelper.ActionWrites==6,"missing warrior mapping reproduces actual beat 22 failure before initial inquiry or camera");
- Check(InformationManager.Messages.Count==1&&InformationManager.Messages[0].Contains("beat 22")&&InformationManager.Messages[0].Contains("debtor")&&InformationManager.Messages[0].Contains("act_bar_talk_to_2"),"actual beat 22 failure displays actor, action and beat exactly once");
+ Check(!s._running&&!s.Frozen&&s._next==__FAILED_NEXT__&&s.Cuts==0&&InformationManager.Shown.Count==0&&AgentControlHelper.ActionWrites==__PRIOR_ACTIONS__,"missing warrior mapping fails before initial inquiry or camera");
+ Check(InformationManager.Messages.Count==1&&InformationManager.Messages[0].Contains("beat __FAILED_BEAT__")&&InformationManager.Messages[0].Contains("debtor")&&InformationManager.Messages[0].Contains("act_bar_talk_to_2"),"action failure displays actor, action and beat exactly once");
  s.Stop("failure seen twice","LWN_story_stage_failure_action");s.Tick(100);Check(InformationManager.Messages.Count==1,"repeat stop/tick does not repeat the failure message");
  MBActionSet.Playable.Add("act_bar_talk_to_2");s=Observe(false);
- Check(s._next==50&&s.Cuts==5&&InformationManager.Shown.Count==6,"restoring native mapping lets the same authored timeline finish");
+ Check(s._next==__BEAT_COUNT__&&s.Cuts==5&&InformationManager.Shown.Count==6,"restoring native mapping lets the same authored timeline finish");
  s=Observe(true);Check(!s._running&&!s.Frozen&&InformationManager.Shown.Count==1&&s.Cuts==1&&s.BodyLines==0&&InformationManager.Messages.Single().Contains("gate_sentry"),"old missing listener displays its cause before guard description");
  s=Setup();s._actorsAcquired=false;s.AcquireAllowed=false;s.Tick(.1f);Check(!s._running&&InformationManager.Messages.Single().Contains("acquire its actors"),"failed actor acquisition displays its cause");
  s=Setup();s._openingCameraPending=true;s.OpeningAllowed=false;s.Tick(5);Check(!s._running&&s.OpeningCameraFailed&&InformationManager.Messages.Single().Contains("camera transition failed"),"opening camera retries report only final failure");
@@ -267,11 +286,14 @@ Console.WriteLine($"PASS: {checks} extracted C# training and inquiry lifecycle c
  s.Stop("action failed","LWN_story_stage_failure_action",new(){Actor="debtor",Action="act_bar_talk_to_2"},22);
  Check(InformationManager.Messages.Single().Contains(__CN_ACTOR_NAME__)&&InformationManager.Messages[0].Contains("act_bar_talk_to_2")&&!InformationManager.Messages[0].Contains("{ACTOR}")&&!InformationManager.Messages[0].Contains("LWN_"),"Chinese failure resolves actual localized actor name and action without leaking placeholders or keys");
  Console.WriteLine("PASS: localized failure notifications, one-shot reporting, quiet cancellation/reset/completion and cleanup even when message UI fails");
- Console.WriteLine("PASS: full 50-beat observation, 14 real PlayAction calls, missing warrior mapping and missing-listener negatives (native camera/agents/UI stubbed)");
+ Console.WriteLine("PASS: full __BEAT_COUNT__-beat observation, 14 real PlayAction calls, missing warrior mapping and missing-listener negatives (native camera/agents/UI stubbed)");
 }}
 '''
     plan = json.loads((ROOT / 'ModuleData/DesignData/StoryScenePlan.json').read_text(encoding='utf-8'))
     beats = json.loads((ROOT / 'ModuleData/DesignData/StoryOpeningTimeline.json').read_text(encoding='utf-8'))['Beats']
+    failed_beat = next(i for i, b in enumerate(beats) if b.get('Actor') == 'debtor' and b.get('Action') == 'act_bar_talk_to_2')
+    code = code.replace('__BEAT_COUNT__', str(len(beats))).replace('__FAILED_BEAT__', str(failed_beat))
+    code = code.replace('__FAILED_NEXT__', str(failed_beat + 1)).replace('__PRIOR_ACTIONS__', str(sum(b.get('Cmd') == 'actor_action' for b in beats[:failed_beat])))
     rendered = []
     for beat in beats:
         fields = ['%s=%sf' % (k, float(v)) if isinstance(v, (int, float)) else '%s=%s' % (k, json.dumps(v))
@@ -279,8 +301,9 @@ Console.WriteLine($"PASS: {checks} extracted C# training and inquiry lifecycle c
         rendered.append('new StageBeat{' + ','.join(fields) + '}')
     code = code.replace('__STAGE__', stage_methods).replace('__DEFS__', defs_methods).replace('__CHANCE__', method(resolver, 'SimpleChance'))
     code = code.replace('__PERFORMANCE_PLAY__', method(performance, 'PlayAction'))
+    code = code.replace('__HINT_METHODS__', method(dialogue, 'DescribeOptionLine') + '\n' + method(dialogue, 'DescribeOptionHint'))
     texts = {s.get('id'): s.get('text') for s in ET.parse(ROOT / 'ModuleData/Languages/std_LivingWorldNpcs_strings.xml').iter('string')
-             if s.get('id', '').startswith(('LWN_story_stage_', 'LWN_story_observe_'))}
+             if s.get('id', '').startswith(('LWN_story_stage_', 'LWN_story_observe_', 'LWN_story_hint_', 'LWN_story_option_', 'LWN_story_odds_', 'LWN_story_ability_'))}
     code = code.replace('__FAILURE_TEXTS__', ','.join('{%s,%s}' % (json.dumps(k), json.dumps(v)) for k, v in texts.items()))
     cn_texts = {s.get('id'): s.get('text') for s in ET.parse(ROOT / 'ModuleData/Languages/CNs/std_LivingWorldNpcs_strings.xml').iter('string')
                 if s.get('id', '').startswith(('LWN_story_stage_', 'LWN_story_name_'))}

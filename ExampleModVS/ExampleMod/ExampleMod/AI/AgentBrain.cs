@@ -500,7 +500,9 @@ namespace LivingWorldNpcs
                 done?.Invoke(false);
                 return;
             }
-            EnqueueAction(new StoryMoveAction(pos, stop, done));
+            var move = new StoryMoveAction(pos, stop, done, args.Length > 4 && args[4] is float seconds ? seconds : 20f);
+            (args.Length > 3 ? args[3] as Action<StoryMoveAction> : null)?.Invoke(move);
+            EnqueueAction(move);
         }
 
         private void StartStoryIntercept(AIEvent ev)
@@ -790,6 +792,17 @@ namespace LivingWorldNpcs
                 EnqueueAction(new FightEnemyAction(targetAgent, isDuel: true,
                     protectInitiator: protectInitiator, onDuelResolved: onDuelResolved));
             }
+            if (aiEvent.EventType == "combat_encounter")
+            {
+                var encounter = aiEvent.Args?.FirstOrDefault() as CombatEncounter;
+                if (encounter == null || encounter.Initiator != Owner || IsChildOwner
+                    || IsInCombat || IsPerforming || IsBound || IsStatusHeld || IsStunned)
+                { encounter?.Cancel(); return; }
+                SetNpcIntent(NpcIntentType.Fighting, encounter.Opponent);
+                InteractedAgent = encounter.Opponent;
+                ClearAllActions();
+                EnqueueAction(new FightEnemyAction(encounter.Opponent, encounter: encounter));
+            }
             if (aiEvent.EventType == "event_stop_combat")
             {
                 if (aiEvent.Args != null && aiEvent.Args.Length > 0)
@@ -1051,6 +1064,7 @@ namespace LivingWorldNpcs
                 Agent criminal = aiEvent.Args != null && aiEvent.Args.Length > 0 ? aiEvent.Args[0] as Agent : null;
                 Agent victim = aiEvent.Args != null && aiEvent.Args.Length > 1 ? aiEvent.Args[1] as Agent : null;
                 if (criminal == null || victim == null || criminal == Owner || victim == Owner) return;
+                if (CombatEncounter.NoteHelpedAttack(Owner, criminal, victim)) return;
                 SetPulseTarget(PlayerActionType.AttackCivilian, victim.Name, null, victim.Index);
                 RecordNarration($"我看见{criminal.Name}在街上打{victim.Name}");
                 if (AddAlert(PlayerActionType.AttackCivilian, 0.5f))   // 0.5/刀（同 AttackAlly，2026-08-12 用户裁定）：第一刀 Suspicious 嘀咕 → 第二刀 Cautious 劝阻 → 持续打 Alarmed 参战
@@ -1927,6 +1941,14 @@ var streetDef = StoryProbeDefs.GetStreetLife(StoryProbeDialogue.ResolveNpcId(Own
             if (CombatManager.IsAgentFightingPlayer(Owner))
                 return;
 
+            // 老师同意本轮实操，蹲下/拿练习工具不构成日常嫌疑。
+            // 只撤掉此老师的持续姿态采样；受击、他人失窃和目击事件仍走原管线。
+            if (StoryProbeMissionBehavior.Current?.ExistingPractice?.IsConsentingTeacher(Owner) == true)
+            {
+                DecayAlertBreakdown(dt);
+                return;
+            }
+
             // 🆕 玩家队友豁免：队友看到玩家蹲下/拔刀/开偷窃UI 不涨警戒（信任玩家），
             // 残留值（如曾被玩家直接攻击的脉冲）照常衰减归零。
             if (IsPlayerTeammate(Owner))
@@ -1967,6 +1989,7 @@ var streetDef = StoryProbeDefs.GetStreetLife(StoryProbeDialogue.ResolveNpcId(Own
                     bool weaponDrawn = weaponSuspicion && (isPlayer
                         ? (AgentAIController.Instance?.PlayerWeaponDrawn ?? false)
                         : AgentAIController.GetBrainForAgent(t)?.WeaponDrawnActive == true);
+                    if (weaponDrawn && CombatEncounter.HelpsWitness(Owner, t)) weaponDrawn = false;
                     if ((!crouching || crouchHandled) && (!weaponDrawn || weaponHandled)) continue;
                     bool visible = isPlayer ? canSeePlayer
                         : NpcSightSystem.CanAgentSeeTarget(Owner, t, 15f, 120f);
@@ -2014,7 +2037,8 @@ var streetDef = StoryProbeDefs.GetStreetLife(StoryProbeDialogue.ResolveNpcId(Own
 
             // 玩家开启偷窃UI（玩家专属 UI 通道，铁律 18 排除平权；随从"偷窃中" = 蹲姿感知已覆盖
             // + 得手被抓 3.0 脉冲 InlineSteps）
-            if (canSeePlayer && StealManager.IsUIOpen)
+            if (canSeePlayer && StealManager.IsUIOpen
+                && StoryProbeMissionBehavior.Current?.ExistingPractice?.IsPracticeTarget(Owner) != true)
             {
                 AddAlert(PlayerActionType.StealUIOpen, dt * 0.30f * GetAlertDistanceMultiplier());
                 anySuspicious = true;

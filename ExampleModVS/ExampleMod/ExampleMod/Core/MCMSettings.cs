@@ -161,6 +161,22 @@ namespace LivingWorldNpcs
             set => Settings.Instance.EnableRevengeParty = value;
         }
 
+        // ── 犯罪等级开关（透传核心 Settings；默认开启，2026-11-18 用户需求）──
+        // Order = 1：与「派出复仇队」并列成一簇（两条都是"犯罪后果"开关；
+        // 同 Order 按显示名稳定排序，不影响其他项的既有位置）。
+        // 关闭 = 本 mod 触发的犯罪行为不再提升犯罪等级：
+        //   · 不弹原版「你的犯罪等级上升了」提示；
+        //   · 犯罪等级不会越过原版宣战线 ⇒ 不会因我们的犯罪玩法被整国宣战。
+        // 赔偿 / 坐牢 / 释放流程照旧（只是不留犯罪等级）。
+        [SettingPropertyBool("{=LWN_mcm_crime_rating}Crimes Raise Crime Rating", Order = 1, RequireRestart = false,
+            HintText = "{=LWN_mcm_crime_rating_hint}When enabled (default), crimes reported in this mod raise the local kingdom's crime rating. Once the rating passes the vanilla threshold, that kingdom declares war on you. Disable to stop every crime-rating increase caused by this mod: no criminal-rating popups, and no war declarations caused by your crimes. Compensation, jail and release still work as before; this also affects the prologue's scripted bounty.")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public bool CrimeRatingIncreaseEnabled
+        {
+            get => Settings.Instance.CrimeRatingIncreaseEnabled;
+            set => Settings.Instance.CrimeRatingIncreaseEnabled = value;
+        }
+
         // ── 战斗（透传核心 Settings）──
         [SettingPropertyBool("{=LWN_mcm_heal_on_kill}Heal on Kill", Order = 0, RequireRestart = false,
             HintText = "{=LWN_mcm_heal_on_kill_hint}When enabled, the player restores health after killing an enemy on the battlefield. Disable to remove this bonus.")]

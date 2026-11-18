@@ -131,6 +131,7 @@ namespace LivingWorldNpcs
 
     public sealed class AmbientTuning
     {
+        public float ListenerRadiusMeters = 10f;
         public float SpeechGapSec = 3.5f;
         /// <summary>进场后第一次小动作的延迟区间（秒）。</summary>
         public float FirstDelayMinSec = 2f;
@@ -264,7 +265,11 @@ namespace LivingWorldNpcs
         /// <summary>声音多久内还有效（秒）——NPC 只对这段时间内的声音回头。</summary>
         public float MaxAgeSec = 1.5f;
         /// <summary>直视扇形内注视玩家的最大距离（米）：只转头，不转身。</summary>
-        public float GazeRadiusMeters = 10f;
+        public float GazeRadiusMeters = 5f;
+        /// <summary>普通非敌对人只关心身后这个距离内的跑步脚步，走路不会引起转身。</summary>
+        public float OrdinaryFootstepRadiusMeters = 2f;
+        /// <summary>敌对对象的注视距离，职责视线仍由岗位规则独立控制。</summary>
+        public float HostileGazeRadiusMeters = 10f;
         /// <summary>朝声源转身后保持多久（秒）再转回岗位朝向。</summary>
         public float TurnHoldSec = 6f;
     }

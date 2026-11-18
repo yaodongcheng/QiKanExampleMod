@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_butcher",
-  "ContentVersion": 9,
+  "ContentVersion": 11,
   "EntryOption": "LWN_story_butcher_entry",
   "EntryOptionZh": "[说两句] 这肉新鲜吗？",
   "SkipVanillaOpening": true,
@@ -101,6 +101,7 @@
       "Listener": "player",
       "TextKey": "LWN_story_butcher_intro",
       "TextKeyZh": "今天刚宰的肉，要买我就给你切，有事站旁边说，别碰案上的刀。",
+      "Face": "convo_stern",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -274,20 +275,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_butcher_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "butcher_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "butcher_hub"
     },
     {
       "Id": "butcher_ask_past",
@@ -343,24 +332,13 @@
       "Listener": "player",
       "TextKey": "LWN_story_butcher_ask_past_2",
       "TextKeyZh": "他们让我看着一批被绑的人，我不肯，后来就砸了我的摊子，这事我不想再干。",
+      "Face": "convo_grave",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_butcher_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "butcher_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "butcher_hub"
     },
     {
       "Id": "butcher_ask_sister",
@@ -420,20 +398,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_butcher_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "butcher_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "butcher_hub"
     },
     {
       "Id": "butcher_deal",
@@ -542,20 +508,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_butcher_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "butcher_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "butcher_hub"
     },
     {
       "Id": "butcher_quest_accept",
@@ -681,6 +635,7 @@
       "Listener": "player",
       "TextKey": "LWN_story_butcher_chat",
       "TextKeyZh": "今天能好好卖肉了，案板也不用挪进挪出，多亏你帮了这一回。",
+      "Face": "convo_relaxed_happy",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -745,32 +700,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_butcher_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "butcher_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "butcher_hub"
     },
     {
       "Id": "event_2_join_line1",
@@ -778,6 +709,7 @@
       "Listener": "npc",
       "TextKey": "LWN_story_event2_join_line1",
       "TextKeyZh": "老东西，这月的例钱呢？",
+      "Face": "convo_aggressive",
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
@@ -802,6 +734,7 @@
       "Listener": "thug",
       "TextKey": "LWN_story_event2_join_line3",
       "TextKeyZh": "滚开！",
+      "Face": "convo_angry",
       "LineActions": [
         "act_conversation_closed_very_negative"
       ],
@@ -814,6 +747,7 @@
       "Listener": "thug",
       "TextKey": "LWN_story_event2_join",
       "TextKeyZh": "再碰我案板一下，老子剁了你的爪子！",
+      "Face": "rage",
       "LineActions": [
         "act_conversation_closed_very_negative"
       ],
@@ -824,7 +758,7 @@
           "PlayerKey": "LWN_story_event2_opt_help",
           "PlayerKeyZh": "[帮屠户] 住手，别砸他的摊子，有本事冲我来。",
           "HintKey": "LWN_story_hint_event2_opt_help",
-          "HintKeyZh": "喝止打手，试着替屠户解围；可能激怒对方。",
+          "HintKeyZh": "替大山解围；可能激怒打手",
           "Requires": [
             "!asked:attempt_LWN_story_event2_opt_help"
           ],
@@ -902,7 +836,7 @@
           "PlayerKey": "LWN_story_event2_opt_help",
           "PlayerKeyZh": "[帮屠户] 住手，别砸他的摊子，有本事冲我来。",
           "HintKey": "LWN_story_hint_event2_opt_help",
-          "HintKeyZh": "喝止打手，试着替屠户解围；可能激怒对方。",
+          "HintKeyZh": "替大山解围；可能激怒打手",
           "Requires": [
             "!asked:attempt_LWN_story_event2_opt_help"
           ],
@@ -982,6 +916,7 @@
       "Listener": "player",
       "TextKey": "LWN_story_event2_win",
       "TextKeyZh": "肯替人出头的外乡人不多见了。",
+      "Face": "convo_approving",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1061,6 +996,7 @@
       "Listener": "thug",
       "TextKey": "LWN_story_event2_lose",
       "TextKeyZh": "别打外人，例钱我明天凑给你！",
+      "Face": "convo_beaten",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
@@ -1226,36 +1162,13 @@
       "Listener": "player",
       "TextKey": "LWN_story_butcher_money_disdain",
       "TextKeyZh": "钱收回去，我想要的是砸摊的人停手，这几枚钱顶不了事。",
+      "Face": "convo_contemptuous",
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_butcher_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "butcher_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "butcher_hub"
     },
     {
       "Id": "butcher_methods_hub",
@@ -1359,32 +1272,8 @@
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
-      "Options": [
-        {
-          "Id": "back_methods",
-          "Speaker": "player",
-          "Listener": "npc",
-          "PlayerKey": "LWN_story_butcher_lesson_opt_back_methods",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_butcher_lesson_back_methods",
-          "HintKeyZh": "回到应付门岗的办法。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "butcher_methods_hub"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "butcher_methods_hub"
     },
     {
       "Id": "butcher_learn_threat",
@@ -1395,32 +1284,8 @@
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
-      "Options": [
-        {
-          "Id": "back_methods",
-          "Speaker": "player",
-          "Listener": "npc",
-          "PlayerKey": "LWN_story_butcher_lesson_opt_back_methods",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_butcher_lesson_back_methods",
-          "HintKeyZh": "回到应付门岗的办法。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "butcher_methods_hub"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "butcher_methods_hub"
     },
     {
       "Id": "butcher_learn_control_1",
@@ -1443,32 +1308,8 @@
       "LineActions": [
         "act_conversation_closed_trivial"
       ],
-      "Options": [
-        {
-          "Id": "back_methods",
-          "Speaker": "player",
-          "Listener": "npc",
-          "PlayerKey": "LWN_story_butcher_lesson_opt_back_methods",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_butcher_lesson_back_methods",
-          "HintKeyZh": "回到应付门岗的办法。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "butcher_methods_hub"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "butcher_methods_hub"
     },
     {
       "Id": "butcher_business_hub",

@@ -807,3 +807,19 @@ public static string InjectScript(DialogueInjectScript script, string debugLabel
 - `Interaction/StoryProbe/StoryDialogueDefs.cs`、`StoryDialogueFacts.cs`、`StoryDialogueRuntime.cs`：正式解析、入口选择、会话提交与诊断。
 - `Interaction/StoryProbe/StoryLineActions.cs`、`AI/AgentBrain.cs`：真实Speaker单句动作与会话期间行为保护。
 - `CampaignMode/Tools/StoryProbeCommands.cs`：逐句结构和真实人物诊断。
+
+## 每句台词的表情：`Face`（2026-11-18 实机通过；轮子正文在 [agent.md](agent.md) 末节）
+
+对话节点加一个 `Face`（与 `LineActions` 同级，一句一个）：
+
+```json
+{ "Id": "event_2_join", "TextKey": "LWN_story_event2_join", "Face": "rage", "LineActions": ["..."] }
+```
+
+- 空 = 回到该角色的**原版默认待机脸**（`CharacterHelper.GetDefaultFaceIdle`），不会一路延续上一句。
+- 播放走 `StoryFaceAnimations.PlayOrDefault`（**Mid 通道**；原版每句会清 High，写 High 等于没写）。
+- 名字必须来自 `Scripts/face_animations.csv`（生成物）；写错静默无反应，离线闸门
+  `python Scripts/check_story_probe.py` 的 `faces=` 与"表情不存在"会拦。
+- 挑名字：`Knowledge/骑砍2表情系统_引擎能力与实现.md` 第六节「按情绪挑」；裸名（`rage`/`cry`）幅度大、
+  `convo_*` 是对话用的细腻档（日常台词优先）；`idle_*` 是常驻底色。
+- 现成样板：`Dialogues/story_butcher.dialog.json`（9 句）。

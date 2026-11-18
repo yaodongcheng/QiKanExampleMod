@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_rival",
-  "ContentVersion": 8,
+  "ContentVersion": 9,
   "EntryOption": "LWN_story_rival_entry",
   "EntryOptionZh": "[说两句] 这家戏班是你管的？",
   "SkipVanillaOpening": true,
@@ -82,7 +82,7 @@
           "PlayerKey": "LWN_story_rival_opt_settle",
           "PlayerKeyZh": "[说服] 两家各唱各的，先把到她台前的路让出来，别让客人听戏还得挤过去。",
           "HintKey": "LWN_story_hint_rival_opt_settle",
-          "HintKeyZh": "试着劝领班把通往宋玉娘戏台的路让出来。",
+          "HintKeyZh": "劝领班让路",
           "Requires": [
             "quest_accepted@widow",
             "!quest_done@widow",
@@ -184,7 +184,7 @@
           "PlayerKey": "LWN_story_rival_opt_settle",
           "PlayerKeyZh": "[说服] 两家各唱各的，先把到她台前的路让出来，别让客人听戏还得挤过去。",
           "HintKey": "LWN_story_hint_rival_opt_settle",
-          "HintKeyZh": "试着劝领班把通往宋玉娘戏台的路让出来。",
+          "HintKeyZh": "劝领班让路",
           "Requires": [
             "quest_accepted@widow",
             "!quest_done@widow",
@@ -286,7 +286,7 @@
           "PlayerKey": "LWN_story_rival_opt_settle",
           "PlayerKeyZh": "[说服] 两家各唱各的，先把到她台前的路让出来，别让客人听戏还得挤过去。",
           "HintKey": "LWN_story_hint_rival_opt_settle",
-          "HintKeyZh": "试着劝领班把通往宋玉娘戏台的路让出来。",
+          "HintKeyZh": "劝领班让路",
           "Requires": [
             "quest_accepted@widow",
             "!quest_done@widow",

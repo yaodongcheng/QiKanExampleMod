@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_thug",
-  "ContentVersion": 8,
+  "ContentVersion": 12,
   "EntryOption": "LWN_story_thug_entry",
   "EntryOptionZh": "[说两句] 喂，你就是码头帮在这条街收例钱的？",
   "SkipVanillaOpening": true,
@@ -14,7 +14,9 @@
     "thug"
   ],
   "Actors": [
-    "thug"
+    "thug",
+    "pawnbroker",
+    "butcher"
   ],
   "Triggers": [
     {
@@ -82,11 +84,12 @@
           "PlayerKey": "LWN_story_thug_opt_settle",
           "PlayerKeyZh": "[说服] 你把摊子砸了，他明天拿什么交钱，先让他好好做生意。",
           "HintKey": "LWN_story_hint_thug_opt_settle",
-          "HintKeyZh": "试着劝打手停止砸摊。",
+          "HintKeyZh": "劝他停手",
           "Requires": [
             "quest_accepted@butcher",
             "!quest_done@butcher",
-            "!asked:attempt_LWN_story_thug_opt_settle"
+            "!asked:attempt_LWN_story_thug_opt_settle",
+            "event_resolved:1"
           ],
           "Effects": [
             {
@@ -158,25 +161,67 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
-          "PlayerKeyZh": "别拿码头帮吓唬我，要打就来。",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "直接与打手开战。",
+          "HintKeyZh": "逼他退让；可能激怒他",
           "Requires": [
-            "!quest_done@butcher"
+            "!quest_done@butcher",
+            "!event_resolved:1"
           ],
-          "Effects": [
-            {
-              "Id": "start_fight",
-              "Params": {
-                "target": "thug"
-              },
-              "Commit": "on_select",
-              "Receipt": "never"
-            }
-          ],
-          "NextNode": "thug_fight_line1",
+          "Effects": [],
           "Speaker": "player",
-          "Listener": "npc"
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown",
+            "Fail": "thug_fight_line1"
+          }
+        },
+        {
+          "Id": "fight_butcher",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "!quest_done@butcher",
+            "event_resolved:1",
+            "quest_accepted@butcher"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown_butcher",
+            "Fail": "thug_fight_line1_butcher"
+          }
+        },
+        {
+          "Id": "fight_personal",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "!quest_done@butcher",
+            "event_resolved:1",
+            "!quest_accepted@butcher"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown_personal",
+            "Fail": "thug_fight_line1_personal"
+          }
         },
         {
           "Id": "leave",
@@ -208,11 +253,12 @@
           "PlayerKey": "LWN_story_thug_opt_settle",
           "PlayerKeyZh": "[说服] 你把摊子砸了，他明天拿什么交钱，先让他好好做生意。",
           "HintKey": "LWN_story_hint_thug_opt_settle",
-          "HintKeyZh": "试着劝打手停止砸摊。",
+          "HintKeyZh": "劝他停手",
           "Requires": [
             "quest_accepted@butcher",
             "!quest_done@butcher",
-            "!asked:attempt_LWN_story_thug_opt_settle"
+            "!asked:attempt_LWN_story_thug_opt_settle",
+            "event_resolved:1"
           ],
           "Effects": [
             {
@@ -284,25 +330,67 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
-          "PlayerKeyZh": "别拿码头帮吓唬我，要打就来。",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "直接与打手开战。",
+          "HintKeyZh": "逼他退让；可能激怒他",
           "Requires": [
-            "!quest_done@butcher"
+            "!quest_done@butcher",
+            "!event_resolved:1"
           ],
-          "Effects": [
-            {
-              "Id": "start_fight",
-              "Params": {
-                "target": "thug"
-              },
-              "Commit": "on_select",
-              "Receipt": "never"
-            }
-          ],
-          "NextNode": "thug_fight_line1",
+          "Effects": [],
           "Speaker": "player",
-          "Listener": "npc"
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown",
+            "Fail": "thug_fight_line1"
+          }
+        },
+        {
+          "Id": "fight_butcher",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "!quest_done@butcher",
+            "event_resolved:1",
+            "quest_accepted@butcher"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown_butcher",
+            "Fail": "thug_fight_line1_butcher"
+          }
+        },
+        {
+          "Id": "fight_personal",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "!quest_done@butcher",
+            "event_resolved:1",
+            "!quest_accepted@butcher"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown_personal",
+            "Fail": "thug_fight_line1_personal"
+          }
         },
         {
           "Id": "leave",
@@ -334,11 +422,12 @@
           "PlayerKey": "LWN_story_thug_opt_settle",
           "PlayerKeyZh": "[说服] 你把摊子砸了，他明天拿什么交钱，先让他好好做生意。",
           "HintKey": "LWN_story_hint_thug_opt_settle",
-          "HintKeyZh": "试着劝打手停止砸摊。",
+          "HintKeyZh": "劝他停手",
           "Requires": [
             "quest_accepted@butcher",
             "!quest_done@butcher",
-            "!asked:attempt_LWN_story_thug_opt_settle"
+            "!asked:attempt_LWN_story_thug_opt_settle",
+            "event_resolved:1"
           ],
           "Effects": [
             {
@@ -363,25 +452,67 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
-          "PlayerKeyZh": "别拿码头帮吓唬我，要打就来。",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "直接与打手开战。",
+          "HintKeyZh": "逼他退让；可能激怒他",
           "Requires": [
-            "!quest_done@butcher"
+            "!quest_done@butcher",
+            "!event_resolved:1"
           ],
-          "Effects": [
-            {
-              "Id": "start_fight",
-              "Params": {
-                "target": "thug"
-              },
-              "Commit": "on_select",
-              "Receipt": "never"
-            }
-          ],
-          "NextNode": "thug_fight_line1",
+          "Effects": [],
           "Speaker": "player",
-          "Listener": "npc"
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown",
+            "Fail": "thug_fight_line1"
+          }
+        },
+        {
+          "Id": "fight_butcher",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "!quest_done@butcher",
+            "event_resolved:1",
+            "quest_accepted@butcher"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown_butcher",
+            "Fail": "thug_fight_line1_butcher"
+          }
+        },
+        {
+          "Id": "fight_personal",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "!quest_done@butcher",
+            "event_resolved:1",
+            "!quest_accepted@butcher"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown_personal",
+            "Fail": "thug_fight_line1_personal"
+          }
         },
         {
           "Id": "back",
@@ -411,23 +542,65 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
-          "PlayerKeyZh": "别拿码头帮吓唬我，要打就来。",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "直接与打手开战。",
-          "Requires": [],
-          "Effects": [
-            {
-              "Id": "start_fight",
-              "Params": {
-                "target": "thug"
-              },
-              "Commit": "on_select",
-              "Receipt": "never"
-            }
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "!event_resolved:1"
           ],
-          "NextNode": "thug_fight_line1",
+          "Effects": [],
           "Speaker": "player",
-          "Listener": "npc"
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown",
+            "Fail": "thug_fight_line1"
+          }
+        },
+        {
+          "Id": "fight_butcher",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "event_resolved:1",
+            "quest_accepted@butcher",
+            "!quest_done@butcher"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown_butcher",
+            "Fail": "thug_fight_line1_butcher"
+          }
+        },
+        {
+          "Id": "fight_personal",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "event_resolved:1",
+            "!quest_accepted@butcher"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown_personal",
+            "Fail": "thug_fight_line1_personal"
+          }
         },
         {
           "Id": "back",
@@ -467,16 +640,16 @@
       "OnEnter": [],
       "Options": [
         {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
+          "Id": "accept_fight",
+          "Speaker": "player",
+          "Listener": "npc",
+          "PlayerKey": "LWN_story_thug_opt_accept_fight",
+          "PlayerKeyZh": "[迎战] 我就在这儿，你过来。",
+          "HintKey": "LWN_story_hint_thug_accept_fight",
+          "HintKeyZh": "与马横交战；双方可能重伤",
           "Requires": [],
           "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
+          "NextNode": "thug_fight_response"
         }
       ]
     },
@@ -541,23 +714,65 @@
         {
           "Id": "fight",
           "PlayerKey": "LWN_story_thug_opt_fight",
-          "PlayerKeyZh": "别拿码头帮吓唬我，要打就来。",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "直接与打手开战。",
-          "Requires": [],
-          "Effects": [
-            {
-              "Id": "start_fight",
-              "Params": {
-                "target": "thug"
-              },
-              "Commit": "on_select",
-              "Receipt": "never"
-            }
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "!event_resolved:1"
           ],
-          "NextNode": "thug_fight_line1",
+          "Effects": [],
           "Speaker": "player",
-          "Listener": "npc"
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown",
+            "Fail": "thug_fight_line1"
+          }
+        },
+        {
+          "Id": "fight_butcher",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "event_resolved:1",
+            "quest_accepted@butcher",
+            "!quest_done@butcher"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown_butcher",
+            "Fail": "thug_fight_line1_butcher"
+          }
+        },
+        {
+          "Id": "fight_personal",
+          "PlayerKey": "LWN_story_thug_opt_fight",
+          "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
+          "HintKey": "LWN_story_hint_thug_opt_fight",
+          "HintKeyZh": "逼他退让；可能激怒他",
+          "Requires": [
+            "event_resolved:1",
+            "!quest_accepted@butcher"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Threaten",
+            "Target": "thug",
+            "Capability": "Intimidate",
+            "Success": "thug_threat_backdown_personal",
+            "Fail": "thug_fight_line1_personal"
+          }
         },
         {
           "Id": "back",
@@ -584,6 +799,223 @@
           "Listener": "npc"
         }
       ]
+    },
+    {
+      "Id": "thug_fight_response",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_fight_response",
+      "TextKeyZh": "行，我看你还能撑多久！",
+      "LineActions": [
+        "act_conversation_aggressive_very_negative"
+      ],
+      "OnEnter": [
+        {
+          "Id": "start_fight",
+          "Params": {
+            "target": "thug",
+            "mode": "wound",
+            "reason": "LWN_story_conflict_thug_pawnbroker_reason",
+            "beneficiaries": "pawnbroker",
+            "start_line": "LWN_story_thug_combat_start",
+            "end_line": "LWN_story_thug_combat_end",
+            "resolve_event": "1"
+          },
+          "Commit": "on_session_end",
+          "Receipt": "session"
+        }
+      ],
+      "Options": []
+    },
+    {
+      "Id": "thug_threat_backdown",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_threat_backdown",
+      "TextKeyZh": "行，算你狠，今天这事先到这儿。",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "OnEnter": [
+        {
+          "Id": "resolve_event",
+          "Params": {
+            "event": "1"
+          },
+          "Commit": "on_session_end",
+          "Receipt": "once"
+        }
+      ],
+      "Options": []
+    },
+    {
+      "Id": "thug_fight_line1_butcher",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_fight_line1",
+      "TextKeyZh": "找死是吧？",
+      "LineActions": [
+        "act_conversation_aggressive_very_negative"
+      ],
+      "NextNode": "thug_fight_butcher",
+      "Options": []
+    },
+    {
+      "Id": "thug_fight_butcher",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_fight",
+      "TextKeyZh": "敢替他出头，就别躲在柜台后面！",
+      "LineActions": [
+        "act_conversation_aggressive_very_negative"
+      ],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "accept_fight",
+          "Speaker": "player",
+          "Listener": "npc",
+          "PlayerKey": "LWN_story_thug_opt_accept_fight",
+          "PlayerKeyZh": "[迎战] 我就在这儿，你过来。",
+          "HintKey": "LWN_story_hint_thug_accept_fight",
+          "HintKeyZh": "与马横交战；双方可能重伤",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "thug_fight_response_butcher"
+        }
+      ]
+    },
+    {
+      "Id": "thug_fight_response_butcher",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_fight_response",
+      "TextKeyZh": "行，我看你还能撑多久！",
+      "LineActions": [
+        "act_conversation_aggressive_very_negative"
+      ],
+      "OnEnter": [
+        {
+          "Id": "start_fight",
+          "Params": {
+            "target": "thug",
+            "mode": "wound",
+            "reason": "LWN_story_conflict_thug_butcher_reason",
+            "beneficiaries": "butcher",
+            "start_line": "LWN_story_thug_combat_start",
+            "end_line": "LWN_story_thug_combat_end",
+            "resolve_event": "2"
+          },
+          "Commit": "on_session_end",
+          "Receipt": "session"
+        }
+      ],
+      "Options": []
+    },
+    {
+      "Id": "thug_threat_backdown_butcher",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_threat_backdown",
+      "TextKeyZh": "行，算你狠，今天这事先到这儿。",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "OnEnter": [
+        {
+          "Id": "resolve_event",
+          "Params": {
+            "event": "2"
+          },
+          "Commit": "on_session_end",
+          "Receipt": "once"
+        },
+        {
+          "Id": "complete_quest",
+          "Params": {
+            "npc": "butcher",
+            "resolution": "force",
+            "if_accepted": "1"
+          },
+          "Commit": "on_session_end",
+          "Receipt": "once"
+        }
+      ],
+      "Options": []
+    },
+    {
+      "Id": "thug_fight_line1_personal",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_fight_line1",
+      "TextKeyZh": "找死是吧？",
+      "LineActions": [
+        "act_conversation_aggressive_very_negative"
+      ],
+      "NextNode": "thug_fight_personal",
+      "Options": []
+    },
+    {
+      "Id": "thug_fight_personal",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_personal_challenge",
+      "TextKeyZh": "敢拿刀吓唬我，那就别往后躲！",
+      "LineActions": [
+        "act_conversation_aggressive_very_negative"
+      ],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "accept_fight",
+          "Speaker": "player",
+          "Listener": "npc",
+          "PlayerKey": "LWN_story_thug_opt_accept_fight",
+          "PlayerKeyZh": "[迎战] 我就在这儿，你过来。",
+          "HintKey": "LWN_story_hint_thug_accept_fight",
+          "HintKeyZh": "与马横交战；双方可能重伤",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "thug_fight_response_personal"
+        }
+      ]
+    },
+    {
+      "Id": "thug_fight_response_personal",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_fight_response",
+      "TextKeyZh": "行，我看你还能撑多久！",
+      "LineActions": [
+        "act_conversation_aggressive_very_negative"
+      ],
+      "OnEnter": [
+        {
+          "Id": "start_fight",
+          "Params": {
+            "target": "thug",
+            "mode": "wound",
+            "reason": "LWN_story_conflict_thug_personal_reason",
+            "start_line": "LWN_story_thug_personal_combat_start",
+            "end_line": "LWN_story_thug_personal_combat_end"
+          },
+          "Commit": "on_session_end",
+          "Receipt": "session"
+        }
+      ],
+      "Options": []
+    },
+    {
+      "Id": "thug_threat_backdown_personal",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_thug_threat_backdown",
+      "TextKeyZh": "行，算你狠，今天这事先到这儿。",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "OnEnter": [],
+      "Options": []
     }
   ],
   "_Speaker说明": "节点只能由NPC说话；npc/questioner绑定本次入口演员，其余为Actors中的实名ID。",

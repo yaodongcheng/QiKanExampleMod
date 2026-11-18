@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_debtor",
-  "ContentVersion": 8,
+  "ContentVersion": 10,
   "EntryOption": "LWN_story_debtor_entry",
   "EntryOptionZh": "[说两句] 你就是码头帮管账的收数人？",
   "SkipVanillaOpening": true,
@@ -105,7 +105,7 @@
           "PlayerKey": "LWN_story_debtor_opt_collect",
           "PlayerKeyZh": "[逼债] 你欠老周的一百二十第纳尔，今天就还给他。",
           "HintKey": "LWN_story_hint_debtor_opt_collect",
-          "HintKeyZh": "向收数人追讨120第纳尔债款。",
+          "HintKeyZh": "追讨120第纳尔欠款",
           "Requires": [
             "quest_accepted@pawnbroker",
             "!quest_done@pawnbroker",
@@ -205,7 +205,7 @@
           "PlayerKey": "LWN_story_debtor_opt_collect",
           "PlayerKeyZh": "[逼债] 你欠老周的一百二十第纳尔，今天就还给他。",
           "HintKey": "LWN_story_hint_debtor_opt_collect",
-          "HintKeyZh": "向收数人追讨120第纳尔债款。",
+          "HintKeyZh": "追讨120第纳尔欠款",
           "Requires": [
             "quest_accepted@pawnbroker",
             "!quest_done@pawnbroker",
@@ -276,20 +276,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "debtor_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "debtor_hub"
     },
     {
       "Id": "debtor_collect",

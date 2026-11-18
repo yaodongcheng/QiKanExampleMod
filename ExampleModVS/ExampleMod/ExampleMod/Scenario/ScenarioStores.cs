@@ -223,6 +223,7 @@ namespace LivingWorldNpcs
             AddClassDefinition(typeof(LivingWorldNpcs.PrologueIssue), 26);
             AddClassDefinition(typeof(LivingWorldNpcs.PrologueQuest), 27);
             AddClassDefinition(typeof(LivingWorldNpcs.PrologueJournalQuest), 28);
+            AddClassDefinition(typeof(LivingWorldNpcs.StoryPracticeQuest), 29);
             // 4. 自定义 PartyComponent（quest 护送/追击、报复部队、控制台事件）
             AddClassDefinition(typeof(LivingWorldNpcs.SafeLordPartyComponent), 16);
             AddClassDefinition(typeof(LivingWorldNpcs.CustomPartyComponent), 17);

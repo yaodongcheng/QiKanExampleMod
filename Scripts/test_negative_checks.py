@@ -22,6 +22,8 @@ Usage:
 Exit: 0 全部符合预期 / 1 有用例不符合 / 2 fatal。
 """
 import argparse
+import importlib.util
+import json
 import os
 import re
 import shutil
@@ -276,6 +278,8 @@ case("选人目录：Lord 名字键张冠李戴必须抓到", "check_hero_profil
                              'name="{=TAIKOU_clan_oda_1}Oda"', 1),
      1, "的名字键是")
 
+# 对话表情：check_story_probe.py 全量跑要读游戏根，沙箱里跑不动 —— 改成 main() 里的单元用例（见下）
+
 # ── C# 源码用例：用合成仓库（不碰真源码）──
 SRC_OK = """using System;
 namespace X {
@@ -406,6 +410,27 @@ def main():
             if args.verbose or not ok:
                 print("\n%s %s（exit %d，期望 %d）" % ("✅" if ok else "❌", desc, code, want))
                 print("   " + "\n   ".join(out.strip().splitlines()[-10:]))
+
+        # ── 表情名单（单元用例）──
+        # check_story_probe.py 全量跑要读游戏根（Native/SandBox 数据），沙箱里跑不动；
+        # 这里直接调它的 check_faces，验证「名字写错必须报」。
+        face_mod = tmp / "face_mod"
+        (face_mod / "ModuleData" / "DesignData" / "Dialogues").mkdir(parents=True, exist_ok=True)
+        (face_mod / "ModuleData" / "DesignData" / "Dialogues" / "x.dialog.json").write_text(
+            json.dumps({"Nodes": [{"Id": "n1", "Face": "definitely_not_a_face"}]}), encoding="utf-8")
+        csp_spec = importlib.util.spec_from_file_location("_csp_neg", HERE / "check_story_probe.py")
+        csp = importlib.util.module_from_spec(csp_spec)
+        csp_spec.loader.exec_module(csp)
+        face_problems = []
+        csp.check_faces(str(face_mod), face_problems)
+        face_out = "\n".join(face_problems)
+        face_ok = any("definitely_not_a_face" in p for p in face_problems)
+        results.append(("表情：不存在的表情名必须抓到", face_ok,
+                        1 if face_problems else 0, 1, face_out))
+        if args.verbose or not face_ok:
+            print("\n%s 表情：不存在的表情名必须抓到（exit %d，期望 1）"
+                  % ("✅" if face_ok else "❌", 1 if face_problems else 0))
+            print("   " + face_out.strip())
 
         # ── C# 源码用例（合成仓库）──
         for desc, cc, logger, want, needle in (

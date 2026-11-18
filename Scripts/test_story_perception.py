@@ -46,7 +46,8 @@ namespace TaleWorlds.Library {
  public class Rotation {public Vec3 f=new(1,0,0);} public class Frame {public Rotation rotation=new();}
 }
 namespace TaleWorlds.MountAndBlade {
- public class Agent {public static Agent Main;public int Index;public string Name="npc";public bool Active=true,CrouchMode;public float Health=100;
+ public class Team {public bool Enemy;public bool IsEnemyOf(Team other)=>Enemy;}
+ public class Agent {public Team Team=new();public static Agent Main;public int Index;public string Name="npc";public bool Active=true,CrouchMode;public float Health=100;
  public Vec3 Position,Velocity,LookDirection=new(1,0,0);public Frame Frame=new();public Vec2 MovementInputVector;public int BodyWrites,GazeWrites,GazeClears,StopWrites;public float SpeedLimit;
  private Agent _look;public Agent GetLookAgent()=>_look;public void SetLookAgent(Agent a){_look=a;if(a==null)GazeClears++;else GazeWrites++;}
  public void SetMovementDirection(Vec2 d){BodyWrites++;Frame.rotation.f=new(d.x,d.y,0);}public void DisableScriptedMovement(){StopWrites++;}
@@ -59,8 +60,8 @@ namespace LivingWorldNpcs {
  public Vec2 DutyDirection=new(1,0);public Vec3 DutyPoint;public static bool IsRoped(Agent a)=>false;public static bool IsHeldByStatus(Agent a)=>false;public static bool IsKnockedOut(Agent a)=>false;}
  public static class AgentAIController {public static Dictionary<Agent,AgentBrain> Brains=new();public static AgentBrain GetBrainForAgent(Agent a)=>Brains.GetValueOrDefault(a);}
  public class Settings {public static Settings Instance=new();public bool Disabled,ShowPerformanceFacingDebugMessages;public bool IsInteractionDisabled()=>Disabled;}
- public class NoiseTuning {public float MaxAgeSec=1.5f,PublishIntervalSec=.4f,RunSpeedMps=3.2f,RunRadiusMeters=15,WalkRadiusMeters=6,GazeRadiusMeters=10,TurnHoldSec=6;public bool CrouchSilent=true;}
- public class AmbientTuning {public float FirstDelayMinSec=1,FirstDelayMaxSec=2,GapMinSec=1,GapMaxSec=2;}
+ public class NoiseTuning {public float MaxAgeSec=1.5f,PublishIntervalSec=.4f,RunSpeedMps=3.2f,RunRadiusMeters=15,WalkRadiusMeters=6,GazeRadiusMeters=5,OrdinaryFootstepRadiusMeters=2,HostileGazeRadiusMeters=10,TurnHoldSec=6;public bool CrouchSilent=true;}
+ public class AmbientTuning {public float ListenerRadiusMeters=10;public float FirstDelayMinSec=1,FirstDelayMaxSec=2,GapMinSec=1,GapMaxSec=2;}
  public class PerformanceTuning {public float AmbientPoseDurationSec=1;}
  public class StoryProbeTuning {public static StoryProbeTuning Current=new();public NoiseTuning Noise=new();public AmbientTuning Ambient=new();public PerformanceTuning Performance=new();}
  public class StreetLifeDef {public string NpcId,Listener;public string[] Actions,LineKeys,LineFallbacks;}
@@ -85,7 +86,7 @@ class Program {
  (b,a)=Setup(new StayAction(null,false));a.SetLookAgent(Agent.Main);Tick(b,0);Check(a.GetLookAgent()==null,"plain Stay accepts perception handoff and removes orphan gaze");
  (b,a)=Setup();Agent.Main.Position=new(-3,0,0);a.SetLookAgent(Agent.Main);Tick(b,0);Check(a.GetLookAgent()==null&&a.BodyWrites==0,"unregistered gaze behind body must release while crouching silently");
  (b,a)=Setup();Agent.Main.Position=new(3,0,0);Tick(b,0);a.SetLookAgent(null);int writes=a.GazeWrites;Tick(b,1);Check(a.GetLookAgent()==Agent.Main&&a.GazeWrites==writes+1,"idle must reacquire gaze after another action clears native target");
- Agent.Main.Position=new(11,0,0);Tick(b,2);Check(a.GetLookAgent()==null,"reacquired player gaze releases when player leaves ten metres");
+ Agent.Main.Position=new(11,0,0);Tick(b,2);Check(a.GetLookAgent()==null,"reacquired player gaze releases when player leaves five metres");
  (b,a)=Setup();Agent.Main.Position=new(3,0,0);Tick(b,0);var other=new Agent{Index=3};a.SetLookAgent(other);Agent.Main.Position=new(20,0,0);int clears=a.GazeClears;Tick(b,1);Check(a.GetLookAgent()==other&&a.GazeClears==clears,"old perception record must not clear another system's new listener");
  (b,a)=Setup();Agent.Main.Position=new(3,0,0);Tick(b,0);Agent.Main=null;Tick(b,1);Check(a.GetLookAgent()==null,"removed main agent releases actual owned target");
  (b,a)=Setup();a.SetLookAgent(other);Tick(b,0);Check(a.GetLookAgent()==other,"unowned NPC listener remains unchanged outside perception range");
@@ -97,14 +98,24 @@ class Program {
  (b,a)=Setup();a.SetLookAgent(Agent.Main);b.IsMovingOrTurning=true;b.CurrentAction=new Moving();Tick(b,0);Check(a.GetLookAgent()==Agent.Main&&a.BodyWrites==0,"moving action retains its own distant target");
  foreach(int mode in new[]{0,1,2,3,4}){(b,a)=Setup();a.SetLookAgent(Agent.Main);b.IsInCombat=mode==0;b.IsBound=mode==1;b.IsStatusHeld=mode==2;b.IsStunned=mode==3;b.IsStoryIntercepting=mode==4;Tick(b,0);Check(a.GetLookAgent()==Agent.Main,"busy action preserves gaze mode "+mode);}
  (b,a)=Setup();var idle=new StreetIdleAction("rival",new StreetLifeDef{Actions=Array.Empty<string>()},new Vec2(1,0));b.CurrentAction=idle;a.SetLookAgent(Agent.Main);idle.OnStart(a);Check(a.GetLookAgent()==null,"real StreetIdle OnStart clears predecessor gaze");
- idle.OnTick(a,.2f);idle.OnTick(a,.2f);Check(a.StopWrites==1&&a.BodyWrites==0,"real idle hold resets movement once and never writes body direction toward gaze");
+ idle.OnTick(a,.2f);idle.OnTick(a,.2f);Check(a.StopWrites==1&&a.BodyWrites==1,"real idle hold resets movement once and sets independent duty direction even when aligned");
  a.SetLookAgent(Agent.Main);Tick(b,0);Check(a.GetLookAgent()==null,"real idle accepts unregistered gaze cleanup");
- (b,a)=Setup();Agent.Main.Position=new(10,0,0);Tick(b,0);Check(a.GetLookAgent()==Agent.Main&&a.BodyWrites==0,"ten metre boundary allows head only");
- Agent.Main.Position=new(10.01f,0,0);Tick(b,1);Check(a.GetLookAgent()==null,"just outside boundary releases head");
+ (b,a)=Setup();Agent.Main.Position=new(5,0,0);Tick(b,0);Check(a.GetLookAgent()==Agent.Main&&a.BodyWrites==1&&a.Frame.rotation.f.x>.99f,"five metre boundary holds original body direction and allows head gaze");
+ Agent.Main.Position=new(5.01f,0,0);Tick(b,1);Check(a.GetLookAgent()==null,"just outside boundary releases head");
  (b,a)=Setup();Agent.Main.Position=new(0,11,0);Agent.Main.CrouchMode=false;Agent.Main.Velocity=new(2,0,0);Tick(b,0);Check(a.BodyWrites==0,"walking at eleven metres cannot turn body");
- Agent.Main.Velocity=new(4,0,0);Tick(b,1);Check(a.BodyWrites==1&&NpcPerception.Describe(a).Contains("noiseRadius=15.0"),"running inside fifteen metres turns body with diagnostic source and radius");
+ Agent.Main.Velocity=new(4,0,0);Tick(b,1);Check(a.BodyWrites==0,"neutral NPC ignores running at eleven metres");a.Team.Enemy=true;Tick(b,2);Check(a.BodyWrites==1&&NpcPerception.Describe(a).Contains("noiseRadius=15.0"),"hostile running inside fifteen metres turns body with diagnostic source and radius");
  Agent.Main.Position=new(0,16,0);Tick(b,4);Check(a.BodyWrites==1&&a.GetLookAgent()==null,"running beyond fifteen metres stops requesting body tracking");
- Tick(b,8);Check(a.BodyWrites==2&&a.Frame.rotation.f.x>.99,"sound expiry returns body to duty direction");
+ Tick(b,9);Check(a.BodyWrites==2&&a.Frame.rotation.f.x>.99,"sound expiry returns body to duty direction");
+ (b,a)=Setup();Agent.Main.Position=new(-2,0,0);Agent.Main.CrouchMode=false;Agent.Main.Velocity=new(4,0,0);Tick(b,0);Check(a.BodyWrites==1,"neutral hears running behind at two metre boundary");
+ (b,a)=Setup();Agent.Main.Position=new(-2.01f,0,0);Agent.Main.CrouchMode=false;Agent.Main.Velocity=new(4,0,0);Tick(b,0);Check(a.BodyWrites==0,"neutral ignores running beyond two metres");
+ (b,a)=Setup();Agent.Main.Position=new(2,0,0);Agent.Main.CrouchMode=false;Agent.Main.Velocity=new(4,0,0);Tick(b,0);Check(a.BodyWrites==1 && a.Frame.rotation.f.x>.99f && a.GetLookAgent()==Agent.Main,"front running holds original body direction and acquires head gaze");
+ int bodyWrites=a.BodyWrites;Agent.Main.Position=new(3,1,0);Tick(b,1);Agent.Main.Position=new(3,-1,0);Tick(b,2);
+ Check(a.BodyWrites==bodyWrites&&a.Frame.rotation.f.x>.99f&&a.Frame.rotation.f.y==0&&a.GetLookAgent()==Agent.Main,"moving within cone tracks with gaze only, without a player body direction");
+ Agent.Main.Position=new(0,3,0);Tick(b,3);Check(a.GetLookAgent()==null&&a.Frame.rotation.f.x>.99f,"leaving body cone clears gaze and preserves stable body direction");
+ (b,a)=Setup();Agent.Main.Position=new(-1,0,0);Agent.Main.CrouchMode=false;Agent.Main.Velocity=new(2,0,0);Tick(b,0);Check(a.BodyWrites==0,"ordinary walking behind causes no body turn");
+ (b,a)=Setup();Agent.Main.Position=new(-1,0,0);Agent.Main.Velocity=new(4,0,0);Tick(b,0);Check(a.BodyWrites==0,"crouch remains silent even with high velocity");
+ (b,a)=Setup();NpcPerception.Hear(new Vec3(-4,0,0),6);Tick(b,0);Check(a.BodyWrites==1,"generic noises retain their propagation radius");
+ (b,a)=Setup();a.Team.Enemy=true;Agent.Main.Position=new(10,0,0);Tick(b,0);Check(a.GetLookAgent()==Agent.Main,"hostile gaze retains ten metres");
  (b,a)=Setup();Agent.Main.Position=new(0,20,0);Agent.Main.CrouchMode=false;Agent.Main.Velocity=new(4,0,0);Tick(b,0);Tick(b,1);Check(a.BodyWrites==0&&a.GetLookAgent()==null,"running at twenty metres causes no body or head tracking");
  (b,a)=Setup();var host=new StoryProbeMissionBehavior{Listener=other};StoryProbeMissionBehavior.Current=host;other.Position=new(20,0,0);
  idle=new StreetIdleAction("rival",new StreetLifeDef{Listener="widow",Actions=new[]{"act_argue"},LineKeys=new[]{"line"},LineFallbacks=new[]{"fallback"}},new Vec2(1,0));
@@ -132,6 +143,7 @@ class Program {
             ('distance handoff', source.replace('else if (wasLooking || idle && actualTarget != null && actualTarget == player)', 'else if (wasLooking)'), program, 'unregistered player gaze beyond radius'),
             ('target cache handoff', source.replace('if (wasLooking && actualTarget != ownedTarget)', 'if (false)'), program, 'idle must reacquire gaze'),
             ('idle action handoff', source, program.replace(idle, idle.replace('AgentControlHelper.StopLooking(agent);', '')), 'real StreetIdle OnStart clears predecessor gaze'),
+            ('independent gaze direction', source.replace('RequestBody(agent, body, agent.Position, "gaze-hold");', ''), program, 'five metre boundary'),
         ]
         try:
             for label, variant, fixture, error in mutants:

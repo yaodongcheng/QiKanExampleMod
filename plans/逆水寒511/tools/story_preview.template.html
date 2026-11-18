@@ -77,6 +77,10 @@ const presentationDescription = action => {
   return `${presentation.Instrument?'抱着'+instrument+'演奏。':''}${presentation.Sounds?.length?'演奏声从人物所在的位置传来。':''}交谈或被打断时停止，回去工作后继续。`;
 };
 const topicByFlag={};
+for(const definition of data.dialogues){
+ const byId=new Map(definition.Nodes.map(n=>[n.Id,n]));
+ for(const n of definition.Nodes)if(n.OptionsFrom)n.Options=(byId.get(n.OptionsFrom)?.Options||[]).filter(o=>o.NextNode!==n.Id&&o.Check?.Success!==n.Id&&o.Check?.Fail!==n.Id);
+}
 for(const definition of data.dialogues)for(const node of definition.Nodes)for(const option of node.Options||[]){
   for(const effect of option.Effects||[])if(effect.Id==='mark'&&effect.Params?.flag)topicByFlag[effect.Params.flag]=lang(option.PlayerKey).replace(/^\[[^\]]*\]\s*/,'');
 }

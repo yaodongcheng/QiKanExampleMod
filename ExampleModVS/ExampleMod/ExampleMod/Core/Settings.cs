@@ -187,6 +187,17 @@ namespace LivingWorldNpcs
         [Newtonsoft.Json.JsonIgnore]
         public bool EnableRevengeParty { get; set; } = true;
 
+        // ── 犯罪等级开关（默认开启，玩家在 MCM 里关掉后犯罪不再提升犯罪等级）──
+        // 2026-11-18 用户需求：有些玩家只想要犯罪玩法（偷窃/袭击/质问/赔偿），
+        // 不想背犯罪记录、更不想犯罪等级越过原版宣战线后被整国宣战。
+        // true（默认）= 本 mod 触发的犯罪行为照常提升该阵营犯罪等级（原版行为）；
+        // false        = 一律不提升（不弹「犯罪等级上升」提示、不触发原版宣战）；
+        //                赔偿/坐牢/释放等流程照旧，只是不留犯罪等级。
+        // 🔴 唯一提升出口 = WorldEvent/CrimeRatingGate.cs（新增调用点必须走它）。
+        // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool CrimeRatingIncreaseEnabled { get; set; } = true;
+
         // ── 击杀回血开关（默认关闭，玩家在 MCM 里主动开启后生效）──
         // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取
         // （[JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在）。

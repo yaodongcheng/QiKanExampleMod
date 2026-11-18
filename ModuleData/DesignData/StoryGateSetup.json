@@ -103,6 +103,40 @@
         "blocker",
         "gate_sentry"
       ]
+    },
+    "gate_second_question": {
+      "Kind": "post",
+      "Posts": [
+        "blocker_spot",
+        "gate_sentry_spot"
+      ],
+      "Stages": [
+        "second_meet"
+      ],
+      "Perception": {
+        "RequiresSight": true,
+        "RangeMeters": 5
+      },
+      "Trigger": {
+        "PlayerInsideGate": false,
+        "PlayerInPostZone": true,
+        "MaxPerEncounter": 2,
+        "TargetGate": "main_gate"
+      },
+      "Cooldown": {
+        "RetrySec": 3,
+        "ReentrySec": 8
+      },
+      "Rank": [
+        "distanceToPlayer",
+        "npcId"
+      ],
+      "Flow": "gate_second_question_flow",
+      "MaxActive": 1,
+      "Members": [
+        "blocker",
+        "gate_sentry"
+      ]
     }
   },
   "Flows": {
@@ -118,6 +152,46 @@
           "Args": {
             "Dialogue": "gate_interrogation",
             "Trigger": "first_meet_auto"
+          },
+          "Wait": {
+            "Kind": "dialogue_open",
+            "TimeoutSec": 10
+          },
+          "OnFail": "release",
+          "OnTimeout": "retry",
+          "OnReject": "retry",
+          "OnCancel": "release",
+          "OnInterrupt": "end"
+        },
+        {
+          "Id": "wait_end",
+          "Atom": "dialogue_wait",
+          "Actor": "$questioner",
+          "Args": {},
+          "Wait": {
+            "Kind": "dialogue_end",
+            "TimeoutSec": 600
+          },
+          "OnFail": "end",
+          "OnTimeout": "end",
+          "OnReject": "end",
+          "OnCancel": "end",
+          "OnInterrupt": "end"
+        }
+      ]
+    },
+    "gate_second_question_flow": {
+      "Roles": {
+        "questioner": "candidate"
+      },
+      "Steps": [
+        {
+          "Id": "open",
+          "Atom": "dialogue_open",
+          "Actor": "$questioner",
+          "Args": {
+            "Dialogue": "gate_interrogation",
+            "Trigger": "second_meet_auto"
           },
           "Wait": {
             "Kind": "dialogue_open",

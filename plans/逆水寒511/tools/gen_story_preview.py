@@ -53,6 +53,7 @@ def make_payload(game_root=None):
     opening = data("StoryOpeningTimeline.json")
     gate_setup = data("StoryGateSetup.json")
     journal = data("StoryJournal.json")
+    lessons = data("StoryLessons.json")
     points = list(csv.DictReader(source(DATA / "StoryPoints.csv").splitlines()))
     # Camera rows feed the opening timeline detail (arm length / fov per case); the second
     # row of Camera.csv is a type row, so rows that do not parse as numbers are skipped.
@@ -91,7 +92,7 @@ def make_payload(game_root=None):
             for item in value:
                 collect_keys(item)
 
-    for definition in (cast, opening, plan, journal):
+    for definition in (cast, opening, plan, journal, lessons):
         collect_keys(definition)
     for capability, attribute in capabilities.items():
         used_keys.update(("LWN_story_capability_" + capability, "LWN_story_ability_" + attribute))
@@ -101,7 +102,7 @@ def make_payload(game_root=None):
     language = {key: language[key] for key in sorted(used_keys)}
 
     result = dict(cast=cast, plan=plan, tuning=tuning, opening=opening,
-                  gateSetup=gate_setup, journal=journal, points=points, cameras=cameras,
+                  gateSetup=gate_setup, journal=journal, lessons=lessons, points=points, cameras=cameras,
                   dialogues=dialogues, language=language, capabilities=capabilities,
                   sources=sources, layouts={})
     from story_walkthrough import build_walkthrough
@@ -199,7 +200,7 @@ def make_payload(game_root=None):
                          Right=float(point["Y"] or 0), Up=float(point["Z"] or 0))
             pos = position(place)
             facing = float(point["Dir"] or 0)
-            angle = math.atan2(outside[1] - pos[1], outside[0] - pos[0]) if pos and facing < -.5 else math.radians(facing)
+            angle = math.radians(facing)
             actors.append(dict(id=standing["Actor"], point=point["Id"], position=pos,
                                facing=[math.cos(angle), math.sin(angle)], action=point["Action"], raw=point))
         result["layouts"][stage_id] = dict(actors=actors, props=props, anchors=anchors,

@@ -326,6 +326,7 @@ namespace LivingWorldNpcs
 
 
             base.OnAgentRemoved(affectedAgent, affectedAgentAffectsCalc, affectedAgentState, blow);
+            CombatEncounter.NotifyRemoved(affectedAgent, affectedAgentState);
 
             if (Settings.Instance.IsInteractionDisabled())
                 return;
@@ -333,7 +334,7 @@ namespace LivingWorldNpcs
 
             // 侧容器模型：成员死亡/倒地 → 战斗提前收场（防计数泄漏、玩家+友方滞留队2）
             // 死后 FightEnemyAction 不会 OnEnd，计数不归零则全员还原永远不会触发
-            CombatManager.NotifySideMemberRemoved(affectedAgent);
+            if (!CombatEncounter.Owns(affectedAgent)) CombatManager.NotifySideMemberRemoved(affectedAgent);
 
             // ⑤ 击杀回血（MCM 选项 Settings.Instance.HealOnKill，默认开启）：
             //    玩家亲手击杀（或击倒）人类/儿童 → 回复固定血量，不超过血量上限。
@@ -746,6 +747,7 @@ namespace LivingWorldNpcs
 
             // 🔴 2026-08-13 崩溃修复：判负收场延后帧（blow 栈内同步收场 → AccessViolation，见 OnDuelLoser 注释）
             EndPendingDuel();
+            CombatEncounter.Tick();
 
             // 队伍变更日志门禁：记录 Mission 起始时刻；门禁开启时打全场初始队伍基线
             CombatManager.OnCombatManagerTick(Mission.Current);
@@ -947,6 +949,7 @@ namespace LivingWorldNpcs
         // teardown 期 IsActive() 对已移除 Agent 抛 NRE）。转押成功即移出名单（幂等防双押）。
         public override void OnRemoveBehavior()
         {
+            CombatEncounter.Clear(Mission);
             base.OnRemoveBehavior();
             // 阶段③ 主触发：Mission 结束 → Confirm=true 的进牢；未确认的保留在名单
             //（其 OnAgentRemoved 可能在 behavior 拆除后才到，事件驱动路径会补转押）

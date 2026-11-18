@@ -11,7 +11,7 @@ namespace LivingWorldNpcs
     /// 为什么要它：以前"玩家靠近就把身体转过去"是按半径写死的 —— 那样玩家根本没法绕到背后偷东西。
     /// 现在的规则：
     ///   ① **身体只朝"声音"转** —— 谁发声就把声源坐标丢进 <see cref="Hear"/>，听觉半径内的 NPC 扭头看过去。
-    ///      声音有响度（半径）：玩家蹲着不出声、走路小声（默认 6 米）、跑步大声（默认 15 米）。
+    ///      声音有响度（半径）：玩家蹲着不出声；普通人只回应身后2米内的大跑步声，敌对者才按走路6米／跑步15米听觉处理。
     ///      所以玩家能不能被回头发现，是由**自己怎么走**决定的，不是被距离阈值出卖。
     ///   ② **头只朝"视野扇形里的东西"转** —— 目标进了身体正前方的扇形就 `SetLookAgent` 看过去（只转眼睛/头，不转身体），
     ///      出扇形就松开。于是"先被声音引得转过身，才可能正好看见你"这条链自然成立。
@@ -31,6 +31,9 @@ namespace LivingWorldNpcs
             public Vec3 Pos;
             public float Radius;
             public float At;
+            public Agent Source;
+            public bool Footstep;
+            public bool Loud;
         }
 
         private const int MaxNoises = 16;
@@ -133,7 +136,9 @@ namespace LivingWorldNpcs
             if (speed < 0.3f) return;   // 站着不动没有脚步声
 
             float radius = speed > cfg.RunSpeedMps ? cfg.RunRadiusMeters : cfg.WalkRadiusMeters;
-            Hear(player.Position, radius);
+            if (_noises.Count >= MaxNoises) _noises.RemoveAt(0);
+            _noises.Add(new Noise { Pos = player.Position, Radius = radius, At = now,
+                Source = player, Footstep = true, Loud = speed > cfg.RunSpeedMps });
         }
 
         private static void TickAgent(AgentBrain brain, Agent agent, Agent player, float now, NoiseTuning cfg)
@@ -147,6 +152,12 @@ namespace LivingWorldNpcs
                 var n = _noises[i];
                 if (now - n.At > cfg.MaxAgeSec) continue;
                 if (agent.Position.Distance(n.Pos) > n.Radius) continue;
+                // 普通人不关心远处的脚步。只有身后两米内的重脚步才值得回头；
+                // 通用声源（开门、撞物、打斗）仍按自己的传播半径处理。
+                bool hostile = n.Source?.Team != null && agent.Team != null && agent.Team.IsEnemyOf(n.Source.Team);
+                if (n.Footstep && !hostile && (!n.Loud
+                    || agent.Position.Distance(n.Pos) > cfg.OrdinaryFootstepRadiusMeters
+                    || NpcSightSystem.IsTargetInViewCone(agent, n.Source, useBodyFacing: true))) continue;
                 latest = n;
                 break;
             }
@@ -183,8 +194,10 @@ namespace LivingWorldNpcs
             }
 
             // ② 注视：玩家在身体正前方扇形内 + 距离内 → 只转眼睛/头；出扇形就松开。
+            bool enemy = player?.Team != null && agent.Team != null && agent.Team.IsEnemyOf(player.Team);
+            float gazeRadius = enemy ? cfg.HostileGazeRadiusMeters : cfg.GazeRadiusMeters;
             bool inCone = player != null && AgentControlHelper.SafeIsActive(player)
-                          && agent.Position.Distance(player.Position) <= cfg.GazeRadiusMeters
+                          && agent.Position.Distance(player.Position) <= gazeRadius
                           && NpcSightSystem.IsTargetInViewCone(agent, player, useBodyFacing: true);
             // SetLookAgent持有持续跟踪的对象引用。感知登记可能落后于其他动作的设置/清除。
             // GetLookAgent回读最后一次托管设置的对象，并非原生眼睛朝向的测量值。
@@ -202,6 +215,17 @@ namespace LivingWorldNpcs
                 // 日常待机可重新取得注视；正在执行其他动作时不覆盖它自己的目标。
                 if (!wasLooking && (idle || actualTarget == null))
                 {
+                    // 注视前固定当前身体方向，不能让原生层用持续更新的 look 代替它。
+                    // 只在取得日常注视时写一次；玩家在扇形内移动不更新此方向。
+                    if (idle && !moving)
+                    {
+                        Vec2 body = agent.Frame.rotation.f.AsVec2;
+                        if (body.LengthSquared > 1e-4f)
+                        {
+                            body.Normalize();
+                            RequestBody(agent, body, agent.Position, "gaze-hold");
+                        }
+                    }
                     AgentControlHelper.LookAtAgent(agent, player);
                     _lookingAt[idx] = player;
                 }
@@ -245,7 +269,8 @@ namespace LivingWorldNpcs
             bool hasNoise = _heardNoises.TryGetValue(agent.Index, out var noise);
             return "noises=" + _noises.Count + " lastTurn=" + (_turnedAt.ContainsKey(agent.Index) ? (Now - t).ToString("F1") + "s ago" : "-")
                 + " playerDistance=" + (player == null ? "-" : agent.Position.Distance(player.Position).ToString("F1"))
-                + " gazeRadius=" + (cfg == null ? "-" : cfg.GazeRadiusMeters.ToString("F1"))
+                + " gazeRadius=" + (cfg == null ? "-" : (player?.Team != null && agent.Team != null && agent.Team.IsEnemyOf(player.Team) ? cfg.HostileGazeRadiusMeters : cfg.GazeRadiusMeters).ToString("F1"))
+                + " ordinaryFootstepRadius=" + (cfg == null ? "-" : cfg.OrdinaryFootstepRadiusMeters.ToString("F1"))
                 + " headOwned=" + _lookingAt.ContainsKey(agent.Index) + " bodyFromNoise=" + _heardDirections.ContainsKey(agent.Index)
                 + " gazeTarget=" + (target == null ? "none" : target == player ? "player" : "agent#" + target.Index)
                 + " inBodyCone=" + (player != null && AgentControlHelper.SafeIsActive(player)
@@ -254,6 +279,8 @@ namespace LivingWorldNpcs
                 + " performing=" + (brain?.IsPerforming == true) + " moving=" + (brain?.IsMovingOrTurning == true)
                 + " flags=" + agent.GetScriptedFlags()
                 + " noiseSource=" + (hasNoise ? noise.Pos.ToString() : "-")
+                + " noiseKind=" + (hasNoise ? (noise.Footstep ? "footstep" : "world") : "-")
+                + " noiseLoud=" + (hasNoise && noise.Loud)
                 + " noiseRadius=" + (hasNoise ? noise.Radius.ToString("F1") : "-")
                 + " noiseDistance=" + (hasNoise ? agent.Position.Distance(noise.Pos).ToString("F1") : "-")
                 + " noiseAge=" + (hasNoise ? (Now - noise.At).ToString("F1") : "-");

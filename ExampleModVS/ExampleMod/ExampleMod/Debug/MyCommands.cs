@@ -2593,6 +2593,84 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 犯罪等级诊断 / 验收（MCM 选项「犯罪会提升犯罪等级」，实现 = WorldEvent/CrimeRatingGate.cs）。
+        /// 用法:
+        ///   custom.crime                → 等同 status（首参可弃：写别的词也当 status）
+        ///   custom.crime status         → 只读：开关状态 + 当前定居点势力的犯罪等级 / 宣战线 / 战争状态
+        ///   custom.crime test &lt;delta&gt;  → 真的走一次提升闸门（⚠️ 会改犯罪等级、写进存档），
+        ///                                 用来亲眼确认「开关关闭 = applied=NO、等级不变」。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("crime", "custom")]
+        public static string Crime(List<string> args)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("=========== Crime Rating ===========");
+
+            bool allowed = CrimeRatingGate.IncreaseAllowed;
+            sb.AppendLine($"MCM switch : {(allowed ? "ON - crimes raise crime rating" : "OFF - crime rating increases are suppressed")}");
+
+            string sub = args != null && args.Count > 0 && !string.IsNullOrWhiteSpace(args[0])
+                ? args[0].Trim().ToLowerInvariant()
+                : "status";
+            if (sub != "status" && sub != "test")
+            {
+                sb.AppendLine($"[note: '{args[0]}' is not status/test -> showing status]");
+                sub = "status";
+            }
+
+            int threshold = 0;
+            float maxRating = 0f;
+            try
+            {
+                // 🔴 版本差异：1.2.12 该属性是 int，1.5.x 是 float ⇒ 存 float，两端都能编。
+                float declareWarThreshold = Campaign.Current.Models.CrimeModel.DeclareWarCrimeRatingThreshold;
+                threshold = (int)declareWarThreshold;
+                maxRating = Campaign.Current.Models.CrimeModel.GetMaxCrimeRating();
+            }
+            catch (Exception ex) { sb.AppendLine($"CrimeModel : unavailable ({ex.Message})"); }
+
+            Settlement settlement = Settlement.CurrentSettlement;
+            IFaction faction = settlement?.MapFaction;
+            sb.AppendLine($"Settlement : {(settlement != null ? $"{settlement.Name} ({settlement.StringId})" : "none (not in a settlement mission)")}");
+            if (faction != null)
+            {
+                bool atWar = false;
+                try { atWar = Hero.MainHero?.MapFaction != null && faction.IsAtWarWith(Hero.MainHero.MapFaction); }
+                catch { /* 主将势力未建立时忽略 */ }
+                sb.AppendLine($"Faction    : {faction.Name} ({(faction is Kingdom ? "kingdom" : "clan")}) crimeRating={faction.MainHeroCrimeRating:F1} max={maxRating:F0}");
+                sb.AppendLine($"War        : declareWarThreshold={threshold}; atWarWithPlayer={(atWar ? "yes" : "no")}");
+            }
+            else
+            {
+                sb.AppendLine("Faction    : none (crime rating belongs to a settlement's owning faction)");
+            }
+
+            if (sub == "test")
+            {
+                if (faction == null)
+                {
+                    sb.AppendLine("TEST       : skipped - stand in a settlement so a faction can be determined");
+                    return sb.ToString();
+                }
+                float delta = 10f;
+                if (args.Count < 2 || !float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out delta) || delta <= 0f)
+                {
+                    sb.AppendLine("TEST       : usage `custom.crime test <positive delta>`");
+                    return sb.ToString();
+                }
+                float before = faction.MainHeroCrimeRating;
+                bool applied;
+                try { applied = CrimeRatingGate.TryApplyIncrease(faction, delta, "console custom.crime test"); }
+                catch (Exception ex) { sb.AppendLine($"TEST       : error {ex.Message}"); return sb.ToString(); }
+                float after = faction.MainHeroCrimeRating;
+                sb.AppendLine($"TEST       : WARNING - this changed crime rating in this save. requested=+{delta:F0} applied={(applied ? "yes" : "NO (switch off)")} before={before:F1} after={after:F1}");
+            }
+
+            sb.AppendLine("Usage      : custom.crime status | custom.crime test <delta>");
+            return sb.ToString();
+        }
+
+        /// <summary>
         /// 在玩家面前生成指定 prefab，用于预览外观/选型（例如给保管箱挑模型）。
         /// 预览实体不入存档，离开场景重进即消失。
         /// 用法: custom.spawn_prefab bd_chest_a [dist=2]
@@ -4221,6 +4299,72 @@ namespace LivingWorldNpcs
             co.UpdatePlayerCharacterBodyProperties(target, co.Race, co.IsFemale);
             DebugLogger.Log($"=== Face restored: {hero.Name} ({hero.StringId}) -> {target} ===");
             return $"OK. restored to {target}{note ?? ""}";
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 原生面部表情（morph）—— 通用能力，任意人形 agent 都能用，与身体动作互不影响
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 给一个 agent 设/查/清原生面部表情。**只改外观**，不动位置、配置、剧情进度与财物。
+        ///
+        /// 用法：
+        ///   custom.face_anim                 → 报告准星目标当前的表情名
+        ///   custom.face_anim rage            → 给准星目标设表情（持续播放）
+        ///   custom.face_anim rage lord_1_1   → 指定目标（Character.StringId），第二参可弃
+        ///   custom.face_anim reset           → 准星目标回到中性脸
+        ///
+        /// 目标解析：显式 id → `InteractionMissionView.GetAimedAgent()`（"此刻瞄着谁"的唯一入口，
+        /// 当帧焦点 → 上一帧缓存，**不要自己打相机射线**）→ 对话对象 → 主角，回执里注明落到了谁。
+        /// 名字名单：`Scripts/face_animations.csv`（生成物）；写错不崩，只在引擎日志留
+        /// `Morph animation could not be found: xxx`。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("face_anim", "custom")]
+        public static string FaceAnim(List<string> args)
+        {
+            if (Mission.Current == null || Agent.Main == null)
+                return "error: must be in a scene/mission to use this command.";
+
+            string face = args != null && args.Count >= 1 ? (args[0] ?? "").Trim() : "";
+            string targetId = args != null && args.Count >= 2 ? (args[1] ?? "").Trim() : "";
+            string note = string.Empty;
+
+            Agent agent = null;
+            if (!string.IsNullOrWhiteSpace(targetId))
+            {
+                agent = Mission.Current.Agents.FirstOrDefault(a => a.Character?.StringId == targetId);
+                if (agent == null)
+                    note = $" [note: no agent with id '{targetId}' -> using interact focus]";
+            }
+            if (agent == null)
+            {
+                agent = InteractionMissionView.Instance?.GetAimedAgent();
+                if (agent != null && string.IsNullOrWhiteSpace(targetId))
+                    note = " [note: target = the agent you are aiming at]";
+            }
+            if (agent == null)
+            {
+                agent = (Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent) ?? Agent.Main;
+                if (agent != null)
+                    note = " [note: nothing aimed -> using the conversation partner or you]";
+            }
+            if (agent == null) return "FAILED: no agent in this mission." + note;
+
+            string who;
+            try { who = (agent.Character?.Name?.ToString() ?? "?") + " #" + agent.Index; }
+            catch { who = "#" + agent.Index; }
+
+            if (string.IsNullOrWhiteSpace(face))
+                return $"Face({who}) = '{StoryFaceAnimations.Current(agent)}'{note}"
+                     + " | usage: custom.face_anim <faceName|reset> [agentId]  (no agentId = aim at someone)";
+
+            if (face.Equals("reset", StringComparison.OrdinalIgnoreCase))
+            {
+                StoryFaceAnimations.Reset(agent);
+                return $"OK: {who} face -> '{StoryFaceAnimations.Neutral}'{note}";
+            }
+
+            return StoryFaceAnimations.Diagnose(agent, face) + $"{note} (target: {who})";
         }
 
         // ═══════════════════════════════════════════════════════════════

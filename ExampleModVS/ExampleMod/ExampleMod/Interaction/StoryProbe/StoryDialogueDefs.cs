@@ -1,4 +1,5 @@
 using System;
+using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -42,6 +43,7 @@ namespace LivingWorldNpcs
 
         static StoryPredicateRegistry()
         {
+            Add("lesson_active", true, "本场指定演员正在参加教学（可选参数=lesson id）", new string[0]);
             Add("phase", true, "剧情阶段（参数=阶段 id，如 first_meet）");
             Add("disguised", true, "玩家当前是否遮面伪装");
             Add("noble", true, "玩家是否穿着贵族行头");
@@ -128,13 +130,14 @@ namespace LivingWorldNpcs
             Add("give_item", true, new[] { "item", "count" }, new[] { "item" }, "给玩家物品（失败不假发）", new[] { "count" });
             Add("wear_item", true, new[] { "item", "slot" }, new[] { "item" },
                 "把背包里的一件穿到身上（默认 Body），旧衣回行囊；场景外观立刻刷新");
-            Add("start_fight", true, new[] { "target" }, new string[0], "发起真实战斗；target 省略 = 本次实际说话者");
+            Add("start_fight", true, new[] { "target", "mode", "reason", "beneficiaries", "start_line", "end_line", "resolve_event" }, new string[0],
+                "发起真实战斗；mode=wound/mortal；reason为起因键，beneficiaries为现场受益者；resolve_event仅真实获胜后结清", new[] { "resolve_event" });
             Add("detain_player", true, new[] { "target", "mode" }, new[] { "mode" },
                 "玩家主动接受扣押；mode=intro_sentence 复用序章固定刑期，custody 复用犯罪扣押；对话结束后执行");
             // ── D.5 迁移桥原子：复用既有 Quest/钱/事件管线，参数由数据给出 ──
             Add("accept_quest", true, new string[0], new string[0], "接当前说话者的原生委托");
             Add("turn_in", true, new string[0], new string[0], "向当前说话者交差");
-            Add("complete_quest", true, new[] { "npc", "resolution" }, new[] { "npc", "resolution" },
+            Add("complete_quest", true, new[] { "npc", "resolution", "if_accepted" }, new[] { "npc", "resolution" },
                 "把指定 NPC 的委托标记完成（resolution = charm/guile/force…）");
             Add("collect_debt", true, new[] { "amount" }, new[] { "amount" }, "收数人实收并结清委托", new[] { "amount" });
             Add("errand", true, new[] { "pay" }, new[] { "pay" }, "零活报酬（世界发放，带冷却）", new[] { "pay" });
@@ -150,6 +153,8 @@ namespace LivingWorldNpcs
                 "从指定 NPC 实收欠款并结清委托", new[] { "amount" });
             Add("grant_gold", true, new[] { "amount" }, new[] { "amount" }, "世界发放金币（Grant，来源 null）", new[] { "amount" });
             Add("reward_receipt", true, new[] { "npc", "key" }, new[] { "npc", "key" }, "记一条奖励收据（防重）");
+            Add("lesson_start", true, new[] { "lesson" }, new[] { "lesson" }, "开始真实实操教学（场景恢复控制后执行）");
+            Add("lesson_cancel", true, new string[0], new string[0], "停止本场实操教学并撤销授权");
             Add("message", true, new[] { "key" }, new[] { "key" }, "显示一条本地化消息");
         }
 
@@ -219,8 +224,11 @@ namespace LivingWorldNpcs
         public string Speaker;                 // 参与者角色名（如 questioner）或实名演员 id
         public string Listener;                // player / 本次演员角色 / 实名演员 id
         public string NextNode;                // 连续 NPC 台词；与玩家 Options 互斥
+        public string OptionsFrom;             // 保留本句正文，直接显示指定话题节点的选项
         public string TextKey;
         public List<string> LineActions = new List<string>();
+        /// <summary>这一句的面部表情（原生 morph）；空 = 回到该角色的原版默认待机脸。名单见 Scripts/face_animations.csv。</summary>
+        public string Face;
         public List<string> Requires = new List<string>();
         public List<StoryDialogueEffect> OnEnter = new List<StoryDialogueEffect>();
         public List<StoryDialogueOption> Options = new List<StoryDialogueOption>();
@@ -263,6 +271,10 @@ namespace LivingWorldNpcs
         public List<StoryDialogueNodeDef> Nodes = new List<StoryDialogueNodeDef>();
 
         public StoryDialogueNodeDef FindNode(string id) { return Nodes.FirstOrDefault(n => n.Id == id); }
+        public StoryDialogueNodeDef OptionsNode(StoryDialogueNodeDef node)
+        { return node != null && !string.IsNullOrEmpty(node.OptionsFrom) ? FindNode(node.OptionsFrom) : node; }
+        public IEnumerable<StoryDialogueOption> OptionsFor(StoryDialogueNodeDef node)
+        { return OptionsNode(node)?.Options ?? new List<StoryDialogueOption>(); }
     }
 
     public sealed class StoryDialogueIssue
@@ -432,15 +444,17 @@ namespace LivingWorldNpcs
             {
                 if (!(n is JObject no)) { errors.Add(new StoryDialogueIssue("$.Nodes", "wrong_type", "节点必须是对象")); continue; }
                 string path = "$.Nodes[" + def.Nodes.Count + "]";
-                Keys(no, path, new[] { "Id", "Speaker", "Listener", "NextNode", "TextKey", "TextKeyZh", "LineActions", "Requires", "OnEnter", "Options" }, errors);
+                Keys(no, path, new[] { "Id", "Speaker", "Listener", "NextNode", "OptionsFrom", "TextKey", "TextKeyZh", "LineActions", "Face", "Requires", "OnEnter", "Options" }, errors);
                 var node = new StoryDialogueNodeDef
                 {
                     Id = Str(no, "Id", path, errors, true),
                     Speaker = Str(no, "Speaker", path, errors, true),
                     Listener = Str(no, "Listener", path, errors, true),
                     NextNode = Str(no, "NextNode", path, errors, false),
+                    OptionsFrom = Str(no, "OptionsFrom", path, errors, false),
                     TextKey = Str(no, "TextKey", path, errors, true),
                     LineActions = StrList(no, "LineActions", path, errors, false),
+                    Face = Str(no, "Face", path, errors, false),
                     Requires = StrList(no, "Requires", path, errors, false)
                 };
                 node.OnEnter = ParseEffects(no, "OnEnter", path, errors);
@@ -574,10 +588,24 @@ namespace LivingWorldNpcs
                     errors.Add(new StoryDialogueIssue(path + ".NextNode", "unknown_node", "连续台词目标不存在：" + node.NextNode));
                 if (!string.IsNullOrEmpty(node.NextNode) && node.Options.Count > 0)
                     errors.Add(new StoryDialogueIssue(path, "bad_turn", "NextNode 与 Options 只能二选一"));
+                if (!string.IsNullOrEmpty(node.OptionsFrom))
+                {
+                    var menu = def.FindNode(node.OptionsFrom);
+                    if (menu == null || menu == node || !string.IsNullOrEmpty(menu.OptionsFrom)
+                        || !string.IsNullOrEmpty(menu.NextNode) || menu.Options.Count == 0)
+                        errors.Add(new StoryDialogueIssue(path, "bad_menu", "OptionsFrom 必须引用有选项的独立话题节点"));
+                    if (node.Options.Count > 0 || !string.IsNullOrEmpty(node.NextNode))
+                        errors.Add(new StoryDialogueIssue(path, "bad_turn", "OptionsFrom 与 NextNode／Options 互斥"));
+                }
                 if (node.LineActions.Count > 1)
                     errors.Add(new StoryDialogueIssue(path + ".LineActions", "bad_turn", "一句台词最多配一个动作"));
                 CheckConditions(node.Requires, path, errors, formalMode);
                 CheckEffects(node.OnEnter, path, errors, formalMode);
+                foreach (var effect in node.OnEnter.Concat(node.Options.SelectMany(o => o.Effects)))
+                    if (effect.Id == "start_fight" && effect.Params.TryGetValue("beneficiaries", out string helped))
+                        foreach (string id in helped.Split('|'))
+                            if (!actors.Contains(id)) errors.Add(new StoryDialogueIssue(path + ".Effects.start_fight.Params.beneficiaries",
+                                "unknown_actor", "受益者必须在Actors登记：" + id));
                 foreach (var opt in node.Options)
                 {
                     string opath = path + ".Options." + opt.Id;
@@ -710,6 +738,25 @@ namespace LivingWorldNpcs
                     && mode != "intro_sentence" && mode != "custody")
                     errors.Add(new StoryDialogueIssue(path + ".Effects.detain_player.Params.mode", "bad_param",
                         "扣押模式只能是intro_sentence/custody：" + mode));
+                if (eff.Id == "start_fight" && eff.Params.TryGetValue("mode", out string fightMode)
+                    && fightMode != "wound" && fightMode != "mortal")
+                    errors.Add(new StoryDialogueIssue(path + ".Effects.start_fight.Params.mode", "bad_param",
+                        "真实战斗模式只能是wound/mortal：" + fightMode));
+                if (eff.Id == "complete_quest" && eff.Params.TryGetValue("if_accepted", out string conditional)
+                    && conditional != "1")
+                    errors.Add(new StoryDialogueIssue(path + ".Effects.complete_quest.Params.if_accepted", "bad_param", "if_accepted只能是1"));
+                if (eff.Id == "start_fight")
+                {
+                    if (eff.Params.TryGetValue("resolve_event", out string eventValue)
+                        && (!int.TryParse(eventValue, out int eventId) || eventId <= 0))
+                        errors.Add(new StoryDialogueIssue(path + ".Effects.start_fight.Params.resolve_event", "bad_param", "纠纷编号必须为正整数"));
+                    foreach (string key in new[] { "reason", "start_line", "end_line" })
+                        if (eff.Params.TryGetValue(key, out string value) && !Regex.IsMatch(value, @"^LWN_[A-Za-z0-9_]+$"))
+                            errors.Add(new StoryDialogueIssue(path + ".Effects.start_fight.Params." + key, "bad_param", "必须是本地化语言键"));
+                    if (eff.Params.TryGetValue("beneficiaries", out string beneficiaries)
+                        && beneficiaries.Split('|').Any(id => !Regex.IsMatch(id, @"^[a-z][a-z0-9_]*$")))
+                        errors.Add(new StoryDialogueIssue(path + ".Effects.start_fight.Params.beneficiaries", "bad_param", "受益者须用已登记演员ID，以|分隔"));
+                }
             }
         }
 

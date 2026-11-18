@@ -238,6 +238,8 @@ namespace LivingWorldNpcs
         public static EquipmentIndex? GetRandomStealableItemIndex(Agent agent)
         {
             if (agent == null) return null;
+            var practice = StoryProbeMissionBehavior.Current?.ExistingPractice;
+            if (practice?.IsPracticeTarget(agent) == true) return practice.PracticeSlot(agent);
 
             List<EquipmentIndex> validIndices = new List<EquipmentIndex>();
 
@@ -248,7 +250,8 @@ namespace LivingWorldNpcs
                 EquipmentElement element = agent.SpawnEquipment[index];
 
                 // 只有当这个槽位有东西，且不是不可拾取的隐藏物品时
-                if (!element.IsEmpty && element.Item != null)
+                if (!element.IsEmpty && element.Item != null
+                    && practice?.OwnsTemporarySlot(agent, index) != true)
                 {
                     validIndices.Add(index);
                 }
@@ -270,8 +273,11 @@ namespace LivingWorldNpcs
         public static string StealSpecificItem(Agent agent, EquipmentIndex index)
         {
             if (agent == null || agent.SpawnEquipment[index].IsEmpty) return null;
+            var practice = StoryProbeMissionBehavior.Current?.ExistingPractice;
+            bool training = practice?.IsPracticeTarget(agent) == true && practice.AllowsTake(agent, index);
+            if (practice?.OwnsTemporarySlot(agent, index) == true && !practice.AllowsTake(agent, index)) return null;
             // 🔴 2026-08-16（方案 G3①/K2）：犯罪感知挂载点（玩家扒窃物品瞬间——同场景随从亲见）
-            AttackTriggerMissionLogic.ReportPlayerMisconduct("Steal");
+            if (!training) AttackTriggerMissionLogic.ReportPlayerMisconduct("Steal");
 
             // 1. 获取物品数据
             EquipmentElement itemToSteal = agent.SpawnEquipment[index];
@@ -301,10 +307,7 @@ namespace LivingWorldNpcs
             }
 
             // 2. 玩家获得赃物（穿戴件，带品质）：从「身上(世界)」grant 到玩家队伍背包
-            if (PartyBase.MainParty != null)
-            {
-                AgentControlHelper.TransferItems(null, Hero.MainHero, itemToSteal, 1);
-            }
+            if (PartyBase.MainParty == null || AgentControlHelper.TransferItems(null, Hero.MainHero, itemToSteal, 1) != 1) return null;
 
             // 2b. 真实损失（hero）：清受害者的 campaign 层装备（Battle/Civilian/1.4x Stealth 中
             //     与偷走的物品同槽同款的槽位）。玩家已拿到赃物——"入背包"那一端已被顶替，
@@ -312,15 +315,15 @@ namespace LivingWorldNpcs
             //     队伍，扣了 = 玩家亏两份（旧实现 2b 的坑）。守恒：hero 装备 −1 ↔ 玩家背包 +1。
             //     模板 NPC（victimHero == null）无 campaign 层，只清场景层（原有行为不变）。
             Hero victimHero = (agent.Character as CharacterObject)?.HeroObject;
-            HeroEquipmentLayers clearedLayers = ClearHeroEquipmentSlot(victimHero, index, itemToSteal.Item);
+            HeroEquipmentLayers clearedLayers = training ? HeroEquipmentLayers.None : ClearHeroEquipmentSlot(victimHero, index, itemToSteal.Item);
             if (clearedLayers != HeroEquipmentLayers.None)
                 DebugLogger.Log($"[Steal] {agent.Name} 装备层清空: {itemToSteal.Item.Name} 槽={index} 层={clearedLayers}");
 
             // 记录失窃（槽位 + 带品质元素 + 被清的 hero 层），供「归还」对称复原
-            RecordStolen(agent, index, itemToSteal, clearedLayers);
+            if (!training) RecordStolen(agent, index, itemToSteal, clearedLayers);
 
             // 偷窃账本记账（犯罪后果系统用）
-            if (victimHero != null && Settlement.CurrentSettlement != null)
+            if (!training && victimHero != null && Settlement.CurrentSettlement != null)
             {
                 TheftLedger.Record(
                     initiatorId: Hero.MainHero.StringId,
@@ -336,7 +339,7 @@ namespace LivingWorldNpcs
 
             // 失窃事实暗账（无条件）：无人目击时事件留 Dormant 等次日发现；
             // 被目击时证词 Steal 记录由 SyncActions 写入、不带 ItemId，StolenItems 不会与暗账双算。
-            AgentAIController.Instance?.RegisterUnwitnessedTheft(
+            if (!training) AgentAIController.Instance?.RegisterUnwitnessedTheft(
                 itemToSteal.Item.StringId, itemName, agent.Name?.ToString());
 
             // 3. 从 NPC 身上移除该物品 (修改视觉)
@@ -352,6 +355,7 @@ namespace LivingWorldNpcs
                 agent.UpdateAgentStats(); // 刷新战斗属性
             }
 
+            if (training) practice.TakeCommitted(agent, index);
             return itemName;
         }
 

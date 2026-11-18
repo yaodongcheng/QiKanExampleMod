@@ -1,6 +1,5 @@
 {
   "_comment": "序章的节奏与几何。改这里不用重编译；进场景读一次。字段含义见 StoryProbeData.cs 的 StoryProbeTuning。",
-
   "Ambient": {
     "_comment": "常驻小动作/吆喝的间隔（每个 NPC 各自随机）",
     "FirstDelayMinSec": 2.0,
@@ -8,7 +7,6 @@
     "GapMinSec": 8.0,
     "GapMaxSec": 20.0
   },
-
   "Events": {
     "_comment": "开场戏（两人冲突 / 单人发愁）的节奏",
     "FirstDelaySec": 12.0,
@@ -30,13 +28,11 @@
     "ResumeAfterReturnSec": 4.0,
     "ResumeGapSec": 3.0
   },
-
   "Skits": {
     "_comment": "随机桥段（只是氛围，不可接入）",
     "FirstDelaySec": 90.0,
     "MaxDurationSec": 20.0
   },
-
   "Performance": {
     "ActorReadyTimeoutSec": 3.0,
     "DebugActorDurationSec": 3.0,
@@ -47,8 +43,16 @@
     "_comment": "固定门区来自 SandBoxCore empire_town_m 源场景：主门约428/422，门外玩家站点463/421。未知场景不猜成功；不同城门需补核实过的Layouts。",
     "Layouts": {
       "empire_town_m": {
-        "Gate": [428.0, 422.2, 72.962],
-        "Outside": [463.453, 421.337, 69.35]
+        "Gate": [
+          428.0,
+          422.2,
+          72.962
+        ],
+        "Outside": [
+          463.453,
+          421.337,
+          69.35
+        ]
       }
     },
     "HalfWidthMeters": 3.0,
@@ -67,29 +71,31 @@
     "PushBackCooldownSec": 1.2,
     "GuardSpawnRadiusMeters": 60.0,
     "RecognizeDistanceMeters": 12.0,
-  "PassItem": "lwn_gate_pass",
-  "PassApproaches": ["charm", "money"],
-  "MaxIntercepts": 2
+    "PassItem": "lwn_gate_pass",
+    "PassApproaches": [
+      "charm",
+      "money"
+    ],
+    "MaxIntercepts": 2
   },
-
   "Crime": {
-    "_comment": "首次硬闯实际败退后登记拘押缘由，让第二次遮面有意义；不在进场时先挂罪抢掉正常质问", 
+    "_comment": "首次硬闯实际败退后登记拘押缘由，让第二次遮面有意义；不在进场时先挂罪抢掉正常质问",
     "SmallBountyAtEntry": 15.0,
     "RecognizedExtra": 10.0
   },
-
   "Noise": {
-    "_comment": "声音感知：身体只朝声音转。蹲着不出声、走路小声、跑步大声——想偷偷靠近就蹲着走。",
+    "_comment": "普通NPC只在身体前方5米内注视玩家；身后2米内的大跑步声才引起身体转向。走路、远处跑步不引普通人回头。敌对者保留10米注视与6/15米脚步听觉；门岗、会话、演出独立控制。",
     "WalkRadiusMeters": 6.0,
     "RunRadiusMeters": 15.0,
     "RunSpeedMps": 3.2,
     "CrouchSilent": true,
     "PublishIntervalSec": 0.4,
     "MaxAgeSec": 1.5,
-    "GazeRadiusMeters": 10.0,
+    "GazeRadiusMeters": 5.0,
+    "OrdinaryFootstepRadiusMeters": 2.0,
+    "HostileGazeRadiusMeters": 10.0,
     "TurnHoldSec": 6.0
   },
-
   "Greeting": {
     "_comment": "玩家靠近 / 拔刀时的反应（氛围层）",
     "WeaponRadiusMeters": 6.0,
@@ -97,9 +103,8 @@
     "NearRadiusMeters": 3.0,
     "NearCooldownSec": 30.0
   },
-
   "Intro": {
-    "_comment": "正常质问后选择硬闯才交战；强守卫真实伤害耗尽玩家血量才判败，无固定命中次数。HoldSec仅为败退后的演出停留", 
+    "_comment": "正常质问后选择硬闯才交战；强守卫真实伤害耗尽玩家血量才判败，无固定命中次数。HoldSec仅为败退后的演出停留",
     "ForcedDefeatHoldSec": 1.2,
     "FirstFightStartTimeoutSec": 3.0,
     "JailWakeDelaySec": 1.0,
@@ -108,7 +113,6 @@
     "FirstGuardSkillAdvantage": 120,
     "FirstGuardHealthMultiplier": 3.0
   },
-
   "ScreenGoal": {
     "_comment": "场景内常驻任务卡：位置 / 尺寸 / 刷新。Position 只认 top-right 与 top-left",
     "Enabled": true,

@@ -1207,6 +1207,7 @@ namespace LivingWorldNpcs
             // 非敌意行（Talk/Inspect/Plot/StopPlan/PlayerSurrender 等）照常。
             // 开关打开（允许对友方动手）→ 不过滤。动物无友方概念，天然不命中。
             bool hostileBlocked = IsHostileBlockedOnFriendly(currentAgent);
+            bool practiceTheft = StoryProbeMissionBehavior.Current?.ExistingPractice?.IsPracticeTarget(currentAgent) == true;
 
             // 🔴 **玩家自身状态**（钩索「勾人」§13.14 TODO 4）：手里牵着人吗？
             //    绳在玩家手上 ⇒【松绳】是"我"的动作，不是"目标"的属性 ⇒ 它跟着**玩家**走、不跟着 focus 走。
@@ -1341,7 +1342,7 @@ namespace LivingWorldNpcs
                     if (isCrouching)
                     {
                         // 🆕 友方保护：友方目标不注册偷窃行（显示与触发双断）
-                        if (!hostileBlocked && !ropeHeld)   // 🔴 牵着绳 ⇒ F 长按归【松绳】
+                        if ((!hostileBlocked || practiceTheft) && !ropeHeld)   // 🔴 牵着绳 ⇒ F 长按归【松绳】
                         {
                             // 本地化：偷窃交互按钮
                             AddInteractionRow(InteractionIds.Pickpocket, LWNTextHelper.ResolveText("LWN_ui_interact_pickpocket", "Pickpocket"));
@@ -2498,7 +2499,7 @@ namespace LivingWorldNpcs
             if (Settings.Instance.IsInteractionDisabled()) return;
 
             // 🆕 友方保护（防御兜底；正常路径已被 BuildAgentContext 注册层拦截）
-            if (IsHostileBlockedOnFriendly(target))
+            if (IsHostileBlockedOnFriendly(target) && StoryProbeMissionBehavior.Current?.ExistingPractice?.IsPracticeTarget(target) != true)
             {
                 ShowFriendlyBlocked(target);
                 return;

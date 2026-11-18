@@ -127,7 +127,7 @@ namespace LivingWorldNpcs
                 }
 
                 // 局部让位：只暂停正在跟这个人说话的工作；别人聊天不影响。
-                if (IsConversationActor(agent))
+                if (IsConversationActor(agent) || _host.IsPracticeActor(slot.ActorId))
                 {
                     Release(slot, "conversation", now);
                     slot.State = "paused";

@@ -459,6 +459,7 @@ namespace LivingWorldNpcs
         private readonly bool _skipGetupDelay;     // 跳过起身延迟（恐慌/逃跑：坐蹲躺也立即动）
         private readonly Agent _lookTarget;        // 边走边盯的目标（调查场景；null = 不盯）
         private readonly EndBehavior _endBehavior;
+        private readonly bool _allowTeleport;
         private float _moveStartTimer;             // 开始移动时刻（_timer 基准；起身预支 2s 不计入超时）
         private float fixedTimer = 0;
         private float _sampleTimer;       // 进度采样计时
@@ -480,7 +481,7 @@ namespace LivingWorldNpcs
         public MoveToPositionAction(Vec3 pos, Vec2 dir, bool run = false, float stopDistance = 1.0f,
             float maxTime = 0f, bool skipGetupDelay = false,
             EndBehavior endBehavior = EndBehavior.InteractPrepare, string narration = null,
-            Agent lookTarget = null)
+            Agent lookTarget = null, bool allowTeleport = true)
         {
             _targetPos = pos;
             _targetDir = dir;
@@ -491,6 +492,7 @@ namespace LivingWorldNpcs
             _endBehavior = endBehavior;
             _narration = narration;
             _lookTarget = lookTarget;
+            _allowTeleport = allowTeleport;
 
             _timer = 0f;
         }
@@ -578,7 +580,7 @@ namespace LivingWorldNpcs
         {
             // 仅卡死兜底才瞬移；正常到达保留原位（几十厘米偏差肉眼不可见，瞬移反而突兀）
             // 🔴 2026-08-21（在押守卫）：在押随从禁止瞬移——移动卡死 → TeleportToPosition = 越狱路径
-            if (_teleportOnEnd && AgentControlHelper.SafeIsActive(agent) && !CompanionDetentionBehavior.IsDetained(agent))
+            if (_allowTeleport && _teleportOnEnd && AgentControlHelper.SafeIsActive(agent) && !CompanionDetentionBehavior.IsDetained(agent))
                 agent.TeleportToPosition(_targetPos);
             // 朝向守卫：逃跑/回岗传 Vec2.Zero（无意义方向）→ 跳过，避免零向量下发给引擎（解锁后原版 AI 接管）
             if (_targetDir.LengthSquared > 0.01f)
@@ -1140,11 +1142,14 @@ namespace LivingWorldNpcs
         private readonly bool _isDuel;
         private readonly bool _protectInitiator;
         private readonly Action<Agent> _onDuelResolved;
+        private readonly CombatEncounter _encounter;
         internal bool HasDuelReceipt(Action<Agent> expected)
-            => _isDuel && expected != null && ReferenceEquals(_onDuelResolved, expected);
+            => expected != null && ((_isDuel && ReferenceEquals(_onDuelResolved, expected))
+                || (_encounter != null && ReferenceEquals(_encounter.Receipt, expected)));
         private bool _duelRejectionReported;
         internal void NotifyQueuedDuelCancelled()
         {
+            if (_encounter != null) { _encounter.Cancel(); return; }
             if (!_isDuel) return;
             _isFinished = true;
             _interrupted = true;
@@ -1154,6 +1159,7 @@ namespace LivingWorldNpcs
         /// <summary>未登记切磋就拒绝/取消时，只回报一次；异常不能打断既有收场。</summary>
         private void ReportDuelRejected()
         {
+            if (_encounter != null) { _encounter.Cancel(); return; }
             if (!_isDuel || _duelRejectionReported) return;
             _duelRejectionReported = true;
             try { _onDuelResolved?.Invoke(null); }
@@ -1183,7 +1189,7 @@ namespace LivingWorldNpcs
         /// 战斗行为：锁定并攻击指定敌人
         /// </summary>
         public FightEnemyAction(Agent targetEnemy, bool canCeaseOnPlayerSheathe = false, bool isDuel = false,
-            bool protectInitiator = false, Action<Agent> onDuelResolved = null)
+            bool protectInitiator = false, Action<Agent> onDuelResolved = null, CombatEncounter encounter = null)
         {
             _targetEnemy = targetEnemy;
             _isFinished = false;
@@ -1192,6 +1198,7 @@ namespace LivingWorldNpcs
             _isDuel = isDuel;
             _protectInitiator = isDuel && protectInitiator;
             _onDuelResolved = isDuel ? onDuelResolved : null;
+            _encounter = encounter;
         }
 
         /// <summary>玩家命中自己时刷新受击时间（AgentBrain damaged 处理调用；停战检测依据）。</summary>
@@ -1204,6 +1211,11 @@ namespace LivingWorldNpcs
         public void OnStart(Agent agent)
         {
             if (_interrupted) { _isFinished = true; ReportDuelRejected(); return; }
+            if (_encounter != null && (!AgentControlHelper.SafeIsActive(agent) || agent.Health <= 0f
+                || AgentBrain.IsKnockedOut(agent) || !AgentControlHelper.SafeIsActive(_targetEnemy)
+                || _targetEnemy.Health <= 0f || AgentBrain.IsKnockedOut(_targetEnemy)
+                || AgentBrain.IsRoped(_targetEnemy) || AgentBrain.IsHeldByStatus(_targetEnemy)))
+            { _isFinished = true; ReportDuelRejected(); return; }
             if (_targetEnemy == null || !AgentControlHelper.SafeIsActive(_targetEnemy))
             {
                 _isFinished = true;
@@ -1259,18 +1271,27 @@ namespace LivingWorldNpcs
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_attack_start",
                     ("NAME", agent.Name.ToString()), ("INDEX", agent.Index.ToString()), ("ENEMY", _targetEnemy.Name.ToString())), Colors.Yellow));
             //玩家阵营1，自己阵营2，这里之后再看
-            // 🔴 2026-08-13：切磋（IsDuel）→ Peace=true → StartDuel（Invulnerable 底层无敌，点到为止）
+            // 切磋使用非致命仲裁；真实冲突Peace=false，让原生伤害与倒地继续。
             CombatManager.StartFight(agent, _targetEnemy, 2, 1, Peace: _isDuel,
                 protectInitiator: _protectInitiator,
                 onDuelResolved: _isDuel ? new Action<Agent>(ForwardDuelResult) : null,
                 duelOwnerReceipt: _onDuelResolved);
+            if (_encounter != null && !_encounter.Begin())
+            {
+                _isFinished = true;
+                CombatManager.EndFight(agent);
+                _encounter.Cancel();
+                return;
+            }
             _lastHealth = agent.Health;
             // 🔴 M0 战斗喊话（说话并联）+ M4 双轨润色：开战宣言（Combat 优先级，有 LLM 润色/无则模板）
             // 切磋跳过宣言——"你想死吗？！"与点到为止的切磋语义相悖。
             if (!_isDuel)
                 SpeechChannel.SayPolished(agent,
                     // 本地化：LWN_action_combat_start（玩家可见文本）
-                    LWNTextHelper.ResolveText("LWN_action_combat_start", "You want to die?!"), SpeechPriority.Combat,
+                    string.IsNullOrEmpty(_encounter?.StartLineKey)
+                        ? LWNTextHelper.ResolveText("LWN_action_combat_start", "You want to die?!")
+                        : LWNTextHelper.ResolveText(_encounter.StartLineKey, null), SpeechPriority.Combat,
                     SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"));
         }
 
@@ -1334,7 +1355,7 @@ namespace LivingWorldNpcs
             // --- 持续性指令 ---
 
             // ── 残血认输：仅当目标是玩家时（切磋跳过——胜负由 EndDuel 判负统一收场，不打断切磋）──
-            if (!_surrenderTriggered && !_isDuel && _targetEnemy == Agent.Main)
+            if (!_surrenderTriggered && !_isDuel && _encounter == null && _targetEnemy == Agent.Main)
             {
                 float healthRatio = agent.Health / agent.HealthLimit;
                 if (healthRatio < 0.30f)
@@ -1391,6 +1412,13 @@ namespace LivingWorldNpcs
 
         public void OnEnd(Agent agent)
         {
+            // 真实致命结果先由正常tick发回执；仍站立时打断才取消，不能假判赢。
+            if (_encounter != null)
+            {
+                if (AgentControlHelper.SafeIsActive(agent) && agent.Health > 0f
+                    && AgentControlHelper.SafeIsActive(_targetEnemy) && _targetEnemy.Health > 0f
+                    && !AgentBrain.IsKnockedOut(agent) && !AgentBrain.IsKnockedOut(_targetEnemy)) _encounter.Cancel();
+            }
             if (_isDuel)
             {
                 var arbiter = AttackTriggerMissionLogic.Instance;
@@ -1405,25 +1433,31 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-11：玩家参与且分出胜负的战斗 → ①当事人动态记忆（NPC 知道"和谁打、谁赢"，
             // 后续 IM/当面对话的【近期回忆】接得住，不再瞎编结果）②ImEventBroadcaster 队伍广播
             // （框架复用：群聊议论 + 参与度记忆 + 接话，custom.im_test_event 同入口）。
-            RecordFightResultIfPlayerInvolved(agent);
+            if (_encounter == null) RecordFightResultIfPlayerInvolved(agent);
             // 🔴 M0 战斗喊话 + M4 双轨润色：胜利宣言——对方已倒下且自己仍站立时播（被清队列/自己倒下不喊）
             bool enemyDown = _targetEnemy == null || !AgentControlHelper.SafeIsActive(_targetEnemy) || _targetEnemy.Health <= 0f;
             bool selfUp = AgentControlHelper.SafeIsActive(agent) && agent.Health > 0f;
-            if (enemyDown && selfUp)
+            if (_encounter == null && enemyDown && selfUp)
+            {
+                var context = SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗");
                 SpeechChannel.SayPolished(agent,
                     // 本地化：LWN_action_combat_end（玩家可见文本）
                     LWNTextHelper.ResolveText("LWN_action_combat_end", "Hmph. Overconfident fool."), SpeechPriority.Combat,
-                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"));
+                    context);
+            }
             // 完整结束战斗（注销战斗者 + 移回原始队伍）
             // UnregisterCombatant 对非玩家战斗是 no-op，SetTeam 恢复总是需要的
-            CombatManager.EndFight(agent);
+            if (_encounter != null) _encounter.EndCombatant(agent);
+            else CombatManager.EndFight(agent);
             _targetEnemy = null;
+            if (_encounter != null && (!AgentControlHelper.SafeIsActive(agent) || agent.Health <= 0f
+                || AgentBrain.IsRoped(agent) || AgentBrain.IsHeldByStatus(agent) || AgentBrain.IsKnockedOut(agent))) return;
             // 战斗结束收武器，避免 NPC 提着刀回归巡逻
             agent.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
             agent.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
             AgentControlHelper.StopAndReset(agent); // 确保退出时清理状态
             // 战斗结束警戒值归零，避免 NPC 立刻重新进入 Alarmed → 再次质问玩家
-            AgentAIController.GetBrainForAgent(agent)?.ClearAllAlerts();
+            if (_encounter == null) AgentAIController.GetBrainForAgent(agent)?.ClearAllAlerts();
             DebugLogger.Log($"[FightEnd] {agent.Name}(Idx={agent.Index}) 战斗结束，收起武器，且警戒值归零");
         }
 
@@ -1546,6 +1580,31 @@ namespace LivingWorldNpcs
     /// </summary>
     public sealed class PerformanceAction : IAtomicAction
     {
+        private StoryMoveAction _walking;
+        public bool? WalkResult { get; private set; }
+        public bool IsWalking => _walking != null;
+
+        /// <summary>在本租约内正常步行；到位或失败均有回执，不传送。</summary>
+        public bool BeginWalk(Vec3 point, float stopDistance, float maxTime)
+        {
+            if (!CanControl || _walking != null) return false;
+            _presentation?.Stop();
+            _brain.Owner.SetActionChannel(0, ActionIndexCache.act_none, ignorePriority: true, blendInPeriod: 0.2f);
+            WalkResult = null;
+            _walking = new StoryMoveAction(point, stopDistance, ok => WalkResult = ok, maxTime);
+            _walking.OnStart(_brain.Owner);
+            _bodyHeld = false;
+            return true;
+        }
+
+        private void StopWalk(bool touchBody)
+        {
+            var walk = _walking;
+            _walking = null;
+            if (walk == null) return;
+            walk.RequestInterrupt();
+            if (touchBody) walk.OnEnd(_brain.Owner);
+        }
         private readonly AgentBrain _brain;
         private readonly Mission _mission;
         private readonly Action<string> _onStopped;
@@ -1559,6 +1618,7 @@ namespace LivingWorldNpcs
         public Agent SpeechListener { get; private set; }
         /// <summary>固定站位演出可保留策划方向；发声仍注视真实听话者，不自动转身体。</summary>
         public bool AllowSpeechBodyTurn { get; set; } = true;
+        public bool AllowSpeechGaze { get; set; } = true;
         public string OwnerToken { get; }
         public bool Started { get; private set; }
         public bool Paused { get; private set; }
@@ -1607,7 +1667,7 @@ namespace LivingWorldNpcs
         /// <summary>演出租约内播放动作及其数据配套；换动作先收掉本租约的挂件与声音。</summary>
         public bool PlayAction(string action, ActionPresentationDef presentation = null)
         {
-            if (!CanControl || string.IsNullOrEmpty(action)) return false;
+            if (!CanControl || IsWalking || string.IsNullOrEmpty(action)) return false;
             var warrior = MBActionSet.GetActionSet("as_human_warrior");
             if (!warrior.IsValid || !MBActionSet.CheckActionAnimationClipExists(warrior, ActionIndexCache.Create(action)))
                 return false;
@@ -1628,7 +1688,12 @@ namespace LivingWorldNpcs
         {
             if (_ended || Paused == paused) return;
             Paused = paused;
-            if (paused) ReleaseBody();
+            if (paused)
+            {
+                StopWalk(Mission.Current == _mission && AgentControlHelper.SafeIsActive(_brain.Owner)
+                    && _brain.Owner.Health > 0f && !_brain.IsBound && !_brain.IsStatusHeld && !_brain.IsStunned);
+                ReleaseBody();
+            }
             else if (Started && CanControl) HoldBody();
         }
 
@@ -1668,6 +1733,14 @@ namespace LivingWorldNpcs
             }
             if (CanControl)
             {
+                if (_walking != null)
+                {
+                    _walking.OnTick(agent, dt);
+                    if (!_walking.IsFinished(agent)) return;
+                    var completed = _walking;
+                    _walking = null;
+                    completed.OnEnd(agent);
+                }
                 _facingDebugElapsed += Math.Max(0f, dt);
                 HoldBody(dt);
             }
@@ -1694,7 +1767,7 @@ namespace LivingWorldNpcs
             // 首次接管才清旧移动合同；之后保留本动作的站位方向，不能每帧清掉再重建。
             AgentControlHelper.HoldInPlace(_brain.Owner, resetScriptedMovement: !_bodyHeld);
             _bodyHeld = true;
-            if (SpeechListener != null)
+            if (SpeechListener != null && AllowSpeechGaze)
             {
                 // 只控制正在冒泡的speaker；扇形内只追踪注视，出了身体前方视野才请求转身。
                 // 复用视线引擎的120度扇形部分，不把远、遮挡或高差当成转身条件。
@@ -1750,6 +1823,8 @@ namespace LivingWorldNpcs
         internal void Finish(string reason, bool releaseBody = true)
         {
             if (_ended) return;
+            StopWalk(releaseBody && Mission.Current == _mission && AgentControlHelper.SafeIsActive(_brain.Owner)
+                && _brain.Owner.Health > 0f && !_brain.IsBound && !_brain.IsStatusHeld && !_brain.IsStunned);
             // releaseBody=false 用于死亡、场景失效及特殊状态；声音/挂件仍须独立收尾。
             _presentation?.Stop();
             try { if (releaseBody) ReleaseBody(); }
@@ -2195,30 +2270,31 @@ namespace LivingWorldNpcs
         private readonly Vec3 _target;
         private readonly float _stop;
         private readonly Action<bool> _done;
-        private bool _fired;
+        private bool _fired, _started;
 
-        public StoryMoveAction(Vec3 target, float stopDistance, Action<bool> done)
+        public StoryMoveAction(Vec3 target, float stopDistance, Action<bool> done, float maxTime = 20f)
         {
             _target = target;
             _stop = Math.Max(0.2f, stopDistance);
             _done = done;
             _inner = new MoveToPositionAction(target, Vec2.Zero, run: false, stopDistance: _stop,
-                maxTime: 20f, skipGetupDelay: false,
-                endBehavior: MoveToPositionAction.EndBehavior.Unlock, narration: null);
+                maxTime: Math.Max(1f, maxTime), skipGetupDelay: false,
+                endBehavior: MoveToPositionAction.EndBehavior.Unlock, narration: null, allowTeleport: false);
         }
 
         public string GetNarration(Agent owner) => null;
-        public void OnStart(Agent agent) => _inner.OnStart(agent);
-        public void OnTick(Agent agent, float dt) => _inner.OnTick(agent, dt);
+        public void OnStart(Agent agent) { if (!_fired) { _started = true; _inner.OnStart(agent); } }
+        public void OnTick(Agent agent, float dt) { if (_started && !_fired) _inner.OnTick(agent, dt); }
 
         public bool IsFinished(Agent agent)
         {
+            if (_fired) return true;
             if (!_inner.IsFinished(agent)) return false;
             Fire(agent != null && agent.Position.Distance(_target) <= _stop + 0.5f);
             return true;
         }
 
-        public void OnEnd(Agent agent) => _inner.OnEnd(agent);
+        public void OnEnd(Agent agent) { if (_started) _inner.OnEnd(agent); Fire(false); }
         public void RequestInterrupt() { _inner.RequestInterrupt(); Fire(false); }
 
         private void Fire(bool ok)

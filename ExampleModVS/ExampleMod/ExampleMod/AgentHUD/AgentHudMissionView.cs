@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Engine.GauntletUI;
+using TaleWorlds.Engine.Options;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
@@ -107,14 +108,17 @@ namespace LivingWorldNpcs
             if (_dataSource == null || _dataSource.Huds.Count == 0) return;
 
             MissionScreen currentMissionScreen = ScreenManager.TopScreen as MissionScreen;
-            if (currentMissionScreen == null) return;
+            if (currentMissionScreen == null || currentMissionScreen.CombatCamera == null) return;
 
             _tickCounter++;
 
             float screenWidth = Screen.RealScreenResolutionWidth;
             float screenHeight = Screen.RealScreenResolutionHeight;
 
-            float uiScale = _layer.UIContext.Scale;
+            // Widget 的尺寸与位置都使用 CustomScale（含玩家 UI 缩放）。
+            // 只除基础 Scale 会让整个 HUD 向屏幕原点或外侧漂移。
+            float uiScale = _layer.UIContext.CustomScale;
+            if (uiScale <= 0f) return;
             float invUiScale = 1.0f / uiScale;
 
             List<int> removeIndices = null;
@@ -142,18 +146,24 @@ namespace LivingWorldNpcs
                 }
 
                 // ── 第三层：屏幕坐标计算 ──
-                // XY 取 agent.Position（身体中心，不受头部晃动影响）
-                // Z  取 GetEyeGlobalPosition()（动画骨骼高度，上楼时平滑无台阶跳跃）
-                Vec3 agentPos = agent.Position;
-                agentPos.z = agent.GetEyeGlobalPosition().z + 0.1f;
-                var screenPos = currentMissionScreen.SceneLayer.WorldPointToScreenPoint(agentPos);
-                float pixelX = screenPos.x * screenWidth;
-                float pixelY = screenPos.y * screenHeight;
+                // 三轴都取真实眼睛位置；动画中的身体/头部偏移不能用脚底 XY 代替。
+                // 既有 VM 平滑仍负责过滤位置抖动。
+                Vec3 agentPos = GetHudAnchor(agent);
+                var screenPos = ProjectHudAnchor(currentMissionScreen, agentPos, out float projectionW);
+                float pixelX = screenPos.x;
+                float pixelY = screenPos.y;
+                if (float.IsNaN(pixelX) || float.IsInfinity(pixelX) ||
+                    float.IsNaN(pixelY) || float.IsInfinity(pixelY))
+                {
+                    hud.IsVisible = false;
+                    continue;
+                }
 
-                // 🔴 2026-09-03 性能优化：已投影重载——本循环 147-151 行已算好 pixelX/Y，
-                // 传进去跳过 IsPlayerSeeing 内部的二次屏幕投影（每帧每人省一次 WorldPointToScreenPoint）；
+                // 已投影重载：本循环已算好头顶窗口像素 pixelX/Y，
+                // 传进去跳过 IsPlayerSeeing 内部的二次屏幕投影；
                 // 遮挡射线走既有缓存（0.1s 闸门 + 1s 兜底），语义不变。
-                bool inFov = NpcSightSystem.IsPlayerSeeingProjected(agent, pixelX, pixelY, screenWidth, screenHeight);
+                bool inFov = projectionW > 0f &&
+                    NpcSightSystem.IsPlayerSeeingProjected(agent, pixelX, pixelY, screenWidth, screenHeight);
 
                 // ── 第五层：警戒值更新（FOV 豁免，距离内始终追踪） ──
                 // 🆕 从 AgentBrain 读警戒值（Phase 1 迁移：状态从 NpcSightSystem → AgentBrain）
@@ -256,6 +266,24 @@ namespace LivingWorldNpcs
             }
 
             PerfProfiler.Accum(PerfSlot.HV_AgentHud, t0); // perf: HV_AgentHud
+        }
+
+        private static Vec3 GetHudAnchor(Agent agent)
+        {
+            Vec3 anchor = agent.GetEyeGlobalPosition();
+            anchor.z += 0.1f;
+            return anchor;
+        }
+
+        private static Vec2 ProjectHudAnchor(MissionScreen screen, Vec3 anchor, out float w)
+        {
+            float x = 0f, y = 0f;
+            w = 0f;
+            // 复用原版阵型标记的窗口投影：返回的就是最终屏幕像素。
+            // 避免混用场景渲染层坐标与最终窗口像素；分辨率比例由窗口投影处理。
+            // UI 缩放仍仅在后续像素 -> Widget 换算时应用。
+            MBWindowManager.WorldToScreen(screen.CombatCamera, anchor, ref x, ref y, ref w);
+            return new Vec2(x, y);
         }
 
         // ── 屏幕边缘 clamp 辅助 ──
@@ -398,6 +426,45 @@ namespace LivingWorldNpcs
         // ============================================================
         // 控制台指令
         // ============================================================
+
+        [CommandLineFunctionality.CommandLineArgumentFunction("agentHud", "custom")]
+        public static string ExecuteAgentHudStatus(List<string> args)
+        {
+            var view = Instance;
+            var screen = ScreenManager.TopScreen as MissionScreen;
+            if (view?._dataSource == null || view._layer?.UIContext == null || screen?.CombatCamera == null)
+                return "No active mission HUD.";
+
+            var context = view._layer.UIContext;
+            float scale = context.CustomScale;
+            if (scale <= 0f) return "HUD scale is not ready.";
+            var output = new StringBuilder();
+            output.AppendLine($"HUD positions (read-only): baseScale={context.Scale:F3} customScale={scale:F3}");
+            output.AppendLine($"projection=MBWindowManager.WorldToScreen resolutionScale={NativeOptions.GetConfig(NativeOptions.NativeOptionsType.ResolutionScale):F1}% screen={Screen.RealScreenResolutionWidth:F0}x{Screen.RealScreenResolutionHeight:F0}");
+            output.AppendLine("Pixels; displayed center includes existing position smoothing. No scene or HUD state is changed.");
+            int shown = 0;
+            foreach (var hud in view._dataSource.Huds)
+            {
+                var agent = hud.TargetAgent;
+                if (!hud.IsVisible || agent == null || !AgentControlHelper.SafeIsActive(agent)) continue;
+                var eye = agent.GetEyeGlobalPosition();
+                var anchor = GetHudAnchor(agent);
+                var projected = ProjectHudAnchor(screen, anchor, out float projectionW);
+                float pixelX = projected.x;
+                float pixelY = projected.y;
+                // 只读保留旧渲染层算法作现场对照，不再参与实际 HUD 定位。
+                var legacy = screen.SceneLayer.WorldPointToScreenPoint(anchor);
+                float legacyX = legacy.x * Screen.RealScreenResolutionWidth;
+                float legacyY = legacy.y * Screen.RealScreenResolutionHeight;
+                float displayedX = (hud.PosX + hud.BubbleWidth * 0.5f) * scale;
+                float displayedY = (hud.PosY + hud.BubbleHeight) * scale;
+                float eyeOffset = (eye.AsVec2 - agent.Position.AsVec2).Length;
+                output.AppendLine($"agent #{agent.Index} ({agent.Name}): head=({pixelX:F1},{pixelY:F1}) containerBottomCenter=({displayedX:F1},{displayedY:F1}) delta=({displayedX - pixelX:F1},{displayedY - pixelY:F1}) legacySceneHead=({legacyX:F1},{legacyY:F1}) legacyDelta=({legacyX - pixelX:F1},{legacyY - pixelY:F1}) w={projectionW:F2} eyeOffsetXY={eyeOffset:F3}m alert={hud.ShowAlert}");
+                if (++shown >= 12) break;
+            }
+            if (shown == 0) output.AppendLine("No visible agent HUDs.");
+            return output.ToString();
+        }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("agentHud_say", "custom")]
         public static string ExecuteAgentHudSay(List<string> args)

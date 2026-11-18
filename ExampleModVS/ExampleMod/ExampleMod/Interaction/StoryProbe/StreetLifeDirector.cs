@@ -47,6 +47,7 @@ namespace LivingWorldNpcs
         private bool _eventPrepared;
         private float _eventReadyWait;
         private readonly Dictionary<Agent, PerformanceAction> _eventActors = new Dictionary<Agent, PerformanceAction>();
+        private readonly Dictionary<Agent, Vec3> _eventGatherTargets = new Dictionary<Agent, Vec3>();
         private sealed class AmbientSlot
         {
             public PerformanceAction Lease;
@@ -286,6 +287,7 @@ namespace LivingWorldNpcs
                 accepted[actor] = lease;
             }
             foreach (var kv in accepted) _eventActors[kv.Key] = kv.Value;
+            _eventGatherTargets.Clear();
             _eventOwner = session;
             _eventInterrupted = null;
             _eventPrepared = false;
@@ -355,10 +357,25 @@ namespace LivingWorldNpcs
                             offset = new Vec3((float)Math.Cos(ang), (float)Math.Sin(ang), 0f)
                                      * StoryProbeTuning.Current.Events.ActorApproachMeters;
                         }
-                        other.TeleportToPosition(a.Position + offset);
+                        if (!_eventGatherTargets.ContainsKey(other))
+                        {
+                            var destination = a.Position + offset;
+                            if (!_eventActors[other].BeginWalk(destination, 0.5f,
+                                Math.Max(20f, other.Position.Distance(destination) / 1.5f * 2f)))
+                                throw new InvalidOperationException("event walk refused: " + ResolveNpcId(other));
+                            _eventGatherTargets[other] = destination;
+                            DebugLogger.Log($"[StoryProbe] event gather #{_activeEvent.Index} actor={ResolveNpcId(other)} walking to={destination}");
+                        }
                     }
-                    AgentControlHelper.FaceToActor(a, other);
-                    AgentControlHelper.FaceToActor(other, a);
+                }
+                if (_eventGatherTargets.Keys.Any(actor => _eventActors[actor].IsWalking)) return;
+                if (_eventGatherTargets.Any(pair => _eventActors[pair.Key].WalkResult != true
+                    || pair.Key.Position.Distance(pair.Value) > 1f))
+                    throw new InvalidOperationException("event gathering could not reach destination");
+                for (int i = 1; i < agents.Count; i++)
+                {
+                    AgentControlHelper.FaceToActor(a, agents[i]);
+                    AgentControlHelper.FaceToActor(agents[i], a);
                 }
             }
             _eventPrepared = true;
@@ -390,7 +407,12 @@ namespace LivingWorldNpcs
                     return;
                 }
                 try { PrepareEventActors(); }
-                catch (Exception ex) { EndEvent("actor preparation failed: " + ex.Message); }
+                catch (Exception ex)
+                {
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText(
+                        "LWN_story_event_preparation_failed", "The conversation stopped because the participants could not get into position.")));
+                    EndEvent("actor preparation failed: " + ex.Message);
+                }
                 if (_activeEvent == null || !_eventPrepared) return;
             }
             if (!_eventPaused && !inConversation) _eventElapsed += dt;
@@ -521,6 +543,7 @@ namespace LivingWorldNpcs
             _eventOwner = null;
             var leases = _eventActors.Values.ToList();
             _eventActors.Clear();
+            _eventGatherTargets.Clear();
             foreach (var lease in leases) lease.Release(reason);
             _activeEvent = null;
             _eventPrepared = false;
@@ -751,6 +774,7 @@ namespace LivingWorldNpcs
                 var brain = AgentAIController.GetBrainForAgent(agent);
                 if (brain == null || brain.IsInCombat || brain.IsStoryIntercepting || brain.IsBound
                     || brain.IsStatusHeld || brain.IsStunned) continue;
+                if (_host.IsPracticeActor(def.NpcId)) continue;
                 bool working = _host.Work?.CanSpeakWhileWorking(def.NpcId) == true;
                 if (!working && (brain.IsPerforming || !(brain.CurrentAction is StreetIdleAction))) continue;
                 var context = new StoryDialogueContext { ActorId = def.NpcId };
@@ -900,6 +924,7 @@ namespace LivingWorldNpcs
             foreach (var slot in _ambientActors.Values.ToList()) slot.Lease.InvalidateManaged();
             _eventActors.Clear();
             _ambientActors.Clear();
+            _eventGatherTargets.Clear();
             _activeEvent = null;
             _forcedAmbientNpc = null;
         }
@@ -923,6 +948,7 @@ namespace LivingWorldNpcs
             return $"time={_time:F1} stopped={Stopped} event={evt} prepared={_eventPrepared} " +
                    $"placement={_activeEvent?.Placement ?? "-"} " +
                    $"interrupted={(_eventInterrupted ?? "-")} actors={_eventActors.Count} groups={_events.Count} " +
+                   $"walking={_eventActors.Values.Count(a => a.IsWalking)} gather=[{string.Join(",", _eventGatherTargets.Select(p => ResolveNpcId(p.Key) + ":" + (p.Value.Distance(p.Key.Position)).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + "m/" + (_eventActors[p.Key].WalkResult?.ToString() ?? "pending")))}] " +
                    $"join=player-F nextEventIn={Math.Max(0f, _nextEventAt - _time):F1}s played=[{string.Join(",", _playedEvents)}]";
         }
 
@@ -1007,10 +1033,9 @@ namespace LivingWorldNpcs
             if (_dutyDir.HasValue)
             {
                 Vec2 want = _dutyDir.Value;
-                Vec2 look = agent.Frame.rotation.f.AsVec2;
-                float dot = look.LengthSquared > 1e-4f && want.LengthSquared > 1e-4f
-                    ? Vec2.DotProduct(look.Normalized(), want.Normalized()) : 1f;
-                if (dot < 0.96f) AgentControlHelper.SetBodyDirection(agent, want);
+                // 即使画面已对齐，也要给原生层一个独立的身体方向意图。
+                // 未写的零方向会允许原生层跟随 look；动画朝向不能代替方向意图。
+                AgentControlHelper.SetBodyDirection(agent, want);
             }
         }
 
@@ -1062,7 +1087,7 @@ namespace LivingWorldNpcs
                 string fb = i < _lineFallbacks.Length ? _lineFallbacks[i] : "";
                 var listener = host.ResolveSpeechListener(_listenerId);
                 if (AgentControlHelper.SafeIsActive(listener) && listener != agent && listener.Health > 0f
-                    && agent.Position.Distance(listener.Position) <= StoryProbeTuning.Current.Noise.GazeRadiusMeters)
+                    && agent.Position.Distance(listener.Position) <= StoryProbeTuning.Current.Ambient.ListenerRadiusMeters)
                     host.SayOnAgent(agent, _lineKeys[i], fb, listener: listener);
             }
         }

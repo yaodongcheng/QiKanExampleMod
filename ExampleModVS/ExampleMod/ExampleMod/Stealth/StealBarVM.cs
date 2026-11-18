@@ -453,6 +453,21 @@ namespace LivingWorldNpcs
 
         private void AttemptPickpocket()
         {
+            var practice = StoryProbeMissionBehavior.Current?.ExistingPractice;
+            if (practice?.IsPracticeTarget(_target) == true)
+            {
+                if (MobileParty.MainParty != null && MobileParty.MainParty.TotalWeightCarried >= MobileParty.MainParty.InventoryCapacity)
+                {
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_overburdened", "Your party is overburdened and cannot carry any more."), Colors.Red));
+                    return;
+                }
+                bool hit = HitTest(out _);
+                practice.PracticeAttempt(_target, hit, _pendingSlot);
+                if (hit && _pendingSlot.HasValue && practice.AllowsTake(_target, _pendingSlot.Value))
+                    StealManager.StealSpecificItem(_target, _pendingSlot.Value);
+                CloseReason = StealBarCloseReason.Completed;
+                return;
+            }
             if ((!_pendingSlot.HasValue && !_pendingIsPurse) || _target == null)
             {
                 // 本地化：目标被摸空提示
@@ -628,7 +643,7 @@ namespace LivingWorldNpcs
             _pendingIsPurse = false;
 
             // 钱袋进盲盒：身上有钱时有概率摸到（装备摸空后有钱袋必摸钱袋）——金钱独立偷窃目标
-            if (StealManager.HasPurseGold(_target)
+            if (StoryProbeMissionBehavior.Current?.ExistingPractice?.IsPracticeTarget(_target) != true && StealManager.HasPurseGold(_target)
                 && (!_pendingSlot.HasValue || _random.NextDouble() < PurseChance))
             {
                 _pendingIsPurse = true;

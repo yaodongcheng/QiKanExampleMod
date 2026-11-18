@@ -222,14 +222,14 @@ def main():
         "Version": 1,
         "Anchors": {
             "player": {"Source": "player", "Pick": "first", "Required": True},
-            # 第二阶段没有使用 gate_entity 的点位或门区；不要把一级/二级门实体
-            # 列为开演必需项，否则实际加载 level_3 时会取消已准备好的整场演出。
-            # 旧 v1 拍里用 `gate` 这个别名；这里显式登记，避免“未声明锚点”。
-            "gate": dict(gate["Layouts"]["gate_outer"]["Anchors"]["gate_entity"], Required=False),
+            # 二次双卫岗位和质问区域使用真实门；一级至三级候选沿同一维护源。
+            # 缺门必须由Prep明确失败，不能用玩家出生点伪造一个门岗。
+            "gate": dict(gate["Layouts"]["gate_outer"]["Anchors"]["gate_entity"]),
             "idle": {"Source": "tag", "Value": ["npc_idle"], "Pick": "nearestToPlayer", "Required": False},
             "market": {"Source": "tag", "Value": ["sp_merchant"], "Pick": "nearestToPlayer", "Required": False},
         },
-        "Gates": {},
+        # 二次入城仍由同一扇真实城门与双岗履职；几何沿用首遇维护源。
+        "Gates": json.loads(json.dumps(gate["Layouts"]["gate_outer"]["Gates"]).replace('"gate_entity"', '"gate"')),
         "Props": props,
         "Standing": standing,
     }

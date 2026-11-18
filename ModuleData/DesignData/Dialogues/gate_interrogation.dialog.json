@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 门岗实际说话者由本次请求绑定，blocker与gate_sentry复用本定义。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "gate_interrogation",
-  "ContentVersion": 11,
+  "ContentVersion": 13,
   "EntryOption": "LWN_story_blocker_entry",
   "EntryOptionZh": "让一让，我要进城。",
   "SkipVanillaOpening": true,
@@ -43,6 +43,21 @@
       "CooldownSec": 0.0,
       "ReentrySec": 0.0,
       "OnCancel": "close"
+    },
+    {
+      "Id": "second_meet_auto",
+      "Source": "post_ai",
+      "Purpose": "interrogate",
+      "Conditions": [
+        "phase:second_meet"
+      ],
+      "Rank": [
+        "distanceToPlayer",
+        "npcId"
+      ],
+      "CooldownSec": 3.0,
+      "ReentrySec": 8.0,
+      "OnCancel": "release"
     }
   ],
   "Entries": [
@@ -72,6 +87,16 @@
         "!phase:first_meet"
       ],
       "Priority": 50,
+      "Node": "blocker_open_line1"
+    },
+    {
+      "Id": "auto_second_meet",
+      "Trigger": "second_meet_auto",
+      "Conditions": [
+        "phase:second_meet",
+        "!gate_open"
+      ],
+      "Priority": 100,
       "Node": "blocker_open_line1"
     }
   ],
@@ -358,7 +383,7 @@
           "PlayerKey": "LWN_story_blocker_opt_threat",
           "PlayerKeyZh": "[威吓] 好狗不挡道，让开。",
           "HintKey": "LWN_story_hint_threat_gate",
-          "HintKeyZh": "先处理郑大山的砸摊委托并交差，获得15点武力训练收益后才能尝试；通过后依然检定，失败可能开战或被拘捕。",
+          "HintKeyZh": "逼他让路；可能交战或被捕",
           "Requires": [
             "!gate_open",
             "!stripped_disarmed",
@@ -391,7 +416,7 @@
           "PlayerKey": "LWN_story_blocker_opt_disguise",
           "PlayerKeyZh": "[冒充贵客] 我来办事还得等你同意，把你们管事的叫来。",
           "HintKey": "LWN_story_hint_disguise_gate",
-          "HintKeyZh": "借贵族行头施压争取通行；被识破可能遭到武力拘捕。",
+          "HintKeyZh": "借行头压人；识破可能被捕",
           "Requires": [
             "noble",
             "!gate_open",

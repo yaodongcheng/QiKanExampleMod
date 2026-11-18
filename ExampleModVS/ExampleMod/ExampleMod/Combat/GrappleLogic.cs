@@ -112,6 +112,11 @@ namespace LivingWorldNpcs
 		/// <summary>这一套正绑着人吗 / 正拉着自己吗 / 绑的是谁（AI 判据用）。</summary>
 		public bool HasBoundTarget => _bind.IsActive;
 		public bool IsPullingSelf => _pull.IsActive;
+        // Monotonic receipts: observers cannot confuse release/abort with a successful landing.
+        public int WorldHitReceipt { get; private set; }
+        public Vec3 LastWorldHit { get; private set; }
+        public int PullFinishedReceipt { get; private set; }
+        public Vec3 LastPullAnchor { get; private set; }
 		public Agent BoundTarget => _bind.Target;
 		/// <summary>正扛着谁（没扛 = null）。序章要用它判"守门人被扛走了吗"。</summary>
 		public Agent CarriedTarget => _carry.IsActive ? _carry.Carried : null;
@@ -2170,6 +2175,7 @@ namespace LivingWorldNpcs
 
 				if (step == GrappleHook.StepResult.HitWorld)
 				{
+                    WorldHitReceipt++; LastWorldHit = _hook.AttachedPoint;
 					_hookPhase = HookPhase.Attached;
 					_attachTimer = 0f;
 					ResolveLanding();
@@ -2444,6 +2450,7 @@ namespace LivingWorldNpcs
 				GrapplePull.PullEvent ev = _pull.Tick(dt);
 				if (ev == GrapplePull.PullEvent.Finished)
 				{
+                    PullFinishedReceipt++; LastPullAnchor = _hook.AttachedPoint;
 					// 拉拽整段完成 = **已经落地**（平台那条：落地动作早已自己出机，此处空操作；
 					// 板载自由落体那条：板顶刚贴地）⇒ 收摊必须**带上"已落地"这个事实**：
 					// 这一帧 `IsOnLand()` 还是假（板刚拆、人刚解冻），按它判会把动画又推回 自由落体，

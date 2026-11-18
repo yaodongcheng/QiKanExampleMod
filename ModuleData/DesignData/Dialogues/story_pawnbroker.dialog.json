@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_pawnbroker",
-  "ContentVersion": 9,
+  "ContentVersion": 11,
   "EntryOption": "LWN_story_pawnbroker_entry",
   "EntryOptionZh": "[说两句] 老板，生意不错。",
   "SkipVanillaOpening": true,
@@ -643,20 +643,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "pawnbroker_ask_know",
@@ -668,20 +656,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "pawnbroker_ask_sister",
@@ -787,20 +763,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "pawnbroker_sister_why",
@@ -812,20 +776,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "pawnbroker_sister_redeem",
@@ -913,32 +865,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "pawnbroker_ask_gang",
@@ -1037,20 +965,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "pawnbroker_ask_gang_3",
@@ -1062,20 +978,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "pawnbroker_deal",
@@ -1184,20 +1088,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "pawnbroker_quest_accept",
@@ -1400,32 +1292,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "pawnbroker_chat",
@@ -1497,32 +1365,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "pawnbroker_errand_line1",
@@ -1546,32 +1390,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "event_1_join_line1",
@@ -1637,7 +1457,7 @@
           "PlayerKey": "LWN_story_event1_opt_stop",
           "PlayerKeyZh": "[喝止] 松手！再碰他，就别怪我动手。",
           "HintKey": "LWN_story_hint_event1_opt_stop",
-          "HintKeyZh": "喝止打手，试着替老周解围；可能激怒对方。",
+          "HintKeyZh": "替老周解围；可能激怒打手",
           "Requires": [
             "!asked:attempt_LWN_story_event1_opt_stop"
           ],
@@ -2008,32 +1828,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     },
     {
       "Id": "pawnbroker_help_reward",
@@ -2045,32 +1841,8 @@
         "act_conversation_closed_trivial"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "pawnbroker_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "Options": [],
+      "OptionsFrom": "pawnbroker_hub"
     }
   ],
   "_Speaker说明": "节点只能由NPC说话；npc/questioner绑定本次入口演员，其余为Actors中的实名ID。",

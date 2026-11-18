@@ -33,7 +33,7 @@ class StreetLifeDef {public string NpcId;public List<SpeechDef> Speech=new();pub
 static class StoryProbeDefs {public static List<StreetLifeDef> StreetLife=new();public static StreetLifeDef GetStreetLife(string id)=>StreetLife.FirstOrDefault(d=>d.NpcId==id);}
 static class StoryProbeTuning {public static StoryProbeTuningData Current=new();public class StoryProbeTuningData {public AmbientData Ambient=new();}public class AmbientData {public float SpeechGapSec=3.5f;}}
 class Work {public HashSet<string> Working=new();public bool CanSpeakWhileWorking(string id)=>Working.Contains(id);}
-class Host {public Work Work=new();public Dictionary<string,Agent> Agents=new();public Agent GetAgent(string id)=>id!=null&&Agents.TryGetValue(id,out var a)?a:null;public Agent ResolveSpeechListener(string id)=>id=="player"?Agent.Main:GetAgent(id);__HOST__}
+class Host {public bool IsPracticeActor(string id)=>false;public Work Work=new();public Dictionary<string,Agent> Agents=new();public Agent GetAgent(string id)=>id!=null&&Agents.TryGetValue(id,out var a)?a:null;public Agent ResolveSpeechListener(string id)=>id=="player"?Agent.Main:GetAgent(id);__HOST__}
 class Director {
 private Host _host;private float _time=10,_nextAmbientSpeechAt;private int _nextSpeechDefIndex;private Random _rng=new(0);
 private Dictionary<string,float> _nextSpeechAt=new();private Dictionary<string,int> _speechCursor=new();

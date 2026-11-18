@@ -27,13 +27,16 @@ def main():
     atomic = (SRC/'AI/Actions/AtomicAction.cs').read_text(encoding='utf-8-sig')
     start = atomic.index('public sealed class PerformanceAction : IAtomicAction')
     stop = atomic.index('\n    /// <summary>', start)
-    performance = 'using System;using TaleWorlds.MountAndBlade;using TaleWorlds.Library;\nnamespace LivingWorldNpcs {\n' + atomic[start:stop] + '\n}'
+    move_start = atomic.index('public class MoveToPositionAction : IAtomicAction')
+    move_stop = atomic.index('\n    // 2.5', move_start)
+    story_move = atomic[atomic.index('public class StoryMoveAction : IAtomicAction'):atomic.rindex('\n}')]
+    performance = 'using System;using TaleWorlds.MountAndBlade;using TaleWorlds.Library;\nnamespace LivingWorldNpcs {\n' + atomic[start:stop] + '\n' + atomic[move_start:move_stop] + '\n' + story_move + '\n}'
     stub = r'''
 using System;using System.Collections.Generic;using System.Linq;
 using LivingWorldNpcs;using TaleWorlds.MountAndBlade;using TaleWorlds.Engine;using TaleWorlds.Library;using SandBox;using SandBox.Objects;
 namespace TaleWorlds.Library {
- public struct Vec3 {public float x,y,z;public Vec3(float v){x=v;y=z=0;}public static Vec3 Zero=>new();public Vec2 AsVec2=>new(){x=x,y=y};public float Distance(Vec3 b)=>Math.Abs(x-b.x);public static Vec3 operator -(Vec3 a,Vec3 b)=>new(a.x-b.x);}
- public struct Vec2 {public float x,y;public Vec2(float a,float b){x=a;y=b;}public float LengthSquared=>x*x+y*y;public void Normalize(){} }
+ public struct Vec3 {public float x,y,z;public Vec3(float v){x=v;y=z=0;}public Vec3(float a,float b,float c){x=a;y=b;z=c;}public static Vec3 Zero=>new();public float LengthSquared=>x*x+y*y+z*z;public Vec3 NormalizedCopy()=>this*(1f/(float)Math.Sqrt(LengthSquared));public Vec2 AsVec2=>new(){x=x,y=y};public float Distance(Vec3 b)=>(float)Math.Sqrt((this-b).LengthSquared);public static Vec3 operator -(Vec3 a,Vec3 b)=>new(a.x-b.x,a.y-b.y,a.z-b.z);public static Vec3 operator +(Vec3 a,Vec3 b)=>new(a.x+b.x,a.y+b.y,a.z+b.z);public static Vec3 operator *(Vec3 a,float f)=>new(a.x*f,a.y*f,a.z*f);}
+ public struct Vec2 {public float x,y;public Vec2(float a,float b){x=a;y=b;}public static Vec2 Zero=>new();public float LengthSquared=>x*x+y*y;public void Normalize(){} }
  public struct Frame {public Rotation rotation;public Vec3 origin;}public struct Rotation {public Vec3 f;}
  public class InformationMessage {public InformationMessage(string s){} }public static class InformationManager {public static void DisplayMessage(InformationMessage m){} }
 }
@@ -56,7 +59,7 @@ namespace TaleWorlds.MountAndBlade {
  public abstract class AgentComponent {protected readonly Agent Agent;protected AgentComponent(Agent a){Agent=a;}public virtual void OnAgentRemoved(){}public virtual void OnComponentRemoved(){} }
  public class Mission {public static Mission Current;public Scene Scene=new();public Frame GetCameraFrame()=>new();}
  public class MBAgentVisuals {public bool Valid=true;public Skeleton Skeleton=new();public Skeleton GetSkeleton()=>Skeleton;public sbyte GetRealBoneIndex(int bone)=>(sbyte)bone;public bool IsValid()=>Valid;}
- public class Agent {public string Name="actor",Action="";public bool Active=true;public float Health=100;public Vec3 Position;public Frame Frame;
+ public class Agent {public string Name="actor",Action="";public bool Active=true,IsUsingGameObject,CrouchMode;public int Teleports;public float Health=100;public Vec3 Position;public Frame Frame;public void TeleportToPosition(Vec3 p){Teleports++;Position=p;}
   public Mission Mission=Mission.Current;public MBAgentVisuals AgentVisuals=new();public CampaignAgentComponent Component=new();private List<AgentComponent> Extras=new();public T GetComponent<T>() where T:AgentComponent=>Component is T c?c:Extras.OfType<T>().FirstOrDefault();public void AddComponent(AgentComponent c){Extras.Add(c);}
   public List<(sbyte Bone,string Prefab,bool Visible)> RawPrefabs=new();public int NativePrefabTouches;public int FailVisibilityIndex=-1;
   public int AddSynchedPrefabComponentToBone(string prefab,sbyte bone){NativePrefabTouches++;RawPrefabs.Add((bone,prefab,true));return RawPrefabs.Count-1;}
@@ -88,6 +91,17 @@ namespace TaleWorlds.CampaignSystem {
 }
 namespace LivingWorldNpcs {
  public interface IAtomicAction {}
+ public static class CompanionDetentionBehavior {public static bool IsDetained(Agent a)=>false;}
+ public static class V {public static bool NavMesh(Scene s,Vec3 p,out int face){face=0;return true;}}
+ public static class MBRandom {public static float RandomFloat=>.5f;}
+ public static class StoryProbeTuning {public static Tuning Current=new();public class Tuning {public Events Events=new();}public class Events {public float ActorSpacingMeters=3,ActorApproachMeters=2;}}
+ public class StoryEventDef {public string Placement="gather",ActionA="act_talk",ActionB="act_talk";public int Index=1;public string[] Members={"host","guest"};}
+ public class EventHarness {public StoryEventDef _activeEvent=new();public StoryProbeMissionBehavior _host=new();public Dictionary<Agent,PerformanceAction> _eventActors=new();public Dictionary<Agent,Vec3> _eventGatherTargets=new();public bool _eventPrepared;public int Plays;
+  string[] EventMembers(StoryEventDef e)=>e.Members;bool OwnsBody(Agent a)=>_eventActors.TryGetValue(a,out var p)&&p.CanControl;string ResolveNpcId(Agent a)=>_host.Agents.First(x=>x.Value==a).Key;
+  void PlayLoopAction(Agent a,string action){Plays++;if(!_eventActors[a].PlayAction(action))throw new Exception("pose refused");}
+  EVENT_PREPARE
+  public void Prepare()=>PrepareEventActors();
+ }
  public static class DebugLogger {public static void Log(string s){} }
  public static class ConversationEntryPatch {public static bool Active;public static bool IsConversationActive()=>Active;}
  public class AgentBrain {public Agent Owner;public bool IsBound,IsStatusHeld,IsStunned,IsInCombat;public PerformanceAction Lease;
@@ -102,10 +116,15 @@ namespace LivingWorldNpcs {
   }
  }
  public static class AgentControlHelper {
+  public static bool Blocked;public static int Moves,Holds,Unlocks;
+  public static string GetPose(Agent a)=>null;public static bool MovePrepare(Agent a)=>true;
+  public static void SmartMoveToPoint(Agent a,Vec3 target,bool run,float stopDistance){Moves++;if(!Blocked){var d=target-a.Position;if(d.LengthSquared>.01f)a.Position=a.Position+d.NormalizedCopy()*Math.Min(.3f,a.Position.Distance(target));}}
+  public static void MoveEndAndInteractPrepare(Agent a){}public static void FaceToActor(Agent a,Agent b){}
+  public static void LookAtAgent(Agent a,Agent b){}
   public static bool SafeIsActive(Agent a)=>a?.Active==true&&a.Mission==Mission.Current;
   public static bool IsPlayingPose(Agent a,string s)=>a.Action==s;
   public static void ForcePlayAction(Agent a,string s,float startProgress,float blendIn,float blendOutPeriodToNoAnim,bool restoreAfter){a.Action=s;a.AgentVisuals.Skeleton.Speed=1;}
-  public static void SuspendNavigator(Agent a){}public static void HoldInPlace(Agent a,bool resetScriptedMovement){}public static void ForceUnlockAgent(Agent a){}
+  public static void SuspendNavigator(Agent a){}public static void HoldInPlace(Agent a,bool resetScriptedMovement){Holds++;}public static void ForceUnlockAgent(Agent a){Unlocks++;}
   public static void SetBodyDirection(Agent a,Vec2 direction){}
   public class FacingTracker {public void Tick(Agent a,Agent b,bool c,bool d,float dt,string owner){} }
  }
@@ -113,8 +132,8 @@ namespace LivingWorldNpcs {
  public static class NpcSightSystem {public const int DefaultFovDegrees=120;public static bool IsTargetInViewCone(Agent a,Agent b,bool useBodyFacing)=>true;}
  public class Settings {public static Settings Instance=new();public bool ShowPerformanceFacingDebugMessages;}
  public static class LWNTextHelper {public static string ResolveCompoundMixed(string k,string f,params (string,object)[] p)=>f;public static string ResolveText(string k,string f)=>f;}
- public class StoryProbeMissionBehavior {public float Clock;public Prep Prep=new();public GroupDirector Director=new();public Dictionary<string,Agent> Agents=new();public Agent GetAgent(string id)=>Agents.TryGetValue(id,out var a)?a:null;}
- public class Prep {public bool TryGetStandingPosition(string actor,out Vec3 pos){pos=new(0);return true;}}
+ public class StoryProbeMissionBehavior {public bool IsPracticeActor(string id)=>false;public float Clock;public Prep Prep=new();public GroupDirector Director=new();public Dictionary<string,Agent> Agents=new();public Agent GetAgent(string id)=>Agents.TryGetValue(id,out var a)?a:null;}
+ public class Prep {public Layout Layout=new();public bool TryGetStandingPosition(string actor,out Vec3 pos){pos=new(0);return true;}}
  public class GroupDirector {public bool IsEventParticipant(string actor)=>false;}
  public static class StoryV2Data {public static string Report="";public static bool EnsurePublished()=>true;}
  public class Standing {public string Actor,Point;}
@@ -183,11 +202,30 @@ class Program {
  Check(a.RawPrefabs.Count==1&&a.RawPrefabs.Single().Visible&&SoundEvent.Created.Last().Playing,"real bare actor work resumes same native instrument after opening");
  int rawBefore=a.NativePrefabTouches;var status=work.Describe();Check(status.Contains("presentation=playing attached=1")&&a.NativePrefabTouches==rawBefore,"bare actor work status remains read-only");work.Stop("exit");Check(a.RawPrefabs.All(x=>!x.Visible)&&SoundEvent.Created.All(x=>!x.Playing),"bare actor work exit clears music and instrument");
  Console.WriteLine($"PASS: {count} presentation and actual lease lifecycle checks (native boundaries stubbed)");
+ count=0;
+ (a,b,p)=Setup();AgentControlHelper.Blocked=false;AgentControlHelper.Moves=0;AgentControlHelper.Holds=0;
+ Check(p.BeginWalk(new Vec3(10),.5f,20),"lease accepts walking");Check(!p.PlayAction("act_harp",Def())&&!p.BeginWalk(new Vec3(20),.5f,20),"moving lease refuses pose or second walk");
+ int holds=AgentControlHelper.Holds;p.OnTick(a,.3f);Check(a.Position.x>0&&a.Position.x<1&&p.IsWalking&&AgentControlHelper.Holds==holds,"walking advances gradually without stationary hold");
+ for(int i=0;i<100&&p.IsWalking;i++)p.OnTick(a,.3f);Check(!p.IsWalking&&p.WalkResult==true&&a.Teleports==0,"actual movement arrives with successful receipt and no teleport");p.Finish("done");
+ (a,b,p)=Setup();AgentControlHelper.Blocked=true;p.BeginWalk(new Vec3(10),.5f,20);for(int i=0;i<100&&p.IsWalking;i++)p.OnTick(a,.3f);Check(!p.IsWalking&&p.WalkResult==false&&a.Position.x==0&&a.Teleports==0,"stuck movement fails without teleporting");
+ (a,b,p)=Setup();p.BeginWalk(new Vec3(10),.5f,20);p.SetPaused(true);Check(!p.IsWalking&&p.WalkResult==false&&p.Paused,"pause cancels actual walk");p.SetPaused(false);Check(p.CanControl,"unpause keeps valid lease but cannot revive cancelled walk");
+ (a,b,p)=Setup();p.BeginWalk(new Vec3(10),.5f,20);int unlocks=AgentControlHelper.Unlocks;Mission.Current=new();p.OnTick(a,.3f);Check(p.Ended&&!p.IsWalking&&p.WalkResult==false&&AgentControlHelper.Unlocks==unlocks,"mission loss only invalidates walk without stale body writes");
+ (a,b,p)=Setup();p.BeginWalk(new Vec3(10),.5f,20);b.IsBound=true;unlocks=AgentControlHelper.Unlocks;p.OnTick(a,.3f);Check(p.Ended&&!p.IsWalking&&AgentControlHelper.Unlocks==unlocks,"binding cancels walk without releasing binding");
+ (a,b,p)=Setup();var h=new EventHarness();h._host.Agents["host"]=a;h._eventActors[a]=p;var guest=new Agent{Position=new Vec3(10)};var gb=new AgentBrain{Owner=guest};var gp=new PerformanceAction(gb,"guest",null);gb.Lease=gp;gp.OnStart(guest);h._host.Agents["guest"]=guest;h._eventActors[guest]=gp;AgentControlHelper.Blocked=false;
+ h.Prepare();Check(gp.IsWalking&&!h._eventPrepared&&h.Plays==0&&guest.Teleports==0,"real event preparation walks remote member and holds dialogue/actions");
+ for(int i=0;i<100&&!h._eventPrepared;i++){gp.OnTick(guest,.3f);h.Prepare();}Check(h._eventPrepared&&h.Plays==2&&guest.Teleports==0,"real event preparation starts poses only after arrival");
+ gp.Finish("done");p.Finish("done");
+ (a,b,p)=Setup();h=new();h._host.Agents["host"]=a;h._eventActors[a]=p;guest=new(){Position=new Vec3(10)};gb=new(){Owner=guest};gp=new(gb,"guest",null);gb.Lease=gp;gp.OnStart(guest);h._host.Agents["guest"]=guest;h._eventActors[guest]=gp;AgentControlHelper.Blocked=true;h.Prepare();for(int i=0;i<100&&gp.IsWalking;i++)gp.OnTick(guest,.3f);
+ bool failed=false;try{h.Prepare();}catch(InvalidOperationException){failed=true;}Check(failed&&!h._eventPrepared&&h.Plays==0&&guest.Teleports==0,"real gathering failure cannot start group dialogue or move through wall");gp.Finish("failed");p.Finish("failed");
+ (a,b,p)=Setup();h=new();h._activeEvent.Placement="standing";h._activeEvent.Members=new[]{"host"};h._host.Prep.Layout.Standing=new(){new(){Actor="host",Point="work"}};h._host.Agents["host"]=a;h._eventActors[a]=p;h.Prepare();Check(h._eventPrepared&&!p.IsWalking&&a.Teleports==0,"verified standing events remain in authored place without gathering");
+ Console.WriteLine($"PASS: {count} actual walking and group arrival checks (native navigation boundary stubbed)");
  }
 }
 '''
     stage = (SRC/'Interaction/StoryProbe/StoryStageRunner.cs').read_text(encoding='utf-8-sig')
     stub = stub.replace('STAGE_PLAY_ACTION', method(stage, 'PlayAction') + '\npublic void Run(StageBeat b)=>PlayAction(b,0);')
+    director = (SRC/'Interaction/StoryProbe/StreetLifeDirector.cs').read_text(encoding='utf-8-sig')
+    stub = stub.replace('EVENT_PREPARE', method(director, 'PrepareEventActors'))
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT/'Program.cs').write_text(stub, encoding='utf-8')
     (OUT/'PerformanceAction.cs').write_text(performance, encoding='utf-8')

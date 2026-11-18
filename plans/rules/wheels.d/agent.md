@@ -1209,3 +1209,49 @@ C# 只填上下文（`BindAnimContext.BeingPulled/BeingDragged`）+ 形态切换
 **剧情拦问**：投递 `event_story_intercept` 参数 `(Agent player, string entry, Action<Agent> onReady)`；复用 Follow → LookAt → AlertForceConversationAction 的队列与 `ConfrontingBrain` 全局锁，剧情委托替代犯罪 trigger，不调用 BecomeAlarmed 自动战斗。回执为到位 Owner，拒绝/排队取消/未到位为 null，至多一次；调用者闭包负责以 entry 打开原版对话，并检查开窗是否成功。`event_story_intercept_cancel` 只清该 Brain 当前持有的剧情拦问链；`brain.IsStoryIntercepting` 可供宿主防重入。外部仍禁止调用私有 EnqueueAction。
 
 **按回执撤销本方切磋**：`event_stop_combat` 可选参数为实际发送 duel 时保存的同一 `Action<Agent>` 实例。Brain 通过 `FightEnemyAction.HasDuelReceipt(expected)` 比较对象身份；当前/排队动作均不匹配时忽略，匹配才进入既有停战分支。无参数保持旧停战语义，有参数却传 null 不降级为无条件停战。未开始的 duel 从队列移除时 `NotifyQueuedDuelCancelled()` 只通知 null 一次，不调用会动其他战斗身体的 `OnEnd`。
+
+## 🔴 原生面部表情（morph）：与身体动作独立的第二套演出层（2026-11-18 实机通过）
+
+**解决什么问题**：让 NPC 在**不动身体**的情况下表达哭 / 笑 / 怒 / 怕（顶点变形 morph），
+与骨骼动作**互不干扰、可同时播**。引擎自带 252 条命名片段，任意人形 agent 都能用。
+
+**唯一出口**：`Interaction/StoryProbe/StoryFaceAnimations.cs`
+
+```csharp
+StoryFaceAnimations.Play(agent, "rage");          // 空名字 = 不做任何事（保持上一句）
+StoryFaceAnimations.PlayOrDefault(agent, face);   // 空名字 = 回到该角色的原版默认待机脸
+StoryFaceAnimations.Reset(agent);                 // 回 convo_normal
+StoryFaceAnimations.Current(agent);               // 当前表情名（诊断）
+StoryFaceAnimations.Diagnose(agent, "cry");       // 设一次 + 回执（命令用）
+```
+
+**🔴 通道必须用 Mid，不能用 High**：原版 `MissionConversationLogic.OnConversationPlay` 在每句对话播完后，
+对**没有 `[if:]` 标签**的句子执行 `SetAgentFacialAnimation(High, "", false)` —— 我们的台词没有标签，
+写 High 会被紧接着清掉；Mid 是原版"对话待机表情"的通道，会话结束时原版自动清。
+Low 是 `MissionFacialAnimationHandler` 预留的环境位（该方法 1.2.12 与 1.5.7 都是死代码）。
+
+**数据入口（对话）**：`Dialogues/*.dialog.json` 节点加 `Face`（与 `LineActions` 同级，一句一个）。
+空 = `CharacterHelper.GetDefaultFaceIdle(character)`（原版开对话也用它；🔴 该类在 `Helpers` 命名空间）。
+落地在 `StoryProbeDialogue.OnShown`（这一句真的展示时），与原版动作同帧。
+
+**名录（生成物，禁止手改）**：`Scripts/face_animations.csv`（`Name/Group/Zh/Versions/Note`，
+252 条可播 + 3 条"登记有、资产缺失"），由 `Scripts/gen_face_animations.py` 现读
+`Native/AssetPackages/morph_anims.tpac` + `Native/ModuleData/voices.xml` 生成；
+`--doc <md>` 把分组表灌进文档两个标记之间。机制/挑选/坑的全文 =
+[Knowledge/骑砍2表情系统_引擎能力与实现.md](../../Knowledge/骑砍2表情系统_引擎能力与实现.md)
+（第六节有"按情绪挑"对照表）。版本：1.2.12 = 251 条，1.5.7 = 252 条（多 `sad_face_cutscene`），行为一致。
+
+**验收**：`custom.face_anim <名字> [agentId]`（不给 id = **准星焦点**，走
+`InteractionMissionView.GetAimedAgent()`，禁止自己打相机射线；目标链 = 显式 id → 准星焦点 → 对话对象 → 主角）·
+`custom.face_anim`（查当前）· `custom.face_anim reset` · 原版命令
+`mission.set_facial_anim_to_agent <index> cry`。
+
+**闸门**：`python Scripts/check_story_probe.py` 的 `faces=` 计数与"表情不存在 / 资产缺失"报错；
+负面测试在 `Scripts/test_negative_checks.py`（单元用例直接调 `check_faces`）。
+
+**四个坑**：
+1. **名字写错静默**：不崩、不提示玩家，只在引擎日志留 `Morph animation could not be found: xxx`。
+2. `laugh` / `cutscene_expression_1` / `cutscene_expression_2` **登记表有、资产包里没有**，调了没反应（要笑用 `hard_laugh`）。
+3. **用 game object 的 idle 只出第一帧**（站岗 / 酒保 / 弹琴）：先 `StopUsingGameObject(true)` + 重设动作，再设表情。
+4. **自建头必须有表情变形帧**（`KeyTime_60..100`），否则脸完全不动 —— 亨利换头"没表情"就是这个原因
+   （见 [assets.md](assets.md) 自建头 101 条通道）。

@@ -320,7 +320,8 @@ namespace LivingWorldNpcs
             { reason = "runtime token changed"; return false; }
 
             var node = session.Definition?.FindNode(nodeId);
-            var option = node?.Options?.FirstOrDefault(o => string.Equals(o.Id, optionId, StringComparison.Ordinal));
+            var menu = session.Definition?.OptionsNode(node);
+            var option = menu?.Options?.FirstOrDefault(o => string.Equals(o.Id, optionId, StringComparison.Ordinal));
             if (option == null) { reason = "unknown option " + nodeId + "/" + optionId; return false; }
             if (option.Check != null && !StoryProbeDefs.MeetsCheckRequirement(option.Check.Capability, option.Check.MinimumGrowth))
             { reason = "training prerequisite not met"; return false; }
@@ -344,12 +345,15 @@ namespace LivingWorldNpcs
             if (!StoryDialogueFacts.TryEvaluateAll(node.Requires, ctx, out bool nodeAllowed, out string nodeEvalError, out _))
             { reason = "node requires error: " + nodeEvalError; return false; }
             if (!nodeAllowed) { reason = "node requires no longer true: " + nodeId; return false; }
+            if (!StoryDialogueFacts.TryEvaluateAll(menu.Requires, ctx, out bool menuAllowed, out _, out _) || !menuAllowed)
+            { reason = "topic menu requires no longer true"; return false; }
 
             if (!StoryDialogueFacts.TryEvaluateAll(option.Requires, ctx, out bool allowed, out string evalError, out _))
             { reason = "requires error: " + evalError; return false; }
             if (!allowed) { reason = "requires no longer true"; return false; }
 
             string target = option.Check != null ? option.Check.Success : option.NextNode;
+            if (target == nodeId || option.Check?.Fail == nodeId) { reason = "answer cannot repeat itself through inherited menu"; return false; }
             StoryDialogueNodeDef targetNode = null;
             if (!string.IsNullOrEmpty(target))
             {
@@ -371,7 +375,7 @@ namespace LivingWorldNpcs
 
             session.CurrentNode = nodeId;
             session.EnteredNodes.Add(nodeId);
-            string selKey = nodeId + "/" + optionId;
+            string selKey = menu.Id + "/" + optionId;
             session.SelectedOptions.Add(selKey);
             if (!CommitEffects(option.Effects, "on_select", "option:" + selKey))
             {
@@ -421,6 +425,10 @@ namespace LivingWorldNpcs
                 // 节点级收尾：只要到过这个节点就成立。
                 CommitEffects(node.OnEnter.Where(e => e.Commit == "on_session_end").ToList(),
                     "on_session_end", "node:" + nodeId);
+            }
+            foreach (var node in session.Definition.Nodes)
+            {
+                string nodeId = node.Id;
                 // 选项级收尾：只算玩家真正选过的那一条；未选分支零效果。
                 foreach (var opt in node.Options)
                 {
@@ -751,6 +759,14 @@ namespace LivingWorldNpcs
                     if (string.IsNullOrEmpty(target) || target == "actor" || target == "questioner") target = actor;
                     if (string.IsNullOrEmpty(target) || host.GetAgent(target) == null)
                     { error = "start_fight target missing: " + (target ?? "-"); return false; }
+                    if (P("mode") != null && P("mode") != "wound" && P("mode") != "mortal")
+                    { error = "start_fight mode invalid"; return false; }
+                    if (!string.IsNullOrEmpty(P("beneficiaries"))
+                        && P("beneficiaries").Split('|').Any(id => host.GetAgent(id) == null))
+                    { error = "start_fight beneficiary missing"; return false; }
+                    if (P("resolve_event") != null && (!TryInt(P("resolve_event"), out int resolvedEvent)
+                        || StoryProbeDefs.GetEvent(resolvedEvent) == null))
+                    { error = "start_fight resolve_event missing"; return false; }
                     return true;
                 }
                 case "detain_player":
@@ -771,7 +787,8 @@ namespace LivingWorldNpcs
                 case "errand":
                     return TryInt(P("pay"), out int pay) && pay > 0;
                 case "complete_quest":
-                    return !string.IsNullOrEmpty(P("npc")) && !string.IsNullOrEmpty(P("resolution"));
+                    return !string.IsNullOrEmpty(P("npc")) && !string.IsNullOrEmpty(P("resolution"))
+                        && (P("if_accepted") == null || P("if_accepted") == "1");
                 case "start_event":
                     return TryInt(P("event"), out int se) && se > 0;
                 case "quest_accept":
@@ -785,6 +802,10 @@ namespace LivingWorldNpcs
                     return TryInt(P("amount"), out int gg) && gg > 0;
                 case "reward_receipt":
                     return !string.IsNullOrEmpty(P("npc")) && !string.IsNullOrEmpty(P("key"));
+                case "lesson_start":
+                    if (host.Practice == null) { error = "lesson data unavailable"; return false; }
+                    return host.Practice.CanStart(P("lesson"), out error);
+                case "lesson_cancel": return true;
                 case "message":
                     return !string.IsNullOrEmpty(P("key"));
                 default:
@@ -870,6 +891,10 @@ namespace LivingWorldNpcs
             {
                 switch (effect.Id)
                 {
+                    case "lesson_start":
+                        if (host.Practice == null) { error = "lesson data unavailable"; return false; }
+                        return host.Practice.Start(P("lesson"), out error);
+                    case "lesson_cancel": host.ExistingPractice?.Stop("player cancelled"); return true;
                     case "mark":
                     {
                         string flag = P("flag");
@@ -978,7 +1003,8 @@ namespace LivingWorldNpcs
                         if (string.IsNullOrEmpty(target) || target == "actor" || target == "questioner")
                             target = actor;
                         if (string.IsNullOrEmpty(target)) { error = "start_fight target missing"; return false; }
-                        if (!StoryProbeDialogue.StartStoryFight(target)) { error = "fight refused: " + target; return false; }
+                        if (!StoryProbeDialogue.StartStoryFight(target, P("mode"), P("reason"), P("beneficiaries"),
+                            P("start_line"), P("end_line"), P("resolve_event"))) { error = "fight refused: " + target; return false; }
                         return true;
                     }
 
@@ -1001,6 +1027,7 @@ namespace LivingWorldNpcs
                     case "complete_quest":
                     {
                         string npc = P("npc"), resolution = P("resolution");
+                        if (P("if_accepted") == "1" && !StoryProbeState.IsQuestAccepted(npc)) return true;
                         if (string.IsNullOrEmpty(npc) || string.IsNullOrEmpty(resolution))
                         { error = "complete_quest needs npc+resolution"; return false; }
                         return StoryProbeDialogue.RunLegacyVerb("complete_quest", npc + "|" + resolution);

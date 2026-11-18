@@ -60,6 +60,8 @@ def dialogue_keys(module):
             for effect in effects:
                 if effect.get("Id") == "message" and effect.get("Params", {}).get("key"):
                     keys.add(effect["Params"]["key"])
+                if effect.get('Id') == 'start_fight':
+                    keys.update(effect.get('Params', {}).get(k) for k in ('reason', 'start_line', 'end_line') if effect.get('Params', {}).get(k))
     return files, keys
 
 
@@ -117,7 +119,7 @@ def check_json(module, problems):
             if target and target in by_id and target not in reachable:
                 reachable.add(target)
                 queue.append(target)
-            for opt in node.get("Options", []):
+            for opt in (by_id.get(node.get("OptionsFrom"), node).get("Options", [])):
                 check = opt.get("Check") or {}
                 for target in (opt.get("NextNode"), check.get("Success"), check.get("Fail")):
                     if target and target in by_id and target not in reachable:
@@ -715,6 +717,44 @@ def _load_lang_cached(module, cn):
     return data
 
 HUMAN_SET_CACHE = {}
+FACE_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "face_animations.csv")
+
+
+def load_face_catalog():
+    """原生表情名单 → name 到 Note。生成物：Scripts/gen_face_animations.py（禁止手改）。"""
+    if not os.path.exists(FACE_CSV):
+        return None
+    import csv as _csv
+    out = {}
+    with io.open(FACE_CSV, encoding="utf-8", newline="") as f:
+        for row in _csv.DictReader(f):
+            if row.get("Name"):
+                out[row["Name"]] = row.get("Note") or ""
+    return out
+
+
+def check_faces(module, problems):
+    """对话节点上的 `Face` 必须是原生真能播的表情名；登记有、资产缺的也拦下。"""
+    catalog = load_face_catalog()
+    if catalog is None:
+        problems.append("faces: Scripts/face_animations.csv missing -- run: python Scripts/gen_face_animations.py --write")
+        return 0
+    total = 0
+    for path in dialogue_paths(module):
+        data = json.load(io.open(path, encoding="utf-8"))
+        for node in data.get("Nodes", []):
+            face = (node.get("Face") or "").strip()
+            if not face:
+                continue
+            total += 1
+            base = os.path.basename(path)
+            if face not in catalog:
+                problems.append("node[%s:%s]: 表情 '%s' 不存在（名单见 Scripts/face_animations.csv）"
+                                % (base, node.get("Id"), face))
+            elif "资产缺失" in catalog[face]:
+                problems.append("node[%s:%s]: 表情 '%s' 登记表里有、资产包里没有，播不出来（换一个）"
+                                % (base, node.get("Id"), face))
+    return total
 
 
 def declared_actions(game_root, module=None):
@@ -1016,7 +1056,7 @@ def check_dialogue_rules(module, problems, en, cn):
                 if nxt:
                     tgt = next((x for x in data.get("Nodes", []) if x.get("Id") == nxt), None)
                     # 只有"问句"弹回菜单才算错；「别的先不问了」这类本来就是收尾
-                    is_menu = tgt is not None and (len(tgt.get("Options") or []) >= 5 or str(nxt).endswith("_hub"))
+                    is_menu = tgt is not None and str(nxt).endswith("_hub")
                     if is_menu and ("？" in label or "?" in label):
                         problems.append("dialogue[%s:%s]: 问句选项 '%s' 指向菜单节点 '%s'（对方不会回应你）"
                                         % (name, node.get("Id"), label[:20], nxt))
@@ -1282,11 +1322,11 @@ def check_flow_contract(module, problems, overrides=None):
          and "LandingVerticalSpeedMeters" in member(host, "IsAtGateGround")
          and "LandingStableSec" in member(host, "IsAtGateGround"),
          "sneak needs actual crossing; climb needs actual grapple and latched success before landing"),
-        ('"duel"' in member(host, "PumpStoryFights") and "OnStoryDuelResolved" in member(host, "PumpStoryFights")
+        ('"combat_encounter"' in member(host, "PumpStoryFights") and "OnStoryDuelResolved" in member(host, "PumpStoryFights")
          and "RequestStoryFight(npcId)" in member(dialogue, "StartFight")
          and "CombatManager.StartFight" not in member(dialogue, "StartFight")
          and "loser != target" in member(host, "OnStoryDuelResolved"),
-         "all story duels must use shared outcome receipts instead of polling healed health"),
+         "real story fights must use actual outcome receipts; sparring must not replace a hostile encounter"),
         ("public static bool RestorePlayerBelongings" in host
          and "PendingBattleRestoreSlots" in member(host, "RestorePlayerBelongings")
          and "owed - Math.Max(0, hero.Gold - before)" in member(host, "RestorePlayerBelongings")
@@ -2591,7 +2631,7 @@ DLG_RANK = ("distanceToPlayer", "npcId")
 DLG_TACTICS = ("bribe", "gift", "offerpower", "plead", "flatter", "threaten", "coerce", "swear", "submisson", "reason")
 # 条件谓词：name -> (required_params, implemented)
 DLG_PREDICATES = {
-    "phase": (True, True), "disguised": (False, True), "noble": (False, True),
+    "lesson_active": (False, True), "lesson_active": (False, True), "phase": (True, True), "disguised": (False, True), "noble": (False, True),
     "stripped": (False, True), "gate_open": (False, True), "stripped_disarmed": (False, True),
     "asked": (True, True), "reward": (True, True), "quest_accepted": (False, True),
     "quest_done": (False, True), "quest_turned": (False, True), "gold>=": (True, True),
@@ -2615,11 +2655,11 @@ DLG_EFFECTS = {
     "skill_check": (("tactic",), ("tactic",), True),
     "give_item": (("item", "count"), ("item",), True),
     "wear_item": (("item", "slot"), ("item",), True),
-    "start_fight": (("target",), (), True),
+    "start_fight": (("target", "mode", "reason", "beneficiaries", "start_line", "end_line", "resolve_event"), (), True),
     "detain_player": (("target", "mode"), ("mode",), True),
     "accept_quest": ((), (), True),
     "turn_in": ((), (), True),
-    "complete_quest": (("npc", "resolution"), ("npc", "resolution"), True),
+    "complete_quest": (("npc", "resolution", "if_accepted"), ("npc", "resolution"), True),
     "collect_debt": (("amount",), ("amount",), True),
     "errand": (("pay",), ("pay",), True),
     "street_help_reward": ((), (), True),
@@ -2633,6 +2673,8 @@ DLG_EFFECTS = {
     "grant_gold": (("amount",), ("amount",), True),
     "reward_receipt": (("npc", "key"), ("npc", "key"), True),
     "message": (("key",), ("key",), True),
+    "lesson_start": (("lesson",), ("lesson",), True),
+    "lesson_cancel": ((), (), True),
 }
 
 
@@ -2763,6 +2805,19 @@ def story_dialogue_issues(data, formal=False):
                     bad(epath, "unimplemented_effect", "效果 '%s' 尚未实现，不能进正式数据" % eid)
                 if eid == "detain_player" and "mode" in params and params["mode"] not in ("intro_sentence", "custody"):
                     bad(epath + ".Params.mode", "bad_param", "扣押模式只能是intro_sentence/custody")
+                if eid == "start_fight" and "mode" in params and params["mode"] not in ("wound", "mortal"):
+                    bad(epath + ".Params.mode", "bad_param", "真实战斗模式只能是wound/mortal")
+                if eid == 'complete_quest' and 'if_accepted' in params and params['if_accepted'] != '1':
+                    bad(epath + '.Params.if_accepted', 'bad_param', 'if_accepted只能是1')
+                if eid == 'start_fight':
+                    for key in ('reason', 'start_line', 'end_line'):
+                        if key in params and (not isinstance(params[key], str) or not re.fullmatch(r'LWN_[A-Za-z0-9_]+', params[key])):
+                            bad(epath + '.Params.' + key, 'bad_param', '必须是本地化语言键')
+                    if 'beneficiaries' in params and (not isinstance(params['beneficiaries'], str) or any(
+                            actor not in data.get('Actors', []) for actor in params['beneficiaries'].split('|'))):
+                        bad(epath + '.Params.beneficiaries', 'bad_param', '受益者必须在Actors登记')
+                    if 'resolve_event' in params and (not isinstance(params['resolve_event'], str) or not re.fullmatch(r'[1-9][0-9]*', params['resolve_event'])):
+                        bad(epath + '.Params.resolve_event', 'bad_param', '纠纷编号必须是正整数')
             out.append({"Id": eid, "Commit": commit, "Receipt": receipt})
         return out
 
@@ -2846,7 +2901,7 @@ def story_dialogue_issues(data, formal=False):
         if not isinstance(n, dict):
             bad(npath, "wrong_type", "节点必须是对象")
             continue
-        keys(n, npath, ("Id", "Speaker", "Listener", "NextNode", "TextKey", "TextKeyZh", "LineActions", "Requires", "OnEnter", "Options"))
+        keys(n, npath, ("Id", "Speaker", "Listener", "NextNode", "OptionsFrom", "TextKey", "TextKeyZh", "LineActions", "Face", "Requires", "OnEnter", "Options"))
         nid = text(n, npath, "Id")
         speaker = text(n, npath, "Speaker")
         if speaker and speaker not in participants and speaker not in actors:
@@ -2860,6 +2915,13 @@ def story_dialogue_issues(data, formal=False):
         all_nodes = {x.get("Id"): x for x in (data.get("Nodes") or []) if isinstance(x, dict)}
         if continuation and continuation not in all_nodes:
             bad(npath + ".NextNode", "unknown_node", "连续台词目标不存在")
+        menu_id = text(n, npath, "OptionsFrom", False)
+        if menu_id:
+            menu = all_nodes.get(menu_id)
+            if not menu or menu_id == nid or menu.get("OptionsFrom") or menu.get("NextNode") or not menu.get("Options"):
+                bad(npath + ".OptionsFrom", "bad_menu", "必须指向另一有直接选项的菜单，不能继承连续台词或另一继承菜单")
+            if continuation or n.get("Options"):
+                bad(npath, "bad_menu", "OptionsFrom与Options、NextNode互斥")
         if continuation and n.get("Options"):
             bad(npath, "bad_turn", "NextNode与Options互斥")
         if len(str_list(n, npath, "LineActions", False)) > 1:
@@ -3099,6 +3161,83 @@ def check_journal(module, problems, en, cn, cast):
     problems.extend(journal_issues(data, en, cn, {n.get("Id") for n in (cast or {}).get("Npcs", [])}, shown))
 
 
+def story_lesson_issues(data, cast_ids):
+    """The lesson catalog is a closed contract, independent of any particular teacher."""
+    import math
+    issues = []
+    allowed = set('Id Mode Actor TitleKey FollowKey ReadyKey RetryKey DoneKey CancelKey Item DoneFlag Kit Position Aim FacingDegrees SightMeters TimeoutSec AimTolerance FollowObjectiveKey PracticeObjectiveKey'.split())
+    required = set('Id Mode Actor TitleKey FollowKey ReadyKey RetryKey DoneKey CancelKey DoneFlag FollowObjectiveKey PracticeObjectiveKey'.split())
+    if not isinstance(data, list) or not data:
+        return ['lesson catalog must be a nonempty array']
+    ids = set()
+    for index, lesson in enumerate(data):
+        path = 'lessons[%d]' % index
+        if not isinstance(lesson, dict):
+            issues.append(path + ': expected object')
+            continue
+        for key in set(lesson) - allowed:
+            issues.append(path + ': unknown field ' + key)
+        for key in required:
+            if not isinstance(lesson.get(key), str) or not lesson[key].strip():
+                issues.append(path + ': missing string ' + key)
+        identity = lesson.get('Id')
+        if not isinstance(identity, str) or identity in ids:
+            issues.append(path + ': duplicate or invalid Id')
+        else:
+            ids.add(identity)
+        if lesson.get('Actor') not in cast_ids:
+            issues.append(path + ': unknown Actor')
+        if lesson.get('Mode') not in ('pickpocket', 'grapple'):
+            issues.append(path + ': unknown Mode')
+        vectors = ['Position'] + (['Aim'] if lesson.get('Mode') == 'grapple' else [])
+        for key in vectors:
+            vector = lesson.get(key)
+            if not isinstance(vector, list) or len(vector) != 3 or any(isinstance(x, bool) or not isinstance(x, (int, float)) or not math.isfinite(x) for x in vector):
+                issues.append(path + ': invalid vector ' + key)
+        for key, default, lower, upper in [('FacingDegrees', 0, -360, 360), ('SightMeters', 5, .01, 20), ('TimeoutSec', 240, 30, 900), ('AimTolerance', 2, .01, 5)]:
+            value = lesson.get(key, default)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not lower <= value <= upper:
+                issues.append(path + ': invalid number ' + key)
+        if lesson.get('Mode') == 'pickpocket' and (not isinstance(lesson.get('Item'), str) or not lesson['Item'].strip()):
+            issues.append(path + ': pickpocket Item required')
+        if 'Kit' in lesson and (not isinstance(lesson['Kit'], list) or any(not isinstance(x, str) or not x.strip() for x in lesson['Kit'])):
+            issues.append(path + ': invalid Kit')
+        if lesson.get('Mode') == 'grapple':
+            kit = lesson.get('Kit')
+            if not isinstance(kit, list) or len(kit) != 2 or any(not isinstance(x, str) or not x for x in kit) or len(set(kit)) != 2:
+                issues.append(path + ': two distinct Kit items required')
+    return issues
+
+
+def check_lessons(module, problems, cast, en, cn):
+    path = os.path.join(module, 'ModuleData', 'DesignData', 'StoryLessons.json')
+    try:
+        lessons = json.loads(io.open(path, encoding='utf-8-sig').read(), object_pairs_hook=_dlg_dup_keys)
+    except (ValueError, OSError) as ex:
+        problems.append('lessons: ' + str(ex))
+        return
+    issues = story_lesson_issues(lessons, {n.get('Id') for n in (cast or {}).get('Npcs', []) if isinstance(n, dict)})
+    problems.extend(issues)
+    if issues:
+        return
+    items = known_items(_game_root(module))
+    for lesson in lessons:
+        for field, value in lesson.items():
+            if field.endswith('Key') and (value not in en or value not in cn):
+                problems.append('lessons: missing bilingual key ' + value)
+        for item in lesson.get('Kit', []) + ([lesson['Item']] if lesson.get('Item') else []):
+            if item not in items:
+                problems.append('lessons: unknown item ' + item)
+    ids = {l['Id'] for l in lessons}
+    for path in dialogue_paths(module):
+        definition = load_data_json(path) or {}
+        for node in definition.get('Nodes', []):
+            effects = node.get('OnEnter', []) + [e for o in node.get('Options', []) for e in o.get('Effects', [])]
+            for effect in effects:
+                if effect['Id'] == 'lesson_start' and effect['Params'].get('lesson') not in ids:
+                    problems.append('lessons: unknown start target in ' + node['Id'])
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--module", default=DEFAULT_MODULE)
@@ -3133,6 +3272,7 @@ def main():
     # 对钱的态度：对话里的 `<npc>_money_<态度>` 节点必须与 StoryProbeDefs 的表一致
     # （改了表忘了改对话 = 当面递钱时演的和实际做的对不上，静默错）
     cast_keys, cast = check_cast(module, problems)
+    check_lessons(module, problems, cast, en, cn)
     tuning_ok = check_tuning(module, problems)
     check_flow_contract(module, problems)
     stage_beats = check_stage(module, problems)
@@ -3150,6 +3290,7 @@ def main():
         if key not in cn: problems.append("content key missing in CN: " + key)
     check_references(module, problems, cast, stage_data, args.scene)
     line_actions = check_line_actions(module, problems, cast)
+    faces = check_faces(module, problems)
     keys |= cast_keys
 
     if cast:
@@ -3211,7 +3352,7 @@ def main():
 
     summary = (f"story_probe: cast_npcs={len((cast or {}).get('Npcs') or [])} stage_beats={stage_beats} "
                f"stage_v2_positive={stage_v2_positive} dialogue_v2_positive={dialogue_v2} annotated_fields={annotated} "
-               f"long_nodes_todo={len(TODO_LONG_NODES)} line_actions={line_actions} dialogue_files={len(dialogue_paths(module))} "
+               f"long_nodes_todo={len(TODO_LONG_NODES)} line_actions={line_actions} faces={faces} dialogue_files={len(dialogue_paths(module))} "
                f"nodes={node_total} dialogue_keys={len(keys)} code_keys={len(code)} "
                f"en={len(en)} cn={len(cn)} problems={len(problems)}")
     print(summary)

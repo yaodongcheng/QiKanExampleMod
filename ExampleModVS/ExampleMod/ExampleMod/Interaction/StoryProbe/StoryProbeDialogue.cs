@@ -288,7 +288,7 @@ namespace LivingWorldNpcs
                 return RejectTurn(session, node.Id);
             var required = new List<Agent> { primary, ResolveTurnAgent(session, node.Speaker), ResolveTurnAgent(session, node.Listener) };
             // 玩家选项的听话对象也必须在选项出现前到位；不是文本查询时才加入。
-            foreach (var option in node.Options)
+            foreach (var option in session.Definition.OptionsFor(node))
             {
                 var listener = ResolveTurnAgent(session, option.Listener);
                 required.Add(listener);
@@ -656,13 +656,15 @@ namespace LivingWorldNpcs
                     { RejectTurn(session, node.Id); return; }
                     PrologueJournalQuest.NoteShown(node.TextKey);
                     PlayNodeLineActions(node.Id);
+                    // 这一句的脸：与原版动作同帧设置；不写 Face 就回到该角色的原版默认待机脸。
+                    StoryFaceAnimations.PlayOrDefault(ResolveTurnAgent(session, node.Speaker), node.Face);
                     BeginDialogueFacing(session, node);
                     ApplyConversationCameraFocus(session, node);
                     DebugLogger.Log("[StoryDialogue] turn node=" + node.Id + " speaker=" + node.Speaker
                         + " listener=" + node.Listener + " next=" + (node.NextNode ?? "options/close"));
                 };
 
-                foreach (var opt in node.Options)
+                foreach (var opt in def.OptionsFor(node))
                 {
                     if (opt == null || string.IsNullOrEmpty(opt.Id)) continue;
                     var t = new DialogueInjector.DialogueTransition
@@ -690,9 +692,11 @@ namespace LivingWorldNpcs
                         if (StoryDialogueRuntime.Current != session || session.Ended || session.Failed
                             || session.Request.RuntimeToken != StoryProbeState.RuntimeToken
                             || !CanUseTurnAgent(ResolveTurnAgent(session, option.Listener))) return false;
+                        if (!StoryDialogueFacts.TryEvaluateAll(def.OptionsNode(node).Requires, ctx, out bool menuOk, out _, out _) || !menuOk) return false;
                         if (!StoryDialogueFacts.TryEvaluateAll(option.Requires, ctx, out bool ok, out _, out _) || !ok)
                             return false;
                         string target = option.Check != null ? option.Check.Success : option.NextNode;
+                        if (target == node.Id || option.Check?.Fail == node.Id) return false;
                         if (string.IsNullOrEmpty(target)) return true;
                         var targetNode = def.FindNode(target);
                         if (targetNode == null) return false;
@@ -846,7 +850,9 @@ namespace LivingWorldNpcs
         {
             string text = LWNTextHelper.ResolveText(option.PlayerKey, null);
             if (option.Check == null || !StoryProbeDefs.TryParseDialogueTactic(option.Check.Tactic, out var tactic)) return text;
-            return LWNTextHelper.ResolveCompound("LWN_story_option_skill", "{LINE} ({SKILL})",
+            // 正式源已有功能前缀时保留；不再额外拼一个括号里的同义标签。
+            if (text.TrimStart().StartsWith("[", StringComparison.Ordinal)) return text;
+            return LWNTextHelper.ResolveCompound("LWN_story_option_check_prefix", "[{SKILL}] {LINE}",
                 ("LINE", text), ("SKILL", string.IsNullOrEmpty(option.Check.Capability)
                     ? SkillCheckSystem.MapTacticToSkill(tactic).Name.ToString()
                     : StoryProbeDefs.CapabilityName(option.Check.Capability)));
@@ -863,24 +869,35 @@ namespace LivingWorldNpcs
                 || option.Check.Target == "questioner" ? actorId : option.Check.Target;
             var preview = StoryProbeDefs.PreviewDialogueCheck(target, tactic, option.Check.Capability, option.Check.MinimumGrowth);
             if (preview == null) return LWNTextHelper.ResolveText("LWN_story_hint_check_unavailable", "The check target is unavailable.");
+            string attribute = preview.Capability != null
+                ? LWNTextHelper.ResolveText(StoryProbeDefs.AbilityDisplayKey(preview.Ability), preview.Ability.ToString())
+                : preview.Skill.Name.ToString();
+            string odds = LWNTextHelper.ResolveText(preview.Chance < 0.25f ? "LWN_story_odds_low"
+                : preview.Chance < 0.6f ? "LWN_story_odds_even" : "LWN_story_odds_high", null);
+            string hint = LWNTextHelper.ResolveCompound("LWN_story_hint_check_compact",
+                "Your {ATTRIBUTE}({PLAYER}) vs opponent({NPC})\n{ODDS} ({CHANCE}%)\n{NOTE}",
+                ("ATTRIBUTE", attribute), ("PLAYER", preview.PlayerAttr.ToString("F0")),
+                ("NPC", preview.NpcAttr.ToString("F0")), ("ODDS", odds),
+                ("CHANCE", (preview.Chance * 100f).ToString("F1")), ("NOTE", note));
             if (!preview.Eligible)
-                return LWNTextHelper.ResolveCompound("LWN_story_hint_training_required",
-                    "First gain {MINIMUM} {ATTRIBUTE} through training (gained: {GAIN}).\n{NOTE}",
-                    ("MINIMUM", preview.MinimumGrowth.ToString()), ("GAIN", preview.Growth.ToString()),
-                    ("ATTRIBUTE", LWNTextHelper.ResolveText(StoryProbeDefs.AbilityDisplayKey(preview.Ability), preview.Ability.ToString())),
-                    ("NOTE", note));
+                hint += "\n" + LWNTextHelper.ResolveCompound("LWN_story_hint_growth_compact",
+                    "Training {GAIN}/{MINIMUM}", ("GAIN", preview.Growth.ToString()), ("MINIMUM", preview.MinimumGrowth.ToString()));
+            // 数值仍取真实公式；短行逐项列出参与的基础能力与训练，不能只显示合计隐去来源。
             if (preview.Capability != null)
-                return LWNTextHelper.ResolveCompound("LWN_story_hint_capability_check",
-                    "{CAPABILITY} uses {ATTRIBUTE}.\n{SOURCE}\nYou: {PLAYER} / opponent: {NPC}\nSuccess chance: {CHANCE}%\n{NOTE}",
-                    ("CAPABILITY", StoryProbeDefs.CapabilityName(preview.Capability)),
-                    ("ATTRIBUTE", LWNTextHelper.ResolveText(StoryProbeDefs.AbilityDisplayKey(preview.Ability), preview.Ability.ToString())),
-                    ("SOURCE", LWNTextHelper.ResolveText("LWN_story_check_source_" + StoryProbeDefs.AbilityId(preview.Ability), null)),
-                    ("PLAYER", preview.PlayerAttr.ToString("F0")), ("NPC", preview.NpcAttr.ToString("F0")),
-                    ("CHANCE", (preview.Chance * 100f).ToString("F1")), ("NOTE", note));
-            return LWNTextHelper.ResolveCompound("LWN_story_hint_skill_check",
-                "Your chance depends on both sides' {SKILL} skill.\nYou: {PLAYER} / opponent: {NPC}\nSuccess chance: {CHANCE}%\n{NOTE}",
-                ("SKILL", preview.Skill.Name.ToString()), ("PLAYER", preview.PlayerAttr.ToString("F0")),
-                ("NPC", preview.NpcAttr.ToString("F0")), ("CHANCE", (preview.Chance * 100f).ToString("F1")), ("NOTE", note));
+            {
+                var hero = Hero.MainHero;
+                string basis = preview.Ability == StoryAbility.Force
+                    ? LWNTextHelper.ResolveCompound("LWN_story_hint_force_basis_compact", "Vigor {VIGOR} Control {CONTROL}\nTraining +{GAIN}",
+                        ("VIGOR", (hero?.GetAttributeValue(DefaultCharacterAttributes.Vigor) ?? 0).ToString()),
+                        ("CONTROL", (hero?.GetAttributeValue(DefaultCharacterAttributes.Control) ?? 0).ToString()),
+                        ("GAIN", preview.Growth.ToString()))
+                    : LWNTextHelper.ResolveCompound("LWN_story_hint_skill_basis_compact", "{SKILL} {VALUE}\nTraining +{GAIN}",
+                        ("SKILL", (preview.Ability == StoryAbility.Guile ? DefaultSkills.Roguery : DefaultSkills.Charm).Name.ToString()),
+                        ("VALUE", (hero?.GetSkillValue(preview.Ability == StoryAbility.Guile ? DefaultSkills.Roguery : DefaultSkills.Charm) ?? 0).ToString()),
+                        ("GAIN", preview.Growth.ToString()));
+                hint += "\n" + basis;
+            }
+            return hint;
         }
 
         /// <summary>CheckTag = npcId|NegotiationTactic；概率与掷点均复用已有对话轮子。</summary>
@@ -1466,7 +1483,7 @@ namespace LivingWorldNpcs
             var def = StoryProbeDefs.GetNpc(giverId);
             if (def == null || def.QuestTargetNpcId != CurrentNpcId
                 || !StoryProbeState.IsQuestAccepted(giverId) || StoryProbeState.IsQuestTurnedIn(giverId)
-                || (resolution != "charm" && resolution != "guile")) return false;
+                || (resolution != "charm" && resolution != "guile" && resolution != "force")) return false;
             if (StoryProbeState.IsQuestDone(giverId)) return true;
             var nativeQuest = PrologueQuestLauncher.FindActive(giverId);
             if (nativeQuest == null) return false;
@@ -1748,7 +1765,8 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>P0-D.4：数据效果 `start_fight` 的入口（首遇走真实败退请求，其余走共享决斗管线）。</summary>
-        internal static bool StartStoryFight(string npcId)
+        internal static bool StartStoryFight(string npcId, string mode = null, string reason = null,
+            string beneficiaries = null, string startLine = null, string endLine = null, string resolveEvent = null)
         {
             if (string.IsNullOrEmpty(npcId)) return false;
             var host = StoryProbeMissionBehavior.Current;
@@ -1759,8 +1777,8 @@ namespace LivingWorldNpcs
             {
                 return host.PlayForcedDefeat();
             }
-            if (!host.RequestStoryFight(npcId)) return false;
-            DebugLogger.Log($"[StoryProbe] Brain duel queued after conversation vs {npcId}");
+            if (!host.RequestStoryFight(npcId, mode, reason, beneficiaries, startLine, endLine, resolveEvent)) return false;
+            DebugLogger.Log($"[StoryProbe] real fight queued after conversation vs {npcId}; mode={mode ?? "wound"}");
             return true;
         }
 

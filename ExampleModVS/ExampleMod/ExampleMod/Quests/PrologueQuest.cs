@@ -210,6 +210,7 @@ namespace LivingWorldNpcs
 
         public static bool CancelAll()
         {
+            StoryPracticeQuest.CancelAll();
             try
             {
                 var quests = Campaign.Current?.QuestManager?.Quests;

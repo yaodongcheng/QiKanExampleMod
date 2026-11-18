@@ -98,6 +98,19 @@ namespace LivingWorldNpcs
         private StoryWorkDirector _work;
         private bool _workInitialized;
         public StoryWorkDirector Work => _work;
+        private StoryPracticeRunner _practice;
+        public StoryPracticeRunner ExistingPractice => _practice;
+        public StoryPracticeRunner Practice
+        {
+            get
+            {
+                if (_practice != null) return _practice;
+                try { return _practice = new StoryPracticeRunner(this); }
+                catch (Exception ex) { DebugLogger.Log("[StoryPractice] load rejected: " + ex.Message); return null; }
+            }
+        }
+        internal string PracticeObjectiveKey() => _practice?.ObjectiveKey;
+        public bool IsPracticeActor(string actor) => _practice?.Active == true && _practice.Actor == actor;
 
         /// <summary>本 Mission 的演出时钟（秒）。对话请求的冷却/重入与台本共用同一个钟。</summary>
         public float Clock => _time;
@@ -119,6 +132,14 @@ namespace LivingWorldNpcs
         private bool _crossingDoor;
         private bool _crossingWall;
         private readonly HashSet<string> _fightRequests = new HashSet<string>();
+        private sealed class FightRequest
+        {
+            public string Mode, Reason, Beneficiaries, StartLine, EndLine;
+            public int ResolveEvent;
+            public float RequestedAt;
+            public CombatEncounter Encounter;
+        }
+        private readonly Dictionary<string, FightRequest> _fightDefinitions = new Dictionary<string, FightRequest>();
         private readonly Dictionary<string, float> _fightStartedAt = new Dictionary<string, float>();
         private readonly Dictionary<string, int> _duelTokens = new Dictionary<string, int>();
         private int _duelSerial;
@@ -185,7 +206,7 @@ namespace LivingWorldNpcs
             // 必须在确实会收到的 AfterStart 登记，否则本地生成成功但对话/命令找不到宿主。
             Current = this;
             DebugLogger.Log("[StoryProbe] mission host registered in AfterStart");
-            try { Setup(); }
+            try { Setup(); if (Active) StoryPracticeQuest.CancelAll(); }
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] Setup failed: {ex}"); }
         }
 
@@ -304,6 +325,8 @@ namespace LivingWorldNpcs
             try
             {
                 StoryProbeDialogue.TickDialogueFacing(dt);
+                _practice?.Tick(dt);
+                _practice?.TickCompletion();
                 if (_defeatAnim != null && _defeatPlayer == Agent.Main && AgentControlHelper.SafeIsActive(_defeatPlayer))
                     _defeatAnim.Tick(_defeatPlayer, dt);
                 if (Phase == StoryProbePhase.FirstAttempt) TickFirstAttempt(dt);
@@ -326,6 +349,7 @@ namespace LivingWorldNpcs
         /// <summary>先停运行期工作再归还；不会修改已持久化尚欠账。</summary>
         public void CancelRuntime(string reason)
         {
+            _practice?.Stop(reason);
             Active = false;
             StoryProbeDialogue.ReleaseDialogueFacing();
             _schedule.Clear();
@@ -341,6 +365,7 @@ namespace LivingWorldNpcs
             _firstDuelReceipt = 0;
             _duelTokens.Clear();
             _fightRequests.Clear();
+            _fightDefinitions.Clear();
             _fightStartedAt.Clear();
             _pendingBlockerDown = false;
             _pendingQuestDone.Clear();
@@ -392,6 +417,7 @@ namespace LivingWorldNpcs
 
         public override void OnRemoveBehavior()
         {
+            _practice?.DisposeManaged();
             StoryPopulationGuard.Release(Mission, "host removed");
             base.OnRemoveBehavior();
             Active = false;
@@ -404,6 +430,7 @@ namespace LivingWorldNpcs
             _firstDuelReceipt = 0;
             _duelTokens.Clear();
             _fightRequests.Clear();
+            _fightDefinitions.Clear();
             _fightStartedAt.Clear();
             // 交还给引擎时清掉引用（Agent 已经无效）
             _agents.Clear();
@@ -861,8 +888,10 @@ namespace LivingWorldNpcs
                 var kingdom = Settlement.CurrentSettlement?.MapFaction as Kingdom;
                 if (kingdom != null && kingdom.MainHeroCrimeRating <= 0.1f)
                 {
-                    ChangeCrimeRatingAction.Apply(kingdom, StoryProbeTuning.Current.Crime.SmallBountyAtEntry, true);
-                    DebugLogger.Log("[StoryProbe] small bounty applied (+15)");
+                    // 走唯一提升出口：MCM 关掉「犯罪会提升犯罪等级」时这里同样不落地
+                    // （不会因此变成通缉状态，IsPlayerWanted 恒 false，遮面/冒充前提自然不成立）。
+                    if (CrimeRatingGate.TryApplyIncrease(kingdom, StoryProbeTuning.Current.Crime.SmallBountyAtEntry, "StoryProbe first-arrest bounty"))
+                        DebugLogger.Log("[StoryProbe] small bounty applied (+15)");
                 }
             }
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] apply bounty failed: {ex.Message}"); }
@@ -1556,6 +1585,7 @@ namespace LivingWorldNpcs
             // 只能撤本 Host 尚未发出的请求；已参战时上方拒绝，不能替外部系统停战。
             _forcedDefeatQueued = false;
             _fightRequests.Clear();
+            _fightDefinitions.Clear();
             _playerDetentionMode = mode;
             _playerDetentionActor = npcId;
             DebugLogger.Log($"[StoryProbe] surrender queued: actor={npcId} mode={mode}; no combat/defeat receipt");
@@ -1591,11 +1621,23 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>对话动作只排请求，等原版对话退出再交给 Brain。</summary>
-        public bool RequestStoryFight(string npcId)
+        public bool RequestStoryFight(string npcId, string mode = null, string reason = null,
+            string beneficiaries = null, string startLine = null, string endLine = null, string resolveEvent = null)
         {
             var target = GetAgent(npcId);
+            var player = Agent.Main;
+            int resolvedEvent = 0;
+            if (resolveEvent != null && (!int.TryParse(resolveEvent, out resolvedEvent)
+                || StoryProbeDefs.GetEvent(resolvedEvent) == null)) return false;
             if (!Active || Current != this || Phase != StoryProbePhase.Second || target == null
-                || !AgentControlHelper.SafeIsActive(target) || _playerDetentionMode != null) return false;
+                || !AgentControlHelper.SafeIsActive(target) || target.Health <= 0f || _playerDetentionMode != null
+                || !AgentControlHelper.SafeIsActive(player) || player.Health <= 0f || AgentBrain.IsKnockedOut(player)
+                || AgentBrain.IsKnockedOut(target) || AgentBrain.IsRoped(target) || AgentBrain.IsHeldByStatus(target)
+                || (mode != null && mode != "wound" && mode != "mortal")) return false;
+            if (_fightRequests.Contains(npcId)) return true;
+            _fightDefinitions[npcId] = new FightRequest { Mode = mode ?? "wound", Reason = reason,
+                Beneficiaries = beneficiaries, StartLine = startLine, EndLine = endLine, ResolveEvent = resolvedEvent,
+                RequestedAt = _time };
             _fightRequests.Add(npcId);
             return true;
         }
@@ -1605,23 +1647,67 @@ namespace LivingWorldNpcs
             if (Campaign.Current?.ConversationManager?.IsConversationInProgress == true || _stage?.Active == true) return;
             var player = Agent.Main;
             if (player == null || AttackTriggerMissionLogic.Instance == null || AgentAIController.Instance == null) return;
+            if (!AgentControlHelper.SafeIsActive(player) || player.Health <= 0f || AgentBrain.IsKnockedOut(player)
+                || AgentBrain.IsRoped(player) || AgentBrain.IsHeldByStatus(player))
+            {
+                // 等待期间玩家失去行动能力，不留下可再次开打的请求；在途冲突仍由真实回执收场。
+                foreach (string id in _fightRequests.Where(id => !_duelTokens.ContainsKey(id)).ToArray())
+                { _fightRequests.Remove(id); _fightDefinitions.Remove(id); }
+                return;
+            }
             foreach (var npcId in _fightRequests.ToArray())
             {
+                _fightDefinitions.TryGetValue(npcId, out var definition);
+                if (definition != null && definition.Encounter?.HasStarted != true
+                    && _time - definition.RequestedAt > Math.Max(10f, StoryProbeTuning.Current.Performance.ActorReadyTimeoutSec))
+                {
+                    if (definition.Encounter != null) definition.Encounter.Cancel();
+                    else
+                    {
+                        _fightRequests.Remove(npcId);
+                        _fightDefinitions.Remove(npcId);
+                        ReportStoryFightCancelled(npcId);
+                    }
+                    continue;
+                }
                 var target = GetAgent(npcId);
                 var brain = target != null ? AgentAIController.GetBrainForAgent(target) : null;
-                if (target == null || !AgentControlHelper.SafeIsActive(target)) { _fightRequests.Remove(npcId); continue; }
+                if (target == null || !AgentControlHelper.SafeIsActive(target) || target.Health <= 0f
+                    || AgentBrain.IsKnockedOut(target))
+                {
+                    if (definition?.Encounter != null) definition.Encounter.Cancel();
+                    else { _fightRequests.Remove(npcId); _fightDefinitions.Remove(npcId); ReportStoryFightCancelled(npcId); }
+                    continue;
+                }
                 if (brain == null || brain.IsPerforming || AgentBrain.IsRoped(target) || AgentBrain.IsHeldByStatus(target)) continue;
-                if (AttackTriggerMissionLogic.Instance.HasDuelPair(target, player)) continue;
-                if (_fightStartedAt.TryGetValue(npcId, out float started)
-                    && _time - started <= StoryProbeTuning.Current.Intro.FirstFightStartTimeoutSec) continue;
+                if (_duelTokens.ContainsKey(npcId)) continue; // 本轮在途战斗不因超时再次入队。
                 if (brain.IsInCombat) continue; // 不抢已有原版/外部战斗；共享回执负责本次收场。
                 _fightStartedAt[npcId] = _time;
                 int receipt = ++_duelSerial;
                 _duelTokens[npcId] = receipt;
                 _duelCallbacks[npcId] = new Action<Agent>(loser => OnStoryDuelResolved(npcId, target, player, receipt, loser));
-                AgentAIController.Instance.SendEventToAgent(target, "duel", player, false, _duelCallbacks[npcId]);
+                var known = (definition?.Beneficiaries ?? "").Split('|').Where(id => id.Length > 0).Select(GetAgent);
+                var encounter = new CombatEncounter(target, player, definition?.Mode != "mortal", definition?.Reason,
+                    known, definition?.StartLine, definition?.EndLine, _duelCallbacks[npcId]);
+                if (definition != null) definition.Encounter = encounter;
+                try { AgentAIController.Instance.SendEventToAgent(target, "combat_encounter", encounter); }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log("[StoryProbe] real combat request failed: " + ex.Message);
+                    encounter.Cancel();
+                }
             }
         }
+
+        private void ReportStoryFightCancelled(string npcId)
+        {
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound(
+                "LWN_story_combat_cancelled", "The fight with {NAME} could not continue; no victory was recorded.",
+                ("NAME", NpcName(npcId)))));
+        }
+
+        public string DescribeStoryFights() => "pending=[" + string.Join(",", _fightRequests.OrderBy(id => id))
+            + "] queued=" + _duelTokens.Count + " " + CombatEncounter.Describe();
 
         private void OnStoryDuelResolved(string npcId, Agent target, Agent player, int receipt, Agent loser)
         {
@@ -1631,12 +1717,20 @@ namespace LivingWorldNpcs
             _duelCallbacks.Remove(npcId);
             _fightStartedAt.Remove(npcId);
             _fightRequests.Remove(npcId);
+            _fightDefinitions.TryGetValue(npcId, out var definition);
+            _fightDefinitions.Remove(npcId);
+            if (loser == null) { ReportStoryFightCancelled(npcId); return; }
             if (loser != target) return; // null=取消，玩家落败不假开门、不假交差。
+            if (definition?.ResolveEvent > 0)
+            {
+                _director?.ResolveCurrentEvent(definition.ResolveEvent);
+                StoryProbeState.ResolveStreetEvent(definition.ResolveEvent);
+            }
             if (npcId == "blocker") _pendingBlockerDown = true;
             foreach (var def in StoryProbeDefs.Representatives)
                 if (def.QuestTargetNpcId == npcId && StoryProbeState.IsQuestAccepted(def.Id)
                     && !StoryProbeState.IsQuestDone(def.Id)) _pendingQuestDone.Add(def.Id);
-            DebugLogger.Log($"[StoryProbe] shared duel receipt: target '{npcId}' really lost");
+            DebugLogger.Log($"[StoryProbe] real combat receipt: target '{npcId}' downed");
         }
 
         /// <summary>委托完成检测（§4.1）：仇家被打倒（击晕/死亡）即算"教训到位"。</summary>
@@ -2503,7 +2597,8 @@ namespace LivingWorldNpcs
                 try
                 {
                     var kingdom = Settlement.CurrentSettlement?.MapFaction as Kingdom;
-                    if (kingdom != null) ChangeCrimeRatingAction.Apply(kingdom, StoryProbeTuning.Current.Crime.RecognizedExtra, true);
+                    if (kingdom != null)
+                        CrimeRatingGate.TryApplyIncrease(kingdom, StoryProbeTuning.Current.Crime.RecognizedExtra, "StoryProbe recognized-approach crime");
                 }
                 catch (Exception ex) { DebugLogger.Log($"[StoryProbe] ResolveApproach crime failed: {ex.Message}"); }
             }
@@ -2897,6 +2992,8 @@ namespace LivingWorldNpcs
         public static string Resolve()
         {
             var host = StoryProbeMissionBehavior.Current;
+            if (host != null && host.Active && host.PracticeObjectiveKey() is string practiceKey)
+                return LWNTextHelper.ResolveText(practiceKey, "Practice");
             if (host?.FirstGuardDefeated == true)
                 return LWNTextHelper.ResolveText("LWN_story_goal_guard_defeated", "You have fallen. Await the guards' next move.");
             if (host?.FirstGuardFightPending == true)

@@ -1592,9 +1592,14 @@ namespace LivingWorldNpcs
                         float delta = evt.TotalStolenCount > 0 && evt.AssaultValue > 0 ? 18f
                             : evt.AssaultValue > 0 ? 12f
                             : evt.TotalStolenCount > 0 ? 8f : 5f;
-                        evt.CrimeRatingDelta = delta;
-                        ChangeCrimeRatingAction.Apply(faction, delta);
-                        DebugLogger.Log($"[WorldEvent] {evt.EventId} 犯罪等级 +{delta} ({faction.Name}) → {faction.MainHeroCrimeRating:F0}");
+                        // 🔴 唯一提升出口（MCM「犯罪会提升犯罪等级」开关）：
+                        //    关掉时一分不加 —— 不弹原版犯罪等级提示，也不会触发原版宣战。
+                        //    ⚠️ 没加就**不能**记 delta，否则结案按 delta 反向扣分会把犯罪等级打下去。
+                        if (CrimeRatingGate.TryApplyIncrease(faction, delta, $"WorldEvent {evt.EventId}"))
+                        {
+                            evt.CrimeRatingDelta = delta;
+                            DebugLogger.Log($"[WorldEvent] {evt.EventId} 犯罪等级 +{delta} ({faction.Name}) → {faction.MainHeroCrimeRating:F0}");
+                        }
                     }
                 }
                 catch (Exception ex) { DebugLogger.Log($"[WorldEvent] CrimeRating apply error: {ex.Message}"); }
