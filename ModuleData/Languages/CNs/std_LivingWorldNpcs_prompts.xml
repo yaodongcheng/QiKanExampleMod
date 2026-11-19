@@ -559,9 +559,9 @@
     <string id="LWN_speech_relation_companion" text="【对方关系】对方是你的同伴{NAME}" />
     <string id="LWN_speech_relation_friendly" text="【对方关系】对方与你友善（{NAME}）" />
     <string id="LWN_speech_situation_surrender" text="【当前处境】你正在向对方认输求饶{HP}" />
-    <string id="LWN_speech_situation_fighting" text="【当前处境】你正在与对方厮杀{HP}" />
+    <string id="LWN_speech_situation_fighting" text="【当前处境】你正在和{OPPONENT}拼命，他是你要打倒的敌人，不是同伙{HP}" />
     <string id="LWN_speech_situation_attacked" text="【当前处境】对方刚刚对你动手，你正要反击{HP}" />
-    <string id="LWN_speech_situation_combat" text="【当前处境】战斗刚刚爆发，你正要出手{HP}" />
+    <string id="LWN_speech_situation_combat" text="【当前处境】战斗刚刚爆发，你正要和{OPPONENT}动手，他是你的敌人{HP}" />
     <string id="LWN_speech_situation_approach" text="【当前处境】对方正在向你靠近" />
     <string id="LWN_speech_situation_seen_crime" text="【当前处境】你刚目睹了对方的不法行为" />
     <string id="LWN_speech_situation_spoken_to" text="【当前处境】对方刚刚跟你搭话" />

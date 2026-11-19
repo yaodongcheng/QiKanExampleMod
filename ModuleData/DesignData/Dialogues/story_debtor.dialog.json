@@ -105,7 +105,7 @@
           "PlayerKey": "LWN_story_debtor_opt_collect",
           "PlayerKeyZh": "[逼债] 你欠老周的一百二十第纳尔，今天就还给他。",
           "HintKey": "LWN_story_hint_debtor_opt_collect",
-          "HintKeyZh": "追讨120第纳尔欠款",
+          "HintKeyZh": "成功：拿回120第纳尔｜失败：他拒付，只能动手",
           "Requires": [
             "quest_accepted@pawnbroker",
             "!quest_done@pawnbroker",
@@ -209,7 +209,7 @@
           "PlayerKey": "LWN_story_debtor_opt_collect",
           "PlayerKeyZh": "[逼债] 你欠老周的一百二十第纳尔，今天就还给他。",
           "HintKey": "LWN_story_hint_debtor_opt_collect",
-          "HintKeyZh": "追讨120第纳尔欠款",
+          "HintKeyZh": "成功：拿回120第纳尔｜失败：他拒付，只能动手",
           "Requires": [
             "quest_accepted@pawnbroker",
             "!quest_done@pawnbroker",

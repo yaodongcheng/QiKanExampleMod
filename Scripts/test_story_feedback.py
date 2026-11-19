@@ -64,9 +64,11 @@ def data_checks():
         assert any(b['Cmd'] == 'actor_say' and b['Actor'] == cut['Actor'] and cut['At'] < b['At'] < end for b in opening)
     guard = next(d for d in dialogues if 'blocker_open' in {n['Id'] for n in d['Nodes']})
     check = next(o['Check'] for n in guard['Nodes'] if n['Id'] == 'blocker_open' for o in n['Options'] if o['Id'] == 'threat')
-    assert check['MinimumGrowth'] == 15
+    # 2026-11-19 用户裁定：随机检定不设门槛 —— 属性差走成功率，0% 也照实显示。
+    assert 'MinimumGrowth' not in check
     cast = json.loads((data / 'StoryProbeCast.json').read_text(encoding='utf-8'))
-    assert next(n for n in cast['Npcs'] if n['Id'] == 'butcher')['AttributeRewards']['force'] == 15
+    # 三维只认原版属性，不再有自造的"训练收益"奖励。
+    assert 'AttributeRewards' not in next(n for n in cast['Npcs'] if n['Id'] == 'butcher')
     spec = importlib.util.spec_from_file_location('checker', ROOT / 'Scripts/check_story_probe.py')
     checker = importlib.util.module_from_spec(spec); spec.loader.exec_module(checker)
     # 旧版守卫动作有动画映射、却没有动作名声明；不能把它算成可播。
@@ -166,7 +168,7 @@ def runtime_checks():
     resolver = (SRC / 'Interaction/Intents/IntentRegistry.cs').read_text(encoding='utf-8-sig')
     stage_methods = '\n'.join(method(stage, name) for name in ('ShowInquiry', 'CloseInquiry', 'Stop', 'ReportFailure', 'FailureActorName', 'Tick', 'Execute', 'SayLine', 'PlayAction', 'OwnsActor'))
     performance = (SRC / 'AI/Actions/AtomicAction.cs').read_text(encoding='utf-8-sig')
-    defs_methods = '\n'.join(method(defs, name) for name in ('PlayerGrowth', 'MeetsCheckRequirement', 'PreviewDialogueCheck', 'RollDialogueCheck', 'TakeCheckRoll'))
+    defs_methods = '\n'.join(method(defs, name) for name in ('PreviewDialogueCheck', 'RollDialogueCheck', 'TakeCheckRoll'))
     dialogue = (SRC / 'Interaction/StoryProbe/StoryProbeDialogue.cs').read_text(encoding='utf-8-sig')
     code = r'''
 using System; using System.Linq; using System.Collections.Generic; using System.IO; using Newtonsoft.Json;
@@ -188,7 +190,7 @@ static class StoryLayoutRegistry {public static Layout Published=new();public cl
 class Mission {public static Mission Current=new();}
 class GameEntity {} struct Vec3 {}
 class StoryNpcDef {public string Id,NameKey,NameFallback;public Dictionary<string,int> AttributeRewards;}
-class StoryRoll {public StoryAbility Ability;public string Capability,NpcId,Tactic;public Skill Skill;public float PlayerAttr,NpcAttr,Chance,Threshold,Roll;public bool Success,Eligible=true;public int MinimumGrowth,Growth;public string Describe()=>"roll";}
+class StoryRoll {public StoryAbility Ability;public string Capability,NpcId,Tactic;public Skill Skill;public float PlayerAttr,NpcAttr,Chance,Threshold,Roll;public int PlayerBonus;public bool Success,Eligible=true;public int MinimumGrowth,Growth;public string Describe()=>"roll";}
 class IntentContext {public Hero Speaker;public IntentContext(Agent a,Hero speaker){Speaker=speaker;}}
 static class SkillCheckSystem {public static Skill MapTacticToSkill(NegotiationTactic t)=>DefaultSkills.Charm;}
 static class MathF {public static float Clamp(float x,float a,float b)=>Math.Clamp(x,a,b);}
@@ -198,7 +200,7 @@ static class LWNTextHelper {public static Dictionary<string,string> Texts=new(){
 static class StoryProbeState {public static int RuntimeToken;public static HashSet<string> Completed=new();public static bool IsQuestTurnedIn(string id)=>Completed.Contains(id);public static bool IsRuntimeCurrent(int token)=>token==RuntimeToken;public static State Data=new();public class State {public float RollOverride=-1;public string RollOverrideAbility="";}}
 class StoryProbeMissionBehavior {public static StoryProbeMissionBehavior Current=new();public int Says;public Dictionary<string,Agent> Agents=new();public Agent GetAgent(string id)=>id!=null&&Agents.TryGetValue(id,out var a)?a:null;public Agent ResolveSpeechListener(string id)=>id=="player"?Agent.Main:GetAgent(id);public void SayOnAgent(Agent a,string key,string fb,Agent listener,bool forwardToNearby){Says++;}public Hero GetHero(string id)=>null;}
 static class SingleRollResolver {__CHANCE__ public static bool Roll(float chance,float roll)=>chance>0&&roll>=1-chance;public static StoryRoll SimpleCompute(IntentContext c,NegotiationTactic t)=>new(){Chance=.5f};}
-static class StoryProbeDefs {public static List<StoryNpcDef> Npcs=new(){new(){Id="butcher",AttributeRewards=new(){{"force",15}}}};public static StoryNpcDef GetNpc(string id)=>Npcs.FirstOrDefault(n=>n.Id==id);public static string AbilityId(StoryAbility a)=>a.ToString().ToLowerInvariant();public static string AbilityDisplayKey(StoryAbility a)=>"LWN_story_ability_"+AbilityId(a);public static bool TryParseDialogueTactic(string t,out NegotiationTactic value)=>Enum.TryParse(t,out value);public static string CapabilityName(string c)=>c;public static float PlayerAttr(StoryAbility a)=>20+PlayerGrowth(a);public static float NpcAttr(string id,StoryAbility a)=>70;public static bool TryGetCapability(string c,out StoryAbility a){a=StoryAbility.Force;return c=="Intimidate";}__DEFS__}
+static class StoryProbeDefs {public static List<StoryNpcDef> Npcs=new(){new(){Id="butcher",AttributeRewards=new(){{"force",15}}}};public static StoryNpcDef GetNpc(string id)=>Npcs.FirstOrDefault(n=>n.Id==id);public static string AbilityId(StoryAbility a)=>a.ToString().ToLowerInvariant();public static string AbilityDisplayKey(StoryAbility a)=>"LWN_story_ability_"+AbilityId(a);public static bool TryParseDialogueTactic(string t,out NegotiationTactic value)=>Enum.TryParse(t,out value);public static string CapabilityName(string c)=>c;public static float PlayerAttr(StoryAbility a)=>20f;public static int TestBonus;public static void PlayerAttrParts(StoryAbility a,out float baseValue,out int bonus){baseValue=20f;bonus=TestBonus;}public static float NpcAttr(string id,StoryAbility a)=>70;public static bool TryGetCapability(string c,out StoryAbility a){a=StoryAbility.Force;return c=="Intimidate";}__DEFS__}
 class StageBeat {public float At,BlendSeconds=.8f,Seconds;public string Cmd,Actor,Action,Listener,Case,TitleKey,TextKey,AcceptKey,CancelKey,Note;}
 class StageScript {public string Script;public List<StageBeat> Beats=new();}
 static class StoryStageDefs {static Dictionary<string,StageScript> _cache=new();public static string DesignDataFolder=__FIXTURE_FOLDER__;__LOAD__}
@@ -232,25 +234,32 @@ static void Main(){
 var loaded=StoryStageDefs.Load("valid",true);Check(loaded!=null&&loaded.Beats.Count==__BEAT_COUNT__&&loaded.Beats.Last(b=>b.Cmd=="inquiry").CancelKey==null,"production loader accepts authored final inquiry with no CancelKey");
 StoryProbeMissionBehavior.Current.Agents["guard"]=new();StoryProbeState.Completed.Clear();StoryProbeState.Data.RollOverride=100;int diceBefore=MBRandom.Calls;
 LWNTextHelper.Texts["prefixed"]="[Intimidate] step aside";LWNTextHelper.Texts["plain"]="step aside";LWNTextHelper.Texts["note"]="ask for passage";
-var option=new StoryDialogueOption{PlayerKey="prefixed",HintKey="note",Check=new(){Target="guard",Tactic="Threaten",Capability="Intimidate",MinimumGrowth=15}};
+var option=new StoryDialogueOption{PlayerKey="prefixed",HintKey="note",Check=new(){Target="guard",Tactic="Threaten",Capability="Intimidate"}};
 var optionHint=HintHarness.DescribeOptionHint(option,"guard");
-if(HintHarness.Line(option)!="[Intimidate] step aside"||!optionHint.Contains("(20)")||!optionHint.Contains("(70)")||!optionHint.Contains("2")||!optionHint.Contains("0/15")||!optionHint.Contains("0.0%")||MBRandom.Calls!=diceBefore||StoryProbeState.Data.RollOverride!=100)throw new Exception("actual structured hint must show basis/prerequisite and never roll; authored prefix exactly once");
+if(HintHarness.Line(option)!="[Intimidate] step aside")throw new Exception("authored prefix appears exactly once");
+// 2026-11-19 用户裁定：悬停两行 —— ① 属性名 + 我方 vs 对方 + 成功率；② 后果（作者写在 HintKey）。
+string[] hintLines=optionHint.Split('\n');
+if(hintLines.Length!=2||!hintLines[0].Contains(" 20")||!hintLines[0].Contains(" 70")||!hintLines[0].Contains("% chance"))throw new Exception("check line must carry attribute, both values and the real chance");
+if(hintLines[1]!="ask for passage")throw new Exception("consequence line is the authored text");
+if(MBRandom.Calls!=diceBefore||StoryProbeState.Data.RollOverride!=100)throw new Exception("hint preview never rolls or consumes overrides");
 option.PlayerKey="plain";if(!HintHarness.Line(option).StartsWith("[Intimidate]"))throw new Exception("unprefixed check receives one label");
-option.Check=null;if(HintHarness.Line(option)!="step aside"||HintHarness.DescribeOptionHint(option,"guard")!="ask for passage")throw new Exception("ordinary conversation retains authored line and purpose");
-Console.WriteLine("PASS: actual structured hint, ability basis, disabled probability, one prefix and no-roll query checks");
+option.Check=null;if(HintHarness.Line(option)!="step aside"||HintHarness.DescribeOptionHint(option,"guard")!="ask for passage")throw new Exception("ordinary conversation keeps only the authored line");
+// 道具临时加成（2026-11-19 用户裁定）：永久值后面用括号标出，例如 20(+10)。
+StoryProbeDefs.TestBonus=10;
+var bonusOption=new StoryDialogueOption{PlayerKey="plain",HintKey="note",Check=new(){Target="guard",Tactic="Threaten",Capability="Intimidate"}};
+string bonusHint=HintHarness.DescribeOptionHint(bonusOption,"guard");
+if(!bonusHint.Contains("20(+10)")||!bonusHint.Contains("%"))throw new Exception("item bonus must render as base(+bonus) with the boosted chance");
+StoryProbeDefs.TestBonus=0;
+Console.WriteLine("PASS: two-line hint, real chance, one prefix and no-roll query checks");
 foreach(string name in new[]{"no_accept","no_title","no_text"})Check(StoryStageDefs.Load(name,true)==null,"production loader rejects missing required inquiry field: "+name);
 StoryProbeMissionBehavior.Current.Agents["guard"]=new();
 StoryProbeState.Completed.Clear();StoryProbeState.Data.RollOverride=100;
 var before=StoryProbeDefs.PreviewDialogueCheck("guard",NegotiationTactic.Threaten,"Intimidate",15);
-Check(!before.Eligible&&before.Chance==0,"initial training prerequisite disables chance");
+Check(before.Eligible&&Math.Abs(before.Chance-SingleRollResolver.SimpleChance(before.PlayerAttr,before.NpcAttr))<.00001,"random checks are never gated; chance is the only bar");
+Check(SingleRollResolver.SimpleChance(0f,70f)==0f,"zero ability yields a real 0% chance (no 5% floor)");
 var roll=StoryProbeDefs.RollDialogueCheck("guard",NegotiationTactic.Threaten,"Intimidate",15);
-Check(!roll.Success&&MBRandom.Calls==0&&StoryProbeState.Data.RollOverride==100,"100% forced roll cannot bypass training or be consumed");
-StoryProbeState.Completed.Add("butcher");Check(StoryProbeDefs.PlayerGrowth(StoryAbility.Force)==15,"real completed job provides growth");
-StoryProbeState.Completed.Add("butcher");Check(StoryProbeDefs.PlayerGrowth(StoryAbility.Force)==15,"repeated completion cannot stack training");
-before=StoryProbeDefs.PreviewDialogueCheck("guard",NegotiationTactic.Threaten,"Intimidate",15);
-Check(before.Eligible&&before.PlayerAttr==35&&Math.Abs(before.Chance-SingleRollResolver.SimpleChance(35,70))<.00001,"eligible preview uses training and existing shared chance");
-roll=StoryProbeDefs.RollDialogueCheck("guard",NegotiationTactic.Threaten,"Intimidate",15);Check(roll.Success&&roll.Roll==1&&StoryProbeState.Data.RollOverride==-1,"qualified roll consumes override through normal resolver");
-StoryProbeState.Data.RollOverride=0;roll=StoryProbeDefs.RollDialogueCheck("guard",NegotiationTactic.Threaten,"Intimidate",15);Check(!roll.Success,"training does not guarantee success");
+Check(roll.Success&&roll.Roll==1&&StoryProbeState.Data.RollOverride==-1,"qualified roll consumes override through normal resolver");
+StoryProbeState.Data.RollOverride=0;roll=StoryProbeDefs.RollDialogueCheck("guard",NegotiationTactic.Threaten,"Intimidate",15);Check(!roll.Success,"a failed roll still fails");
 Check(StoryProbeDefs.PreviewDialogueCheck("missing",NegotiationTactic.Threaten,"Intimidate",15)==null,"missing actor no check");
 var s=Setup();s.Tick(20);var first=InformationManager.Shown[0];Check(s._next==1&&s.Cuts==0&&s._time==0,"initial popup preserves natural camera even after long frame");s.Tick(100);Check(s._next==1,"unanswered popup never advances timeline");
 first.Accept();s.Tick(.1f);Check(s.Cuts==1&&s.BodyLines==0,"click begins exactly one camera transition");s.Tick(100);Check(s.BodyLines==0&&s._next==2,"no speech or next popup before blend completes");

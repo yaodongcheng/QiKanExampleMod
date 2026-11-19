@@ -68,6 +68,7 @@ public static class RuntimeTests
     static CoopActivity ExecuteGroup(CoopAlgorithm algorithm, bool secondRefuses)
     {
         Reset();host.Actors["son"].Position=new Vec3(3,0,0);
+        CoopRecruitment.UseTemporary=true;CoopRecruitment.FavorDebits=0;
         var director=CoopDirector.Current;director.Runtime=runtime;
         var facts=Manual("son","companion","lure_request_blocker").Facts.Snapshot();
         foreach(var fact in new[]{"guided","engaged","signal","passed","regrouped","player_crossed","gap",
@@ -127,6 +128,9 @@ public static class RuntimeTests
             Check(director.ForActor("son")?.RoleId=="reporter" && director.ForActor("son").State==CoopActivityState.Success,
                 "full refusal chain completes separate failure report and return");
         }
+        Check(CoopRecruitment.FavorDebits==1 && root.FavorCommitted,
+            "actual router charges one activity across both guards and refusal");
+        CoopRecruitment.UseTemporary=false;
         return root;
     }
     static void HandoffRegression()
@@ -524,7 +528,7 @@ namespace LivingWorldNpcs
         public static StoryProbeMissionBehavior Current;public Dictionary<string,Agent> Actors=new Dictionary<string,Agent>();
         public StoryPrepRunner Prep=new StoryPrepRunner();public bool PlayerHasCrossed;
         public Agent GetAgent(string id)=>id!=null&&Actors.TryGetValue(id,out var a)?a:null;
-        public Hero GetHero(string id)=>null;public bool HasGateOpportunity(Agent a,Agent b)=>NpcSightSystem.Visible;
+        public Hero GetHero(string id)=>CoopRecruitment.UseTemporary && id=="son"?new Hero{StringId=id}:null;public bool HasGateOpportunity(Agent a,Agent b)=>NpcSightSystem.Visible;
     }
     public class Hero { public string StringId; }
     public class Npc { public string Id; }
@@ -568,9 +572,12 @@ namespace LivingWorldNpcs.Planner.Cooperation
     public enum CoopContractMode { Temporary,Companion }
     public static class CoopRecruitment
     {
+        public static bool UseTemporary;public static int FavorDebits;
         public static bool CanCooperate(string id,CoopActivity a,out string reason){reason=null;return true;}
         public static bool CanRequestPurpose(string id,CoopActivity a,string purpose,out string reason){reason=null;return true;}
-        public static CoopContractMode GetMode(Hero h)=>CoopContractMode.Companion;public static bool ConsumeFavor(Hero h,string purpose,double time)=>true;
+        public static CoopContractMode GetMode(Hero h)=>UseTemporary?CoopContractMode.Temporary:CoopContractMode.Companion;
+        public static bool ConsumeFavor(Hero h,string purpose,double time,string activityId = null)
+        { if(string.IsNullOrEmpty(activityId))throw new Exception("missing real activity identity");FavorDebits++;return true; }
     }
     public static class CoopTestSession
     {public static Queue<float> Rolls=new Queue<float>();public static float NextRoll(string id)=>Rolls.Count>0?Rolls.Dequeue():1;public static bool Owns(string id)=>true;}

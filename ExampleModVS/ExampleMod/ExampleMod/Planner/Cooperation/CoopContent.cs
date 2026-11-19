@@ -852,6 +852,9 @@ namespace LivingWorldNpcs.Planner.Cooperation
     {
         public string Candidate = string.Empty;
         public int PriceGold = 30;
+        public int FavorCost;
+        public string FavorSourceKey = string.Empty;
+        public string FavorSourceFallback = string.Empty;
         public bool RequireQuestTurnedIn = true;
         public bool RequireEventSettled = true;
         public string PriceHintKey = "LWN_coop_price";
@@ -866,6 +869,12 @@ namespace LivingWorldNpcs.Planner.Cooperation
             }
             config.Candidate = obj.Value<string>("Candidate") ?? string.Empty;
             config.PriceGold = obj.Value<int?>("PriceGold") ?? 30;
+            config.FavorCost = obj.Value<int?>("FavorCost") ?? 0;
+            config.FavorSourceKey = obj.Value<string>("FavorSourceKey") ?? string.Empty;
+            config.FavorSourceFallback = obj.Value<string>("FavorSourceFallback") ?? string.Empty;
+            if (config.FavorCost <= 0 || string.IsNullOrWhiteSpace(config.FavorSourceKey)
+                || string.IsNullOrWhiteSpace(config.FavorSourceFallback))
+                errors.Add("Recruitment positive FavorCost and localized FavorSourceKey/FavorSourceFallback required");
             config.RequireQuestTurnedIn = obj.Value<bool?>("RequireQuestTurnedIn") ?? true;
             config.RequireEventSettled = obj.Value<bool?>("RequireEventSettled") ?? true;
             config.PriceHintKey = obj.Value<string>("PriceHintKey") ?? config.PriceHintKey;

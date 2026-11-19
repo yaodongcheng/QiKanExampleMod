@@ -368,7 +368,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_widow_deal",
-      "TextKeyZh": "你想借体面的行头，我想让台前那条路空出来，去跟对面领班谈谈，办成了衣裳归你。",
+      "TextKeyZh": "你想借体面的行头，我想让台前那条路空出来，去跟对面领班谈谈，办成了衣裳归你——穿这一身去说话，人家肯坐下来听。",
       "LineActions": [
         "act_conversation_hip_trivial"
       ],
@@ -642,7 +642,7 @@
           "PlayerKey": "LWN_story_event3_opt_side_widow",
           "PlayerKeyZh": "[帮腔] 客人想听哪家是他们的事，你把路堵上，她的生意怎么做？",
           "HintKey": "LWN_story_hint_event3_opt_side_widow",
-          "HintKeyZh": "替玉娘调解争执",
+          "HintKeyZh": "成功：他让出台子｜失败：没调解成，被奚落",
           "Requires": [
             "!asked:attempt_LWN_story_event3_opt_side_widow"
           ],
@@ -732,7 +732,7 @@
           "PlayerKey": "LWN_story_event3_opt_side_widow",
           "PlayerKeyZh": "[帮腔] 客人想听哪家是他们的事，你把路堵上，她的生意怎么做？",
           "HintKey": "LWN_story_hint_event3_opt_side_widow",
-          "HintKeyZh": "替玉娘调解争执",
+          "HintKeyZh": "成功：他让出台子｜失败：没调解成，被奚落",
           "Requires": [
             "!asked:attempt_LWN_story_event3_opt_side_widow"
           ],

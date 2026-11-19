@@ -95,7 +95,7 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 按数据选本次质问者。`report` 列出每个候选的资格与排序，便于 `intercept status` 直接看。
         /// </summary>
-        public bool TrySelectQuestioner(string stageId, out string actorId, out string behaviorId, out string report)
+        public bool TrySelectQuestioner(string stageId, out string actorId, out string behaviorId, out string report, bool force = false)
         {
             actorId = null;
             behaviorId = null;
@@ -110,6 +110,9 @@ namespace LivingWorldNpcs
             var file = StoryLayoutRegistry.Published;
             var player = Agent.Main;
             if (player == null) { _lastReport = "no player agent"; report = _lastReport; return false; }
+            // 🔴 2026-11-19 实机：战斗已经打响时不得再申请质问 —— 否则玩家会被卡在对话框里挨打。
+            if (CombatManager.IsPlayerInCombat)
+            { _lastReport = "player in combat"; report = _lastReport; return false; }
 
             var lines = new List<string>();
             StoryBehaviorDef bestBehavior = null;
@@ -138,7 +141,9 @@ namespace LivingWorldNpcs
                     if (_runs.Count(r => r.BehaviorId == behavior.Id && !r.Flow.Done)
                         + (_pending.ContainsKey(behavior.Id) ? 1 : 0) >= behavior.MaxActive)
                     { lines.Add(behavior.Id + ": active limit " + behavior.MaxActive); continue; }
-                    if (_lastOpened.TryGetValue(behavior.Id, out float previous) && _host.Clock - previous < behavior.Cooldown.ReentrySec)
+                    // force = 推回后的强制盘问（2026-11-19 用户裁定）：跳过组冷却与重试冷却，
+                    // 因为此刻守卫刚刚亲手把玩家挡住，本来就该立刻开口。
+                    if (!force && _lastOpened.TryGetValue(behavior.Id, out float previous) && _host.Clock - previous < behavior.Cooldown.ReentrySec)
                     { lines.Add(behavior.Id + ": group reentry cooldown"); continue; }
                     var agent = _host.GetAgent(id);
                     if (_pending.Values.Contains(id)) { lines.Add(id + ": group request pending"); continue; }
@@ -169,9 +174,12 @@ namespace LivingWorldNpcs
                     { lines.Add(id + ": no sight (" + NpcSightSystem.ExplainSight(agent, player, behavior.Perception.RangeMeters) + ")"); continue; }
 
                     string key = behavior.Id + "|" + id;
-                    if (_opened.TryGetValue(behavior.Id, out int opened) && opened >= behavior.Trigger.MaxPerEncounter)
+                    // 2026-11-19 用户裁定：MaxPerEncounter ≤ 0 = 不限次数 —— 第二阶段该不该问由资格决定，
+// 不该被一个拍脑袋的"本遭遇最多问几次"卡死（首遇仍是数据里配的次数）。
+                    if (behavior.Trigger.MaxPerEncounter > 0
+                        && _opened.TryGetValue(behavior.Id, out int opened) && opened >= behavior.Trigger.MaxPerEncounter)
                     { lines.Add(id + ": encounter limit " + opened + "/" + behavior.Trigger.MaxPerEncounter); continue; }
-                    if (behavior.Cooldown.RetrySec > 0f && _lastAttempt.TryGetValue(key, out float last)
+                    if (!force && behavior.Cooldown.RetrySec > 0f && _lastAttempt.TryGetValue(key, out float last)
                         && _host.Clock - last < behavior.Cooldown.RetrySec)
                     {
                         lines.Add(id + ": retry cooldown " + (behavior.Cooldown.RetrySec - (_host.Clock - last)).ToString("F1"));
@@ -250,10 +258,10 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>按流程开会话（流程里的 dialogue_open 才是真正开窗点）。</summary>
-        public bool TryRequestQuestion(string stageId, Action<bool> onResult = null)
+        public bool TryRequestQuestion(string stageId, Action<bool> onResult = null, bool force = false)
         {
             if (AgentAIController.Instance == null || ConversationEntryPatch.IsConversationActive()) return false;
-            if (!TrySelectQuestioner(stageId, out string actorId, out string behaviorId, out string report))
+            if (!TrySelectQuestioner(stageId, out string actorId, out string behaviorId, out string report, force))
             {
                 // 只在实际申请时记录；状态查询不写身体，也不刷拒绝日志。
                 if (report != _lastRefusalReport && _host.Clock >= _nextRefusalLogAt)
@@ -279,9 +287,13 @@ namespace LivingWorldNpcs
                         || _host.Phase != requestedPhase || StoryLayoutRegistry.Published != requestedFile)
                     { onResult?.Invoke(false); return; }
                     bool opened = false;
-                    string reason = "brain refused";
+                    // 拒绝原因要能分辨（2026-11-19 实机：只写 brain refused，没法区分"没走到位"和"被别人占着"）。
+                    string reason = ready == null ? "brain cancelled before arriving"
+                        : ready != actor ? "wrong actor receipt"
+                        : !AgentControlHelper.SafeIsActive(actor) ? "actor inactive"
+                        : "brain refused";
                     if (ready == actor && AgentControlHelper.SafeIsActive(actor)
-                        && BeginQuestionFlow(behaviorId, actorId, out reason))
+                        && BeginQuestionFlow(behaviorId, actorId, out reason, force))
                         opened = ConversationEntryPatch.IsConversationActive();
                     if (!opened) NoteAttempt(behaviorId, actorId, false, reason);
                     onResult?.Invoke(opened);
@@ -289,7 +301,7 @@ namespace LivingWorldNpcs
             return true;
         }
 
-        public bool BeginQuestionFlow(string behaviorId, string actorId, out string reason)
+        public bool BeginQuestionFlow(string behaviorId, string actorId, out string reason, bool force = false)
         {
             reason = null;
             var file = StoryLayoutRegistry.Published;
@@ -300,7 +312,7 @@ namespace LivingWorldNpcs
 
             if (_runs.Count(r => r.BehaviorId == behaviorId && !r.Flow.Done) >= behavior.MaxActive)
             { reason = "group active limit reached"; return false; }
-            var run = new GroupRun { Flow = new StoryFlowRunner(_host, behavior, flow, actorId, this),
+            var run = new GroupRun { Flow = new StoryFlowRunner(_host, behavior, flow, actorId, this, force),
                 BehaviorId = behaviorId, ActorId = actorId };
             _runs.Add(run);
             try { run.Flow.Start(); }
@@ -343,6 +355,14 @@ namespace LivingWorldNpcs
                     NoteAttempt(run.BehaviorId, run.ActorId, false, run.Flow.Reason);
                 _runs.Remove(run);
             }
+        }
+
+        /// <summary>一次遭遇结束（2026-11-19 用户裁定）：打起来并且打完了，就不该再算"同一次遭遇"。
+        /// 清掉「本遭遇最多问几次」的计数与组冷却，玩家再回来时守卫可以重新质问。</summary>
+        public void ResetEncounters()
+        {
+            _opened.Clear();
+            _lastOpened.Clear();
         }
 
         private static int CompareCandidates(StoryBehaviorDef behavior, string actor, float distance, string other, float otherDistance)
@@ -460,6 +480,7 @@ namespace LivingWorldNpcs
         private readonly StoryFlowDef _flow;
         private readonly string _actorId;
         private readonly StoryPostDirector _director;
+        private readonly bool _force;   // 推回后的强制盘问：开窗时跳过对话冷却/重入冷却
         private int _index = -1;
         private float _elapsed;
         private string _waitKind;
@@ -473,9 +494,10 @@ namespace LivingWorldNpcs
         private int _sessionId;
 
         public StoryFlowRunner(StoryProbeMissionBehavior host, StoryBehaviorDef behavior,
-            StoryFlowDef flow, string actorId, StoryPostDirector director)
+            StoryFlowDef flow, string actorId, StoryPostDirector director, bool force = false)
         {
             _host = host; _behavior = behavior; _flow = flow; _actorId = actorId; _director = director;
+            _force = force;
         }
 
         public bool Done => _done;
@@ -575,7 +597,7 @@ namespace LivingWorldNpcs
                     if (agent == null) return false;
                     _dialogueId = Arg(step, "Dialogue");
                     _dialogueActor = identity;
-                    _host.StartStoryConversation(agent, null, Arg(step, "Trigger"), _dialogueId);
+                    _host.StartStoryConversation(agent, null, Arg(step, "Trigger"), _dialogueId, _force);
                     // 记下这次真正开出来的会话编号：后面判定“还是我们”靠它，不靠对话 ID。
                     _sessionId = StoryDialogueRuntime.Current?.Id ?? 0;
                     bool opened = SessionMatches() && ConversationEntryPatch.IsConversationActive();

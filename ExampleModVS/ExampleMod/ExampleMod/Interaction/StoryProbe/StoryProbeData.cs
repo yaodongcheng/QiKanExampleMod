@@ -58,6 +58,40 @@ namespace LivingWorldNpcs
         }
     }
 
+    /// <summary>道具临时加成表（2026-11-19 用户裁定）：背包里有（或正穿在身上）就生效，
+    /// 同一属性**只取持有物里加成最高的一件**，不叠加。改数值只改 StoryItemBonuses.json。</summary>
+    public sealed class StoryItemBonusData
+    {
+        public Dictionary<string, StoryItemBonusEntry> Items = new Dictionary<string, StoryItemBonusEntry>(StringComparer.Ordinal);
+    }
+
+    public sealed class StoryItemBonusEntry
+    {
+        public string Ability;   // Force / Guile / Charm（与 StoryAbility 同名）
+        public int Bonus;
+    }
+
+    public static class StoryItemBonuses
+    {
+        private static StoryItemBonusData _data;
+        private static bool _tried;
+
+        public static void Reload() { _tried = false; _data = null; }
+
+        public static Dictionary<string, StoryItemBonusEntry> Items
+        {
+            get
+            {
+                if (!_tried)
+                {
+                    _tried = true;
+                    _data = StoryProbeDataFiles.Load<StoryItemBonusData>("StoryItemBonuses.json");
+                }
+                return _data?.Items;
+            }
+        }
+    }
+
     /// <summary>`StoryProbeCast.json` 的根。</summary>
     public sealed class StoryProbeCastData
     {
@@ -194,6 +228,10 @@ namespace LivingWorldNpcs
         public float PushBackCooldownSec = 1.2f;
         /// <summary>推回必须有真实可及条件：守卫与玩家的近身距离上限（米）。</summary>
         public float PushBackReachMeters = 6f;
+        /// <summary>「看见过」记多久（秒）。守卫面朝街面，玩家一穿过门洞就在他背后 ——
+        /// 逐帧视线必然失效，所以按"最后一次确实看见玩家的时刻"判定，而不是只看当下这一帧。
+        /// 没看见过的（随从把守卫引开的路线）仍然不推。</summary>
+        public float SeenMemorySec = 3f;
         public float GuardSpawnRadiusMeters = 60f;
         public float RecognizeDistanceMeters = 12f;
 

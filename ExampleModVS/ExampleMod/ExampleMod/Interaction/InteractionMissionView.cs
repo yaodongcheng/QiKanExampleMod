@@ -1857,6 +1857,15 @@ namespace LivingWorldNpcs
             SpringArmCameraView.UseCameraTemlate(firstDialog_Far, targetAgent, Agent.Main, Vec3.Zero);
 
         }
+        public bool ShowNPCMemoryInfo(Agent agent)
+        {
+            if (agent == null || MissionScreen == null) return false;
+            CloseNPCInfoBoard();
+            OpenNPCInfoBoard(agent);
+            _npcInfoVM?.ExecuteSelectMemory();
+            return _npcInfoVM != null;
+        }
+
         private void OpenNPCInfoBoard(Agent agent)
         {
             // 防止重复打开

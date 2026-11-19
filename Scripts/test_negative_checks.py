@@ -432,6 +432,22 @@ def main():
                   % ("✅" if face_ok else "❌", 1 if face_problems else 0))
             print("   " + face_out.strip())
 
+        # ── 悬停格式（单元用例）──
+        # 2026-11-19 用户裁定：随机检定的后果行必须写清成功/失败；无检定选项不许出现成败字样。
+        hint_cn = {"hint_bad": "逼他让路。", "hint_good": "成功：他让开｜失败：他拔刀"}
+        hint_missing = csp.hint_pair_problems("x", "n", {"Id": "opt", "HintKey": "hint_bad", "Check": {"Tactic": "Threaten"}}, hint_cn)
+        hint_pass = csp.hint_pair_problems("x", "n", {"Id": "opt", "HintKey": "hint_good", "Check": {"Tactic": "Threaten"}}, hint_cn)
+        hint_fake = csp.hint_pair_problems("x", "n", {"Id": "opt", "HintKey": "hint_good"}, hint_cn)
+        hint_plain = csp.hint_pair_problems("x", "n", {"Id": "opt", "HintKey": "hint_bad"}, hint_cn)
+        hint_ok = bool(hint_missing) and not hint_pass and bool(hint_fake) and not hint_plain
+        hint_out = "\n".join(hint_missing + hint_fake)
+        results.append(("悬停：随机检定缺成功/失败、无检定却写成败，都必须抓到", hint_ok,
+                        1 if hint_missing else 0, 1, hint_out))
+        if args.verbose or not hint_ok:
+            print("\n%s 悬停：随机检定缺成功/失败、无检定却写成败，都必须抓到（exit %d，期望 1）"
+                  % ("✅" if hint_ok else "❌", 1 if hint_missing else 0))
+            print("   " + hint_out.strip())
+
         # ── C# 源码用例（合成仓库）──
         for desc, cc, logger, want, needle in (
             ("源码：相机复位两行被删必须抓到", SRC_NO_CAMERA, False, 1, "ResetCamera"),

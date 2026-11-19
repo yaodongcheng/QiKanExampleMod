@@ -548,6 +548,18 @@ namespace LivingWorldNpcs
                 dataStore.SyncData($"lwn_npc_mem_{slot}", ref memJson);
                 if (dataStore.IsLoading)
                     AllNpcMemoryManager.DeserializeSlot(slot, memJson);
+                // 人情是资源及防重事实，沿用 NPC 记忆身份，分页避免普通记忆 GuardJson 裁尾丢账。
+                var favorPages = dataStore.IsLoading ? new List<string>() : AllNpcMemoryManager.SerializeFavorPages(slot);
+                int favorPageCount = favorPages.Count;
+                dataStore.SyncData($"lwn_npc_mem_favor_count_{slot}", ref favorPageCount);
+                for (int page = 0; page < favorPageCount; page++)
+                {
+                    string favorPage = dataStore.IsLoading ? "" : favorPages[page];
+                    favorPage = SaveStringGuard.GuardJson($"lwn_npc_mem_favor_{slot}_{page}", favorPage);
+                    dataStore.SyncData($"lwn_npc_mem_favor_{slot}_{page}", ref favorPage);
+                    if (dataStore.IsLoading) favorPages.Add(favorPage);
+                }
+                if (dataStore.IsLoading) AllNpcMemoryManager.DeserializeFavorPages(slot, favorPages);
             }
 
             // IM 互动热度（小 key，仅存热度 > 0 的 Hero）

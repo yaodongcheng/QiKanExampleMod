@@ -120,7 +120,7 @@
       "Trigger": {
         "PlayerInsideGate": false,
         "PlayerInPostZone": true,
-        "MaxPerEncounter": 2,
+        "MaxPerEncounter": 0,
         "TargetGate": "main_gate"
       },
       "Cooldown": {

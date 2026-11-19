@@ -56,7 +56,7 @@ namespace LivingWorldNpcs
     public static class V {public static TaleWorlds.Engine.GauntletUI.GauntletLayer NewLayer(int order,string name)=>new();}
     public static class LWNTextHelper {public static string ResolveText(string key,string fallback="")=>key;public static string ResolveCompound(string key,params (string,string)[] args)=>key;}
     public class ScreenGoalTuning {public bool Enabled=true;public int CardWidth=380,SideMargin=24,TopMargin=18;public string Position="top-right";public float PollSec=.25f,FlashSec=2.2f;}
-    public class GateTuning {public float HalfWidthMeters=3,ClimbHalfWidthMeters=8,ClimbHeightMeters=2,CrossingMaxStepMeters=6,GroundToleranceMeters=1.5f,RecognizeDistanceMeters=12,PastMeters=1,GoalRadiusMeters=3;}
+    public class GateTuning {public float HalfWidthMeters=3,ClimbHalfWidthMeters=8,ClimbHeightMeters=2,CrossingMaxStepMeters=6,GroundToleranceMeters=1.5f,RecognizeDistanceMeters=12,PastMeters=1,GoalRadiusMeters=3,InsideMeters=8,PushBackReachMeters=6,SeenMemorySec=3;}
     public class StoryProbeTuning {public static StoryProbeTuning Current=new();public GateTuning Gate=new();public ScreenGoalTuning ScreenGoal=new();}
     public enum StoryProbePhase {FirstAttempt,Second,Done}
     public enum StoryAbility {Guile,Charm,Force}
@@ -72,7 +72,7 @@ namespace LivingWorldNpcs
         public static Roll RollCheck(string actor,StoryAbility ability){Rolls++;return new(){Success=Pass};}
         public static string AbilityDisplayKey(StoryAbility a)=>a.ToString();
     }
-    public class AgentBrain {public bool IsPerforming,HasDutyPoint=true,IsStunned,IsStatusHeld;public static bool IsRoped(Agent a)=>false;public static bool IsKnockedOut(Agent a)=>a.KO;}
+    public class AgentBrain {public bool IsPerforming,HasDutyPoint=true,IsStunned,IsStatusHeld,IsInCombat;public static bool IsRoped(Agent a)=>false;public static bool IsHeldByStatus(Agent a)=>false;public static bool IsKnockedOut(Agent a)=>a.KO;}
     public static class AgentAIController {public static Dictionary<Agent,AgentBrain> Brains=new();public static AgentBrain GetBrainForAgent(Agent a)=>a!=null&&Brains.TryGetValue(a,out var b)?b:null;}
     public static class AgentControlHelper {public static bool SafeIsActive(Agent a)=>a?.Active==true;}
     public static class NpcSightSystem {public static bool CanAgentSeeTarget(Agent a,Agent b,float distance)=>a?.Visible==true;}
@@ -89,6 +89,7 @@ namespace LivingWorldNpcs
         public int Restores,Stops;
         private bool _goalReached,_gateGeometryReady=true,_crossingDoor,_crossingWall,_crossedGate,_gateOpen,_playerCrossedNotified,_blockerWasDisarmed;
         private float _verticalGateSpeed,_time=10,_belongingsRestoreRetryAt;
+        private readonly Dictionary<string,float> _gateGuardSeenAt=new();
         private Vec3 _gateCenter=new(0,0,0),_lastGatePosition=new(0,-1,0);
         public Vec2 Forward=new(0,1);public Vec3 GoalPos=new(0,8,0);
         public readonly Dictionary<string,Agent> Agents=new(){["blocker"]=new(),["gate_sentry"]=new()};
@@ -106,6 +107,8 @@ namespace LivingWorldNpcs
         public string PracticeObjectiveKey()=>null;public static string NpcName(string id)=>id;
         public void At(float x,float y,float z=0,bool crouch=true){Agent.Main.Position=new(x,y,z);Agent.Main.CrouchMode=crouch;TickPlayerGate(Agent.Main,.2f);}
         public void AdvanceTime(float dt){_time+=dt;}
+        public void SampleSeenForTest()=>SampleGateGuardSight(Agent.Main,StoryProbeTuning.Current.Gate);
+        public Agent AwareGuardForTest(out string why)=>NearestAwareGateGuard(Agent.Main,out why);
         public void OpenOutside(){_gateOpen=true;StoryProbeState.Data.ApproachResolved=true;}
         /* PRODUCTION_GATE_METHODS */
     }
@@ -177,6 +180,15 @@ public static class Program
             host.Restore=true;PrologueQuestLauncher.Success=true;host.AdvanceTime(3);host.At(0,6);
             Check(host.GoalCompleted&&PrologueJournalQuest.Ticks==1,"cleanup failure retries and commits once");
         }
+        // 2026-11-19：守卫"看见过"就该推回；从来没看见过的（随从引开守卫）不推。
+        var sight=New();
+        sight.SampleSeenForTest();
+        Check(sight.AwareGuardForTest(out string whyNone)==null,"nobody saw the entry -> no pushback ("+whyNone+")");
+        sight.GetAgent("blocker").Visible=true;sight.SampleSeenForTest();sight.GetAgent("blocker").Visible=false;
+        Check(ReferenceEquals(sight.AwareGuardForTest(out string whySeen),sight.GetAgent("blocker"))
+              && whySeen.Contains("saw"),"a guard who saw you go in still pushes after you pass him ("+whySeen+")");
+        sight.AdvanceTime(4);
+        Check(sight.AwareGuardForTest(out string whyStale)==null,"sight older than SeenMemorySec no longer pushes ("+whyStale+")");
         Console.WriteLine("PASS: "+_checks+" production gate/completion/HUD checks; native engine boundaries are doubles");
     }
 }

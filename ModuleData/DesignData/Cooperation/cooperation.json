@@ -1,7 +1,7 @@
 {
   "_comment": "随从协助破局 · 协作内容定义（手维护源，不是生成物）。改内容改这里，不改 C#。校验失败整份拒收，旧有效版本继续服务。",
   "SchemaVersion": 1,
-  "ContentVersion": "coop-511-7",
+  "ContentVersion": "coop-511-8",
   "Budget": {
     "MaxNodes": 4096,
     "MaxDepth": 16,
@@ -34,7 +34,10 @@
     "PriceGold": 30,
     "RequireQuestTurnedIn": true,
     "RequireEventSettled": true,
-    "PriceHintKey": "LWN_coop_price_hint"
+    "PriceHintKey": "LWN_coop_price_hint",
+    "FavorCost": 5,
+    "FavorSourceKey": "LWN_coop_favor_gate",
+    "FavorSourceFallback": "Asked for help drawing the gate guards away"
   },
   "Roles": [
     {
@@ -1265,6 +1268,50 @@
     "LWN_story_son_coop_member_ready": {
       "en": "Let me explain my plan first; I will go when you agree.",
       "zh": "我先把打算跟你说清楚，你点头了我再去。"
+    },
+    "LWN_favor_balance": {
+      "zh": "欠你的人情：{BALANCE}",
+      "en": "Favors owed to you: {BALANCE}"
+    },
+    "LWN_favor_none": {
+      "zh": "还没有人情往来记录。",
+      "en": "No favor transactions."
+    },
+    "LWN_favor_record": {
+      "zh": "{DELTA} · {TIME} · {SOURCE}",
+      "en": "{DELTA} · {TIME} · {SOURCE}"
+    },
+    "LWN_favor_changed": {
+      "zh": "{NPC}欠你的人情 {DELTA}（现有 {BALANCE}）。{SOURCE}",
+      "en": "{NPC}: favors owed to you {DELTA} (balance {BALANCE}). {SOURCE}"
+    },
+    "LWN_coop_favor_tools": {
+      "zh": "替小六讨回工具，并向他交差。",
+      "en": "Recovered the tools and reported back to Xiao Liu."
+    },
+    "LWN_coop_favor_dispute": {
+      "zh": "替小六解了围，平息了与老周的争执。",
+      "en": "Stood up for Xiao Liu and settled his dispute with Zhou."
+    },
+    "LWN_coop_favor_gate": {
+      "zh": "请小六设法引开城门守卫。",
+      "en": "Asked for help drawing the gate guards away."
+    },
+    "LWN_coop_favor_diagnostic": {
+      "zh": "协作测试准备（仅限测试副本）。",
+      "en": "Diagnostic preparation (isolated copy only)."
+    },
+    "LWN_story_son_coop_temp": {
+      "zh": "你帮我讨回工具，又替我挡了老周，这两件事我都记着，替你跑这一趟就算还上了。",
+      "en": "You brought my tools back and stood up for me with Zhou; I remember both, and this errand will settle what I owe you."
+    },
+    "LWN_story_hint_son_opt_coop_temp": {
+      "zh": "请他设法引开门岗；需5点人情，开始交涉时使用，成败都有风险。",
+      "en": "Ask him to draw the guards away; requires 5 favors, spent when the negotiation starts, with a risk of failure."
+    },
+    "LWN_story_hint_son_opt_coop_agree": {
+      "zh": "约定引开门岗这次帮忙，需5点人情；先看他的计划，实际开始交涉才使用。",
+      "en": "Agree on this attempt to draw the guards away, requiring 5 favors; review his plan first, and spend them when negotiation starts."
     }
   }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Ledger = LivingWorldNpcs.Planner.Cooperation.CoopLedger;
 
 namespace LivingWorldNpcs.Planner.Cooperation
@@ -8,6 +9,7 @@ namespace LivingWorldNpcs.Planner.Cooperation
     public enum CoopContractMode { None, Temporary, Companion }
     public class Hero
     {
+        public static Hero MainHero = new Hero { StringId = "player" };
         public string StringId = "hero";
         public object CharacterObject = new object();
         public bool IsPlayerCompanion, IsAlive = true, IsPrisoner;
@@ -43,7 +45,36 @@ namespace LivingWorldNpcs.Planner.Cooperation
     {
         public string Candidate = "actor";
         public int PriceGold = 30;
+        public int FavorCost = 5;
+        public string FavorSourceKey = "LWN_use", FavorSourceFallback = "Gate assistance";
         public bool RequireQuestTurnedIn, RequireEventSettled;
+    }
+    public class NPCProfile { public int DebtOfGraditude; public NPCProfile(Hero hero) { } }
+    public class SingNpcMemorySystem
+    {
+        public readonly NPCProfile _profile;
+        private readonly object _lock = new object();
+        public SingNpcMemorySystem(NPCProfile profile) { _profile = profile; }
+        /* ACTUAL_FAVOR_MEMORY */
+    }
+    public static class AllNpcMemoryManager
+    {
+        private static readonly Dictionary<string,SingNpcMemorySystem> _memories = new Dictionary<string,SingNpcMemorySystem>();
+        public static SingNpcMemorySystem GetMemory(string id)
+        {
+            if(!_memories.TryGetValue(id,out var memory))
+            {
+                memory=new SingNpcMemorySystem(new NPCProfile(null));
+                memory.TryChangeFavor(Hero.MainHero.StringId,"fixture",5,"LWN_fixture","Fixture",0,0,out _);
+                _memories[id]=memory;
+            }
+            return memory;
+        }
+    }
+    public static class AgentControlHelper
+    {
+        public static bool ChangePlayerFavor(SingNpcMemorySystem memory,int amount,string operation,string key,string fallback,bool notify=true)
+            => memory.TryChangeFavor(Hero.MainHero.StringId,operation,amount,key,fallback,0,0,out _);
     }
     public enum CoopTruth { Unknown, False, True }
     public class Constraints { public bool IsSatisfiedBy(IDictionary<string, CoopTruth> facts) => true; }
@@ -151,6 +182,7 @@ namespace LivingWorldNpcs.Planner.Cooperation
         public class Row
         {
             public Row Actor(string value) => this;
+            public Row Operation(string value) => this;
             public Row Activity(string value) => this;
             public Row ContractMode(string value) => this;
             public Row Value(string key, string value) => this;
@@ -219,7 +251,10 @@ namespace LivingWorldNpcs.Planner.Cooperation
             Check(CoopRecruitment.CanRequestPurpose("actor", null, "talk", out reason), "agreed talk permitted");
             Check(!CoopRecruitment.CanRequestPurpose("actor", null, "investigate", out reason) && reason == "purpose_not_agreed", "investigation not agreed");
             Check(!CoopRecruitment.CanRequestPurpose("actor", null, "", out reason), "empty purpose rejected");
-            director.Ledger.SetRelation(hero.StringId, "contract.favor", "used:talk");
+            Check(!CoopRecruitment.ConsumeFavor(hero,"talk",1),"consumption requires real activity identity");
+            Check(AllNpcMemoryManager.GetMemory(hero.StringId).FavorBalance(Hero.MainHero.StringId)==5,
+                "eligibility preview retains all five points");
+            Check(CoopRecruitment.ConsumeFavor(hero,"talk",1,"first.attempt"),"real recruitment consumption uses numerical memory");
             Check(!CoopRecruitment.CanCooperate("actor", null, out reason), "used favor cannot start new activity");
             var activity = new CoopActivity { FavorCommitted = true };
             Check(CoopRecruitment.CanRequestPurpose("actor", activity, "talk", out reason), "started activity may finish agreed work");
@@ -265,8 +300,10 @@ namespace LivingWorldNpcs.Planner.Cooperation
             Check(!CoopTestSession.AllowsPreparedActor("other", quickActivity), "scope rejects other actor");
             Check(CoopTestSession.NextRoll(quickActivity.Id) == 1f, "first success roll retained");
             Check(CoopTestSession.NextRoll(quickActivity.Id) < 1f, "success injection consumed once");
-            director.Ledger.SetRelation(hero.StringId, "contract.favor", "used:talk");
+            Check(CoopRecruitment.ConsumeFavor(hero,"talk",2,quickActivity.Id),"diagnostic consumption uses isolated numerical memory");
             Check(!CoopRecruitment.CanCooperate("actor", null, out reason), "quick does not refresh spent favor");
+            Check(AllNpcMemoryManager.GetMemory(hero.StringId).FavorBalance(Hero.MainHero.StringId)==0,
+                "quick seed and spend never change real memory balance");
             quickActivity.FavorCommitted = true;
             Check(CoopRecruitment.CanRequestPurpose("actor", quickActivity, "talk", out reason), "committed diagnostic may finish talk");
             Check(!CoopRecruitment.CanRequestPurpose("actor", quickActivity, "investigate", out reason), "committed quick remains talk only");
@@ -300,9 +337,11 @@ namespace LivingWorldNpcs.Planner.Cooperation
             CoopTestSession.End(); hero.Body.Available = true;
             originalLedger.SetRelation(hero.StringId, "contract.favor", "used:talk");
             Check(CoopTestSession.Begin("T02", 2, out reason), "used favor diagnostic begins");
-            Check(!CoopTestSession.PrepareTemporary("actor", out reason) && reason == "favor_used", "quick does not reset prior favor");
+            Check(CoopTestSession.PrepareTemporary("actor", out reason), "quick can use isolated credit after real favor spent");
             CoopTestSession.End();
             Check(originalLedger.GetRelation(hero.StringId, "contract.favor") == "used:talk", "used original favor unchanged");
+            Check(AllNpcMemoryManager.GetMemory(hero.StringId).FavorBalance(Hero.MainHero.StringId)==0,
+                "quick ended with real zero balance intact");
             foreach (var caseId in new[]{"T03","T04"})
             {
                 Check(CoopTestSession.Begin(caseId,32003,out reason), "two-guard diagnostic begins " + caseId);

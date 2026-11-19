@@ -25,12 +25,14 @@ namespace LivingWorldNpcs
         public string Specialty { get; set; }
         // 🔴 2026-08-16（方案 N）：大事记槽（写入时 C# 白名单分级锚定；旧档无字段 → 空，不补写）
         public List<string> ImportantEvents { get; set; }
+        public List<SingNpcMemorySystem.FavorRecord> FavorRecords { get; set; }
 
         public NpcMemorySaveEntry() { }
 
         public NpcMemorySaveEntry(string heroId, SingNpcMemorySystem m)
         {
             HeroId = heroId;
+            FavorRecords = m.SnapshotFavorRecords();
             RecentHistory = m.RecentHistory != null ? new List<ChatMessage>(m.RecentHistory) : new List<ChatMessage>();
             DynamicMemories = m.DynamicMemories != null
                 ? m.DynamicMemories.Select(x => new RecentMemory(x.Content, x.TimeStamp_Start, x.TimeStamp_End, x.CampaignDay) { SeqId = x.SeqId }).ToList()  // 拷贝时保留调试编号（跨存档稳定）
@@ -258,7 +260,61 @@ namespace LivingWorldNpcs
             return Newtonsoft.Json.JsonConvert.SerializeObject(entries);
         }
 
-        /// <summary>惰性空检查：无任何内容的记忆不写盘（RecentHistory / DynamicMemories / 永久记忆 / 人设三字段 / 大事记全空）。</summary>
+        /// <summary>账目页属于同一 NPC 记忆存档。普通记忆超长会裁尾，账目必须完整保存以保留余额和防重来源。</summary>
+        public static List<string> SerializeFavorPages(int slot)
+        {
+            var entries = new Dictionary<string, NpcMemorySaveEntry>(StringComparer.Ordinal);
+            lock (_dictLock)
+            {
+                foreach (var kv in _pendingRestores)
+                    if (!kv.Key.StartsWith("TEMP_AGENT_") && (StableHash(kv.Key) & 0x7FFFFFFF) % SaveSlots == slot
+                        && kv.Value?.FavorRecords?.Count > 0)
+                        entries[kv.Key] = new NpcMemorySaveEntry { HeroId = kv.Key, FavorRecords = kv.Value.FavorRecords };
+                foreach (var kv in _activeMemories)
+                {
+                    if (kv.Key.StartsWith("TEMP_AGENT_") || entries.ContainsKey(kv.Key)
+                        || (StableHash(kv.Key) & 0x7FFFFFFF) % SaveSlots != slot) continue;
+                    var records = kv.Value.SnapshotFavorRecords();
+                    if (records.Count > 0) entries[kv.Key] = new NpcMemorySaveEntry { HeroId = kv.Key, FavorRecords = records };
+                }
+            }
+            if (entries.Count == 0) return new List<string>();
+            string json = Newtonsoft.Json.JsonConvert.SerializeObject(entries.Values.OrderBy(e => e.HeroId).ToList());
+            var pages = new List<string>();
+            while (json.Length > 0)
+            {
+                string page = SaveStringGuard.TruncateByBytes(json, 28000);
+                // 页面可切在 JSON token 中间，但绝不切 UTF-16 代理对；读档先拼完整再解析。
+                if (char.IsHighSurrogate(page[page.Length - 1])) page = page.Substring(0, page.Length - 1);
+                pages.Add(page);
+                json = json.Substring(page.Length);
+            }
+            return pages;
+        }
+
+        public static void DeserializeFavorPages(int slot, List<string> pages)
+        {
+            if (pages == null || pages.Count == 0) return; // 旧档无账目，不凭剧情文本补奖励。
+            List<NpcMemorySaveEntry> entries;
+            try { entries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<NpcMemorySaveEntry>>(string.Concat(pages)); }
+            catch (Exception ex)
+            {
+                DebugLogger.Log("[MemorySave] favor pages invalid slot=" + slot + ": " + ex.Message);
+                return; // 保留普通记忆槽里的完整账目副本，不用损坏页覆盖。
+            }
+            lock (_dictLock)
+                foreach (var entry in entries ?? new List<NpcMemorySaveEntry>())
+                {
+                    if (entry == null || string.IsNullOrEmpty(entry.HeroId)
+                        || entry.HeroId.StartsWith("TEMP_AGENT_")
+                        || (StableHash(entry.HeroId) & 0x7FFFFFFF) % SaveSlots != slot) continue;
+                    if (!_pendingRestores.TryGetValue(entry.HeroId, out var pending))
+                        _pendingRestores[entry.HeroId] = pending = new NpcMemorySaveEntry { HeroId = entry.HeroId };
+                    pending.FavorRecords = entry.FavorRecords;
+                }
+        }
+
+        /// <summary>惰性空检查：无人设、普通记忆或人情账目的 NPC 不写盘。</summary>
         private static bool IsEmptyEntry(NpcMemorySaveEntry e)
         {
             return (e.RecentHistory == null || e.RecentHistory.Count == 0)
@@ -267,7 +323,8 @@ namespace LivingWorldNpcs
                 && string.IsNullOrEmpty(e.BackgroundStory)
                 && string.IsNullOrEmpty(e.Personality)
                 && string.IsNullOrEmpty(e.Specialty)
-                && (e.ImportantEvents == null || e.ImportantEvents.Count == 0);
+                && (e.ImportantEvents == null || e.ImportantEvents.Count == 0)
+                && (e.FavorRecords == null || e.FavorRecords.Count == 0);
         }
 
         /// <summary>惰性空检查（active 侧：SingNpcMemorySystem 字段版，与 NpcMemorySaveEntry 版两套字段对应）。</summary>
@@ -279,7 +336,8 @@ namespace LivingWorldNpcs
                 && string.IsNullOrEmpty(m.BackgroundStory)
                 && string.IsNullOrEmpty(m.Personality)
                 && string.IsNullOrEmpty(m.Specialty)
-                && (m.ImportantEvents == null || m.ImportantEvents.Count == 0);
+                && (m.ImportantEvents == null || m.ImportantEvents.Count == 0)
+                && m.SnapshotFavorRecords().Count == 0;
         }
 
         /// <summary>槽内排序键：最近活动时间戳（对话历史/动态记忆的最大时间戳；旧档全 0 → 排最后 = 最先被裁）。</summary>
@@ -292,6 +350,9 @@ namespace LivingWorldNpcs
             if (e.DynamicMemories != null)
                 foreach (var m in e.DynamicMemories)
                     if (m != null && m.TimeStamp_End > t) t = m.TimeStamp_End;
+            if (e.FavorRecords != null)
+                foreach (var r in e.FavorRecords)
+                    if (r != null && r.TimeStamp > t) t = r.TimeStamp;
             return t;
         }
 
@@ -353,7 +414,7 @@ namespace LivingWorldNpcs
                 {
                     _pendingRestores.Remove(stringId);
                     memory.RestoreFromSave(entry.RecentHistory, entry.DynamicMemories, entry.PermanentMemory,
-                        entry.BackgroundStory, entry.Personality, entry.Specialty, entry.ImportantEvents);
+                        entry.BackgroundStory, entry.Personality, entry.Specialty, entry.ImportantEvents, entry.FavorRecords);
                 }
             }
         }

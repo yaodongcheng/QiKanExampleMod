@@ -1204,7 +1204,8 @@ namespace LivingWorldNpcs
                     b.Trigger.TargetGate = Str(trigger, "TargetGate", path + ".Trigger", errors, false);
                     b.Trigger.PlayerInsideGate = Bool(trigger, "PlayerInsideGate", path + ".Trigger", errors, true);
                     b.Trigger.PlayerInPostZone = Bool(trigger, "PlayerInPostZone", path + ".Trigger", errors, false);
-                    b.Trigger.MaxPerEncounter = Int(trigger, "MaxPerEncounter", path + ".Trigger", errors, 1, 1, 16);
+                    // 2026-11-19 用户裁定：0 = 不限次数（第二阶段的质问由资格决定，不该有次数上限）。
+                    b.Trigger.MaxPerEncounter = Int(trigger, "MaxPerEncounter", path + ".Trigger", errors, 1, 0, 16);
                 }
 
                 var cooldown = Obj(bo, "Cooldown", path, errors, false);

@@ -56,8 +56,8 @@
     "A hundred denars is what I've seen him take; I can't promise he'll accept less."
   ],
   "LWN_story_pawnbroker_deal": [
-    "钱三顺欠我一百二十第纳尔，你替我收回来，我给你三十作跑腿费。",
-    "Qian Sanshun owes me a hundred and twenty denars; collect it and I'll pay you thirty for your trouble."
+    "钱三顺欠我一百二十第纳尔，你替我收回来，我给你三十作跑腿费——账本也给你，跟人算起账来，手里有东西好开口。",
+    "Qian Sanshun owes me a hundred and twenty denars; collect it and I'll pay you thirty for your trouble — take the ledger too, with the numbers in hand it is easier to make a man talk."
   ],
   "LWN_story_pawnbroker_deal_why": [
     "我去讨过两回，他把我赶出了巷子，借据还在，可我一个老头拿他没办法。",
@@ -112,8 +112,8 @@
     "A stage in town costs too much; enough people pass here for a day's singing to feed the troupe."
   ],
   "LWN_story_widow_ask_sister": [
-    "是有个穿青布的姑娘来买过通行文书，后来跟着一个水手走了。",
-    "A girl in blue did buy a travel document from me; she left with a sailor afterwards."
+    "有个穿青布的姑娘来买过通行文书，后来被码头帮的人带走了。",
+    "A girl in blue cloth bought a travel paper here, then the dock gang took her away."
   ],
   "LWN_story_widow_ask_sister_2": [
     "他催得很急，我问她认不认得这人，她只说没别的去处，我没能留住她。",
@@ -124,8 +124,8 @@
     "Gu Changsheng's people sing right in front of our stage; customers can't get through, and at this rate we won't eat tonight."
   ],
   "LWN_story_widow_deal": [
-    "你想借体面的行头，我想让台前那条路空出来，去跟对面领班谈谈，办成了衣裳归你。",
-    "You need fine clothes and I need the path to our stage cleared; talk to the other troupe's leader, and the clothes are yours if you settle it."
+    "你想借体面的行头，我想让台前那条路空出来，去跟对面领班谈谈，办成了衣裳归你——穿这一身去说话，人家肯坐下来听。",
+    "You need fine clothes and I need the path to our stage cleared; talk to the other troupe's leader, and the clothes are yours if you settle it — dressed like that, people sit still and listen."
   ],
   "LWN_story_widow_deal_why": [
     "我们两家吵了几天，他见我就抬嗓门，你没掺和过，他兴许肯听一句。",
@@ -204,8 +204,8 @@
     "That warehouse has guards; find someone to go with you and don't walk in unarmed."
   ],
   "LWN_story_butcher_deal": [
-    "马横天天来砸摊，你让他停手，我给你家伙，再教你几招站稳、发力的办法。",
-    "Ma Heng keeps wrecking my stall; make him stop and I'll give you some gear and teach you how to stand and strike properly."
+    "马横天天来砸摊，你让他停手，我给你家伙，再教你几招站稳、发力的办法——练下来力气长，这把短刀也归你，腰里别着它站到街上，谁跟你说话都得先掂量掂量。",
+    "Ma Heng keeps wrecking my stall; make him stop and I'll give you some gear and teach you how to stand and strike properly — you will get stronger for it, and take this knife, wear it at your belt and any man will weigh his words before he speaks to you."
   ],
   "LWN_story_butcher_deal_why": [
     "我一动刀，他们就有借口带人来，你替我谈也好，打也好，让他停手，别杀人。",
@@ -280,8 +280,8 @@
     "I was stealing something and didn't dare call out; I only saw them heading towards the private warehouse inside the west gate."
   ],
   "LWN_story_son_deal": [
-    "你替我让墙根那伙人停手，我把备用钩索和撬锁包给你，这只手没好之前我也用不上。",
-    "Get the gang by the wall to leave me alone and you can have my spare hook and lock tools; they're no use to me until this hand heals."
+    "你替我让墙根那伙人停手，我把备用钩索和撬锁包给你，这只手没好之前我也用不上——钩索能上墙，撬锁包能摸门，都是手上功夫。",
+    "Get the gang by the wall to leave me alone and you can have my spare hook and lock tools, no use to me until this hand heals — the hook gets you over a wall, the picks get you through a lock, both handwork."
   ],
   "LWN_story_son_deal_why": [
     "手肿得握不住钩子，他们人又多，我再去就是把另一只手也搭上。",
@@ -296,8 +296,8 @@
     "Their leader's at outside the granary; get him to stop robbing me, then come back for the tools."
   ],
   "LWN_story_son_turnin_ok": [
-    "那我能安心养这只手了，钩索和撬锁包给你，翻墙前先找准能挂牢的地方。",
-    "Now I can let this hand heal; take the hook and lock tools, and find somewhere firm to hang the hook before climbing."
+    "钩索和撬锁包是你应得的，替我拿回工具这件事，我也记着。",
+    "You earned the hook, rope and lockpick kit; I will remember that you got my tools back, too."
   ],
   "LWN_story_son_chat": [
     "我娘听说你帮我拿回了工具，还说让我少跟你学那些危险的事。",
@@ -528,8 +528,8 @@
     "Have a drink on me. (100 denars)"
   ],
   "LWN_story_hint_threat_gate": [
-    "逼他让路；可能交战或被捕",
-    "Press for passage; risk fighting or arrest."
+    "成功：他让开｜失败：他拔刀",
+    "Success: he steps aside. Failure: he draws."
   ],
   "LWN_story_blocker_opt_disarmed": [
     "你手里的刀没了。让开。",
@@ -1156,8 +1156,8 @@
     "Ma Heng wrecks the stall and has scared off my apprentice; using a knife would give the gang an excuse for reprisals."
   ],
   "LWN_story_butcher_playerhelp": [
-    "希望外人让马横停手，答谢家伙、绳子、磨刀石，并教站姿和发力，增加武力15点。",
-    "I need an outsider to make Ma Heng stop; I offer equipment and teach stance and force, granting 15 Force."
+    "希望外人让马横停手，答谢家伙、绳子、短刀，并教站姿和发力。",
+    "I need an outsider to make Ma Heng stop; I offer equipment, a rope and a knife, and teach stance and force."
   ],
   "LWN_story_persona_butcher_temperament": [
     "不绕话，习惯边干活边听，讲具体招式与风险，拒绝靠几枚钱解决砸摊的问题。",
@@ -1356,7 +1356,7 @@
     "The young man by the wall is nursing his hand and mentioned a hook. He may know how to climb over or evade the guards; first find out what happened to his tools."
   ],
   "LWN_story_observe_butcher": [
-    "屠户看起来不愿再忍那些收钱的人，也肯教人用刀。要走武力这条路，可以先替他处理砸摊的麻烦，再回来学本事。\n\n接下来自己决定先找谁；进城会结束这一章，手头的事记得先收尾。",
+    "屠户看起来不愿再忍那些收钱的人，也肯教人用刀。要走力量这条路，可以先替他处理砸摊的麻烦，再回来学本事。\n\n接下来自己决定先找谁；进城会结束这一章，手头的事记得先收尾。",
     "The butcher has had enough of the collectors and is willing to teach blade work. If you want to rely on strength, settle the trouble at his stall, then return to learn.\n\nChoose whom to approach first; entering the town ends this chapter, so finish your business before crossing."
   ],
   "LWN_story_observe_guard_bark": [
@@ -1520,8 +1520,8 @@
     "I got it wrong; I should not have blamed you."
   ],
   "LWN_story_event4_win": [
-    "多谢你拦着，不然他又得抓着我的伤手不放。",
-    "Thanks for stopping him, or he would have grabbed my injured hand again."
+    "多亏你拦着，老周才肯松手，这份情我记下了。",
+    "Thanks to you, Zhou finally let go; I owe you for stepping in."
   ],
   "LWN_story_debtor_opt_collect": [
     "[逼债] 你欠老周的一百二十第纳尔，今天就还给他。",
@@ -1572,8 +1572,8 @@
     "[Talk] Are you in charge of this troupe?"
   ],
   "LWN_story_hint_rival_opt_settle": [
-    "劝领班让路",
-    "Persuade the forewoman to clear the way."
+    "成功：他挪开人｜失败：他不认，僵着",
+    "Success: he moves his people. Failure: he refuses; the standoff holds."
   ],
   "LWN_story_hint_rival_opt_sign": [
     "打听顾长生戏班的招牌。",
@@ -2131,13 +2131,9 @@
     "[{SKILL}] {LINE}",
     "[{SKILL}] {LINE}"
   ],
-  "LWN_story_hint_check_compact": [
-    "自身{ATTRIBUTE}({PLAYER}) vs 对方({NPC})\n{ODDS}({CHANCE}%)\n{NOTE}",
-    "Your {ATTRIBUTE}({PLAYER}) vs opponent({NPC})\n{ODDS} ({CHANCE}%)\n{NOTE}"
-  ],
-  "LWN_story_hint_growth_compact": [
-    "训练收益{GAIN}/{MINIMUM}",
-    "Training gained {GAIN}/{MINIMUM}"
+  "LWN_story_hint_check_line": [
+    "{ATTRIBUTE} {PLAYER} vs {NPC} · 成功率 {CHANCE}%",
+    "{ATTRIBUTE} {PLAYER} vs {NPC} · {CHANCE}% chance"
   ],
   "LWN_story_odds_low": [
     "胜算很低",
@@ -2152,40 +2148,44 @@
     "Good chance"
   ],
   "LWN_story_hint_disguise_gate": [
-    "借行头压人；识破可能被捕",
-    "Press in disguise; risk arrest if exposed."
+    "成功：他放行｜失败：识破，当场拿你",
+    "Success: he waves you in. Failure: exposed, he grabs you."
   ],
   "LWN_story_hint_event2_opt_help": [
-    "替大山解围；可能激怒打手",
-    "Stand up for Dashan; risk angering the thug."
+    "成功：打退他｜失败：你被打倒",
+    "Success: you drive him off. Failure: you go down."
   ],
   "LWN_story_hint_event1_opt_stop": [
-    "替老周解围；可能激怒打手",
-    "Stand up for Zhou; risk angering the thug."
+    "成功：唬退他｜失败：你被打倒",
+    "Success: he backs off. Failure: you go down."
   ],
   "LWN_story_hint_debtor_opt_collect": [
-    "追讨120第纳尔欠款",
-    "Demand the 120-denar debt."
+    "成功：拿回120第纳尔｜失败：他拒付，只能动手",
+    "Success: you get the 120 denars. Failure: he refuses; it turns to blows."
   ],
   "LWN_story_hint_outlaw_opt_settle": [
-    "劝他归还工具",
-    "Persuade him to return the tools."
+    "成功：他归还工具｜失败：他不松口",
+    "Success: he returns the tools. Failure: he will not budge."
   ],
   "LWN_story_hint_event4_opt_defend": [
-    "澄清指控；可能惹上嫌疑",
-    "Challenge the charge; risk suspicion."
+    "成功：洗清嫌疑｜失败：被当成同伙",
+    "Success: you clear your name. Failure: they take you for an accomplice."
   ],
   "LWN_story_hint_thug_opt_settle": [
-    "劝他停手",
-    "Persuade him to stop."
+    "成功：他停手｜失败：他拒绝，事情没完",
+    "Success: he stops. Failure: he refuses; nothing is settled."
   ],
   "LWN_story_hint_event3_opt_side_widow": [
-    "替玉娘调解争执",
-    "Mediate for Yuniang."
+    "成功：他让出台子｜失败：没调解成，被奚落",
+    "Success: he yields the stage. Failure: the mediation fails and you are mocked."
   ],
   "LWN_story_hint_thug_opt_fight": [
-    "逼他退让；可能激怒他",
-    "Press him to back down; risk angering him."
+    "成功：他怂了｜失败：他动手",
+    "Success: he backs down. Failure: he swings."
+  ],
+  "LWN_story_hint_son_opt_coop_charm": [
+    "成功：他不收钱就跟｜失败：他还是要顾自己",
+    "Success: he follows for free. Failure: he still looks after himself first."
   ],
   "LWN_story_thug_opt_accept_fight": [
     "[迎战] 我就在这儿，你过来。",
@@ -2215,13 +2215,37 @@
     "还替人出头呢，先顾好你自己吧！",
     "Standing up for others? Save yourself first!"
   ],
-  "LWN_story_hint_force_basis_compact": [
-    "体力{VIGOR} 控制{CONTROL}\n训练收益+{GAIN}",
-    "Vigor {VIGOR} Control {CONTROL}\nTraining +{GAIN}"
+  "LWN_story_ability_force": [
+    "力量",
+    "Force"
   ],
-  "LWN_story_hint_skill_basis_compact": [
-    "{SKILL}{VALUE}\n训练收益+{GAIN}",
-    "{SKILL} {VALUE}\nTraining +{GAIN}"
+  "LWN_story_attribute_grant": [
+    "完成训练：{ATTRIBUTE} +{GAIN}",
+    "Training complete: {ATTRIBUTE} +{GAIN}"
+  ],
+  "LWN_story_item_bonus_grant": [
+    "拿到{ITEM}：对话检定{ATTRIBUTE} +{BONUS}",
+    "{ITEM}: +{BONUS} {ATTRIBUTE} in conversation checks"
+  ],
+  "LWN_story_hint_butcher_opt_turnin_ok": [
+    "办妥差事后，领取刀、绳、短刀及技能经验。",
+    "Settle the job, then collect the blade, rope, knife and skill experience."
+  ],
+  "LWN_story_conflict_gate_push": [
+    "{OPPONENT}不肯出示通行文书，还想往门里挤，{INITIATOR}要把他拦下。",
+    "{OPPONENT} would not show papers and kept pushing for the gate; {INITIATOR} means to stop him."
+  ],
+  "LWN_story_conflict_gate_threat": [
+    "{OPPONENT}当面出言威胁守门的人，{INITIATOR}今天不打算放他走。",
+    "{OPPONENT} threatened the gatekeeper to his face; {INITIATOR} is not letting him walk away."
+  ],
+  "LWN_story_conflict_gate_disguise": [
+    "{OPPONENT}穿着戏班的衣裳冒充身份想过门，被{INITIATOR}当场识破。",
+    "{OPPONENT} tried to pass the gate in an actor's clothes under a false name; {INITIATOR} saw through it."
+  ],
+  "LWN_story_attr_vigor": [
+    "活力",
+    "Vigor"
   ],
   "LWN_story_event_preparation_failed": [
     "这场交谈中止了：有人没能走到位置，详情已记入日志。",

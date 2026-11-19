@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_son",
-  "ContentVersion": 14,
+  "ContentVersion": 15,
   "EntryOption": "LWN_story_son_entry",
   "EntryOptionZh": "[说两句] 这墙头是你的地盘？",
   "SkipVanillaOpening": true,
@@ -365,7 +365,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_deal",
-      "TextKeyZh": "你替我让墙根那伙人停手，我把备用钩索和撬锁包给你，这只手没好之前我也用不上。",
+      "TextKeyZh": "你替我让墙根那伙人停手，我把备用钩索和撬锁包给你，这只手没好之前我也用不上——钩索能上墙，撬锁包能摸门，都是手上功夫。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -429,14 +429,16 @@
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
-      "OnEnter": [        {
+      "OnEnter": [
+        {
           "Id": "clue",
           "Params": {
             "clue": "son_tools"
           },
           "Commit": "on_enter",
           "Receipt": "once"
-        }],
+        }
+      ],
       "Options": [
         {
           "Id": "job",
@@ -494,15 +496,16 @@
           },
           "Commit": "on_enter",
           "Receipt": "once"
-        }
-      ,        {
+        },
+        {
           "Id": "clue",
           "Params": {
             "clue": "son_tools"
           },
           "Commit": "on_enter",
           "Receipt": "once"
-        }],
+        }
+      ],
       "Options": [
         {
           "Id": "back",
@@ -572,7 +575,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_turnin_ok",
-      "TextKeyZh": "那我能安心养这只手了，钩索和撬锁包给你，翻墙前先找准能挂牢的地方。",
+      "TextKeyZh": "钩索和撬锁包是你应得的，替我拿回工具这件事，我也记着。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -581,6 +584,19 @@
           "Id": "quest_turn_in",
           "Params": {
             "npc": "son"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        },
+        {
+          "Id": "favor_grant",
+          "Params": {
+            "npc": "son",
+            "amount": "2",
+            "source": "511.son.tools.returned",
+            "key": "LWN_coop_favor_tools",
+            "fallback": "Recovered the tools and reported back to Xiao Liu.",
+            "quest": "son"
           },
           "Commit": "on_enter",
           "Receipt": "once"
@@ -728,7 +744,7 @@
           "PlayerKey": "LWN_story_event4_opt_defend",
           "PlayerKeyZh": "[劝解] 先看看账本下面，东西还没找清楚，别急着怪他。",
           "HintKey": "LWN_story_hint_event4_opt_defend",
-          "HintKeyZh": "澄清指控；可能惹上嫌疑",
+          "HintKeyZh": "成功：洗清嫌疑｜失败：被当成同伙",
           "Requires": [
             "!asked:attempt_LWN_story_event4_opt_defend"
           ],
@@ -806,7 +822,7 @@
           "PlayerKey": "LWN_story_event4_opt_defend",
           "PlayerKeyZh": "[劝解] 先看看账本下面，东西还没找清楚，别急着怪他。",
           "HintKey": "LWN_story_hint_event4_opt_defend",
-          "HintKeyZh": "澄清指控；可能惹上嫌疑",
+          "HintKeyZh": "成功：洗清嫌疑｜失败：被当成同伙",
           "Requires": [
             "!asked:attempt_LWN_story_event4_opt_defend"
           ],
@@ -873,7 +889,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_event4_win",
-      "TextKeyZh": "多谢你拦着，不然他又得抓着我的伤手不放。",
+      "TextKeyZh": "多亏你拦着，老周才肯松手，这份情我记下了。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -891,6 +907,19 @@
           "Params": {
             "faction": "nightwalkers",
             "delta": "5"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        },
+        {
+          "Id": "favor_grant",
+          "Params": {
+            "npc": "son",
+            "amount": "3",
+            "source": "511.son.zhou.dispute",
+            "key": "LWN_coop_favor_dispute",
+            "fallback": "Stood up for Xiao Liu and settled his dispute with Zhou.",
+            "event": "4"
           },
           "Commit": "on_enter",
           "Receipt": "once"
@@ -2351,7 +2380,7 @@
           "PlayerKey": "LWN_story_son_opt_coop_temp",
           "PlayerKeyZh": "你去跟守门的聊聊，我自己找机会过去。",
           "HintKey": "LWN_story_hint_son_opt_coop_temp",
-          "HintKeyZh": "请他牵制门岗；成不成要看他，机会不保证。",
+          "HintKeyZh": "请他设法引开门岗；需5点人情，开始交涉时使用，成败都有风险。",
           "Requires": [
             "coop_favor_available"
           ],
@@ -2393,7 +2422,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_coop_temp",
-      "TextKeyZh": "我替你搭话能行，可这只手攥不住绳子。",
+      "TextKeyZh": "你帮我讨回工具，又替我挡了老周，这两件事我都记着，替你跑这一趟就算还上了。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -2404,7 +2433,7 @@
           "PlayerKey": "LWN_story_son_opt_coop_agree",
           "PlayerKeyZh": "[应下] 你就去搭话，别逞强。",
           "HintKey": "LWN_story_hint_son_opt_coop_agree",
-          "HintKeyZh": "约定这一次帮忙的目的与限度。",
+          "HintKeyZh": "约定引开门岗这次帮忙，需5点人情；先看他的计划，实际开始交涉才使用。",
           "Requires": [
             "coop_favor_available"
           ],
@@ -2416,7 +2445,7 @@
                 "purpose": "talk"
               },
               "Commit": "on_select",
-              "Receipt": "once"
+              "Receipt": "session"
             }
           ],
           "Speaker": "player",
@@ -2504,7 +2533,7 @@
           "PlayerKey": "LWN_story_son_opt_coop_charm",
           "PlayerKeyZh": "跟着我，你这只伤手能做些什么？",
           "HintKey": "LWN_story_hint_son_opt_coop_charm",
-          "HintKeyZh": "试图免去招募费；成败取决于双方魅力。",
+          "HintKeyZh": "成功：他不收钱就跟｜失败：他还是要顾自己",
           "Requires": [
             "coop_recruitable",
             "!asked:coop_recruit_charm"

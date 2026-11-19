@@ -109,7 +109,7 @@ namespace LivingWorldNpcs
         /// 失败返回原因（unknown_trigger / cooldown / reentry / busy / no_entry / source_mismatch / not_published）。
         /// </summary>
         public static bool TryRequest(string dialogueId, string triggerId, string actorId,
-            string source, string encounterKey, out StoryDialogueSession session, out string reason)
+            string source, string encounterKey, out StoryDialogueSession session, out string reason, bool force = false)
         {
             session = null;
             reason = null;
@@ -160,7 +160,9 @@ namespace LivingWorldNpcs
 
             string attemptKey = (dialogueId ?? "") + "|" + (triggerId ?? "") + "|" + (actorId ?? "");
             float now = Now;
-            if (trigger.CooldownSec > 0f && _lastAttempt.TryGetValue(attemptKey, out float lastTry)
+            // force = 推回后的强制盘问（2026-11-19 用户裁定）：刚被守卫亲手挡下这一刻，
+            // 触发器冷却与重入冷却都不该把这扇窗关掉。
+            if (!force && trigger.CooldownSec > 0f && _lastAttempt.TryGetValue(attemptKey, out float lastTry)
                 && now - lastTry < trigger.CooldownSec)
             {
                 reason = string.Format(CultureInfo.InvariantCulture, "cooldown: {0:F1}s left",
@@ -172,7 +174,7 @@ namespace LivingWorldNpcs
             string encounter = string.IsNullOrEmpty(encounterKey)
                 ? (dialogueId + "|" + triggerId + "|" + actorId)
                 : encounterKey;
-            if (trigger.ReentrySec > 0f && _lastEnded.TryGetValue(encounter, out float lastEnd)
+            if (!force && trigger.ReentrySec > 0f && _lastEnded.TryGetValue(encounter, out float lastEnd)
                 && now - lastEnd < trigger.ReentrySec)
             {
                 reason = string.Format(CultureInfo.InvariantCulture, "reentry: {0:F1}s left",
@@ -323,8 +325,7 @@ namespace LivingWorldNpcs
             var menu = session.Definition?.OptionsNode(node);
             var option = menu?.Options?.FirstOrDefault(o => string.Equals(o.Id, optionId, StringComparison.Ordinal));
             if (option == null) { reason = "unknown option " + nodeId + "/" + optionId; return false; }
-            if (option.Check != null && !StoryProbeDefs.MeetsCheckRequirement(option.Check.Capability, option.Check.MinimumGrowth))
-            { reason = "training prerequisite not met"; return false; }
+            // 2026-11-19 用户裁定：随机检定不设门槛 —— 属性差只体现为成功率（可为 0），不再拦选择。
             if (!string.Equals(session.CurrentNode, nodeId, StringComparison.Ordinal))
             { reason = "option is not from the current node: " + nodeId; return false; }
 
@@ -525,6 +526,8 @@ namespace LivingWorldNpcs
             public int Step, BribePaid, CoinsFound, DebtCollected;
             public List<string> QuestDone;
             public Dictionary<string, string> QuestResolutions;
+            public SingNpcMemorySystem FavorMemory;
+            public List<SingNpcMemorySystem.FavorRecord> FavorRecords;
         }
 
         private static EffectBefore CaptureBefore(StoryDialogueEffect effect, StoryDialogueSession session, string receipt)
@@ -533,6 +536,11 @@ namespace LivingWorldNpcs
             string P(string key) => effect?.Params != null && effect.Params.TryGetValue(key, out var v) ? v : null;
             switch (effect?.Id)
             {
+                case "favor_grant":
+                    var hero = StoryProbeMissionBehavior.Current?.GetHero(P("npc"));
+                    before.FavorMemory = hero != null ? AllNpcMemoryManager.GetMemory(hero.StringId) : null;
+                    before.FavorRecords = before.FavorMemory?.SnapshotFavorRecords();
+                    break;
                 case "mark":
                     before.Flag = P("flag");
                     before.Asked = StoryProbeState.HasAsked(before.Actor, before.Flag);
@@ -566,6 +574,9 @@ namespace LivingWorldNpcs
             if (before?.Effect == null) return;
             switch (before.Effect.Id)
             {
+                case "favor_grant":
+                    before.FavorMemory?.RestoreFavorRecords(before.FavorRecords);
+                    break;
                 case "mark":
                     StoryProbeState.RestoreAsked(before.Actor, before.Flag, before.Asked);
                     StoryProbeState.RestoreStep(before.Actor, before.Step);
@@ -795,6 +806,15 @@ namespace LivingWorldNpcs
                     return !string.IsNullOrEmpty(P("npc"));
                 case "quest_turn_in":
                     return !string.IsNullOrEmpty(P("npc"));
+                case "favor_grant":
+                    // 同组前面的交差/事件效果尚未执行；预检只核结构和身份，提交时再核真实结果。
+                    return host.GetHero(P("npc")) != null && TaleWorlds.CampaignSystem.Hero.MainHero != null
+                        && TryInt(P("amount"), out int favorAmount) && favorAmount > 0
+                        && !string.IsNullOrWhiteSpace(P("source")) && !string.IsNullOrWhiteSpace(P("key"))
+                        && !string.IsNullOrWhiteSpace(P("fallback"))
+                        && (P("quest") == null || StoryProbeDefs.GetNpc(P("quest")) != null)
+                        && (P("event") == null || (TryInt(P("event"), out int favorEvent)
+                            && StoryProbeDefs.GetEvent(favorEvent) != null));
                 case "debt_collect":
                     return !string.IsNullOrEmpty(P("from")) && !string.IsNullOrEmpty(P("quest"))
                            && TryInt(P("amount"), out int dc) && dc > 0;
@@ -1101,6 +1121,23 @@ namespace LivingWorldNpcs
                         if (string.IsNullOrEmpty(npc)) { error = "quest_turn_in.npc missing"; return false; }
                         StoryProbeDialogue.TurnInFor(npc);
                         return StoryProbeState.IsQuestTurnedIn(npc);
+                    }
+
+                    case "favor_grant":
+                    {
+                        if (!TryInt(P("amount"), out int amount) || amount <= 0)
+                        { error = "favor_grant amount invalid"; return false; }
+                        if (P("quest") != null && !StoryProbeState.IsQuestTurnedIn(P("quest")))
+                        { error = "favor_grant quest not turned in"; return false; }
+                        if (P("event") != null && (!TryInt(P("event"), out int evt)
+                            || !StoryProbeState.IsStreetEventResolved(evt)))
+                        { error = "favor_grant event not resolved"; return false; }
+                        var hero = host.GetHero(P("npc"));
+                        var memory = hero != null ? AllNpcMemoryManager.GetMemory(hero.StringId) : null;
+                        if (AgentControlHelper.ChangePlayerFavor(memory, amount, "story:" + P("source"),
+                            P("key"), P("fallback"))) return true;
+                        error = "favor_grant rejected";
+                        return false;
                     }
 
                     case "debt_collect":

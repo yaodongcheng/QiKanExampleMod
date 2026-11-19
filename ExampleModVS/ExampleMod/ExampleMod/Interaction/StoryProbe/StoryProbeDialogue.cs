@@ -680,8 +680,8 @@ namespace LivingWorldNpcs
                         CloseOnFailedCheck = true,
                     };
                     t.RuntimeHint = () => new TextObject(DescribeOptionHint(opt, npcId));
-                    t.RuntimeCanSelect = () => opt.Check == null
-                        || StoryProbeDefs.MeetsCheckRequirement(opt.Check.Capability, opt.Check.MinimumGrowth);
+                    // 2026-11-19 用户裁定：随机检定不设门槛，选项永远可选；成功率可以是 0%。
+                    t.RuntimeCanSelect = () => true;
                     if (opt.Check != null)
                         t.LazyPlayerLine = () => DescribeOptionLine(opt);
 
@@ -879,32 +879,20 @@ namespace LivingWorldNpcs
             string attribute = preview.Capability != null
                 ? LWNTextHelper.ResolveText(StoryProbeDefs.AbilityDisplayKey(preview.Ability), preview.Ability.ToString())
                 : preview.Skill.Name.ToString();
-            string odds = LWNTextHelper.ResolveText(preview.Chance < 0.25f ? "LWN_story_odds_low"
-                : preview.Chance < 0.6f ? "LWN_story_odds_even" : "LWN_story_odds_high", null);
-            string hint = LWNTextHelper.ResolveCompound("LWN_story_hint_check_compact",
-                "Your {ATTRIBUTE}({PLAYER}) vs opponent({NPC})\n{ODDS} ({CHANCE}%)\n{NOTE}",
-                ("ATTRIBUTE", attribute), ("PLAYER", preview.PlayerAttr.ToString("F0")),
-                ("NPC", preview.NpcAttr.ToString("F0")), ("ODDS", odds),
-                ("CHANCE", (preview.Chance * 100f).ToString("F1")), ("NOTE", note));
-            if (!preview.Eligible)
-                hint += "\n" + LWNTextHelper.ResolveCompound("LWN_story_hint_growth_compact",
-                    "Training {GAIN}/{MINIMUM}", ("GAIN", preview.Growth.ToString()), ("MINIMUM", preview.MinimumGrowth.ToString()));
-            // 数值仍取真实公式；短行逐项列出参与的基础能力与训练，不能只显示合计隐去来源。
-            if (preview.Capability != null)
-            {
-                var hero = Hero.MainHero;
-                string basis = preview.Ability == StoryAbility.Force
-                    ? LWNTextHelper.ResolveCompound("LWN_story_hint_force_basis_compact", "Vigor {VIGOR} Control {CONTROL}\nTraining +{GAIN}",
-                        ("VIGOR", (hero?.GetAttributeValue(DefaultCharacterAttributes.Vigor) ?? 0).ToString()),
-                        ("CONTROL", (hero?.GetAttributeValue(DefaultCharacterAttributes.Control) ?? 0).ToString()),
-                        ("GAIN", preview.Growth.ToString()))
-                    : LWNTextHelper.ResolveCompound("LWN_story_hint_skill_basis_compact", "{SKILL} {VALUE}\nTraining +{GAIN}",
-                        ("SKILL", (preview.Ability == StoryAbility.Guile ? DefaultSkills.Roguery : DefaultSkills.Charm).Name.ToString()),
-                        ("VALUE", (hero?.GetSkillValue(preview.Ability == StoryAbility.Guile ? DefaultSkills.Roguery : DefaultSkills.Charm) ?? 0).ToString()),
-                        ("GAIN", preview.Growth.ToString()));
-                hint += "\n" + basis;
-            }
-            return hint;
+            // 统一格式（2026-11-19 用户裁定，两行）：
+            //   ① 一行说清：比的是哪个属性、我方数值 vs 对方数值、成功率（不设门槛，可以是 0%）。
+            //   ② 后果由作者写在 HintKey：随机检定写「成功：…｜失败：…」，确定性/无检定写会发生什么。
+            // 永久值 + 道具临时加成：临时部分用括号标出，例如 "力量 20(+10) vs 70"。
+            float playerBase = preview.PlayerAttr - preview.PlayerBonus;
+            string playerText = playerBase.ToString("F0")
+                + (preview.PlayerBonus > 0 ? "(+" + preview.PlayerBonus.ToString() + ")" : "");
+            string head = LWNTextHelper.ResolveCompound("LWN_story_hint_check_line",
+                "{ATTRIBUTE} {PLAYER} vs {NPC} · {CHANCE}% chance",
+                ("ATTRIBUTE", attribute),
+                ("PLAYER", playerText),
+                ("NPC", preview.NpcAttr.ToString("F0")),
+                ("CHANCE", (preview.Chance * 100f).ToString("F0")));
+            return head + "\n" + note;
         }
 
         /// <summary>CheckTag = npcId|NegotiationTactic；概率与掷点均复用已有对话轮子。</summary>
@@ -1609,7 +1597,23 @@ namespace LivingWorldNpcs
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] reward grant failed {npcId}/{itemId}: {ex.Message}"); }
             if (roster.GetItemNumber(item) <= before) return false;
             StoryProbeState.RecordRewardReceipt(npcId, receipt);
+            AnnounceItemBonus(itemId, item);
             return true;
+        }
+
+        /// <summary>拿到带加成的道具时说清它有什么用（2026-11-19 用户裁定：任务线奖励要让玩家看得见数值意义）。</summary>
+        private static void AnnounceItemBonus(string itemId, ItemObject item)
+        {
+            if (!StoryProbeDefs.TryGetItemBonus(itemId, out var ability, out int bonus)) return;
+            try
+            {
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound(
+                    "LWN_story_item_bonus_grant", "{ITEM}: +{BONUS} {ATTRIBUTE} in conversation checks",
+                    ("ITEM", item?.Name?.ToString() ?? itemId),
+                    ("ATTRIBUTE", LWNTextHelper.ResolveText(StoryProbeDefs.AbilityDisplayKey(ability), ability.ToString())),
+                    ("BONUS", bonus.ToString()))));
+            }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] item bonus notice failed {itemId}: {ex.Message}"); }
         }
 
         private static void TurnIn(string npcId)
@@ -1670,7 +1674,10 @@ namespace LivingWorldNpcs
                     if (!GrantRewardItem(npcId, key, items[i])) return;
                 }
                 if (!string.IsNullOrEmpty(def.AttrItemId)
-                    && !GrantRewardItem(npcId, "attribute-item", def.AttrItemId)) return;
+                    && !GrantRewardItem(npcId, "attribute-item", def.AttrItemId)
+                    && StoryProbeDefs.FindItem(def.AttrItemId) == null)
+                    // 属性道具找不到（数据写错/被别的内容包屏蔽）不能把整个交差卡死：记日志继续。
+                    DebugLogger.Log($"[StoryProbe] attribute item missing for {npcId}: {def.AttrItemId} (turn-in continues)");
                 if (npcId == "widow" && !GiveNobleDisguise()) return;
                 if (!StoryProbeState.HasRewardReceipt(npcId, "skill-xp"))
                 {
@@ -1703,13 +1710,22 @@ namespace LivingWorldNpcs
                     StoryProbeState.RecordRewardReceipt(npcId, "native-finished");
                 }
                 StoryProbeState.TurnInQuest(npcId); // 所有应付项目成功后才提交总完成位。
-                if (def.AttributeRewards != null)
-                    foreach (var reward in def.AttributeRewards)
-                        if (StoryProbeDefs.TryParseAbility(reward.Key, out var ability) && reward.Value > 0)
-                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_story_training_reward",
-                                "Training completed: {ATTRIBUTE} +{GAIN} (now {TOTAL}).",
-                                ("ATTRIBUTE", LWNTextHelper.ResolveText(StoryProbeDefs.AbilityDisplayKey(ability), ability.ToString())),
-                                ("GAIN", reward.Value.ToString()), ("TOTAL", StoryProbeDefs.PlayerAttr(ability).ToString("F0")))));
+                // 2026-11-19 用户裁定：交差可以直接涨**原版属性**（永久，走引擎自己的 AddAttribute）。
+                if (def.AttributeGrants != null && Hero.MainHero != null)
+                    foreach (var grant in def.AttributeGrants)
+                    {
+                        if (grant.Value == 0 || !StoryProbeDefs.TryParseCharacterAttribute(grant.Key, out var attribute)) continue;
+                        try
+                        {
+                            Hero.MainHero.HeroDeveloper?.AddAttribute(attribute, grant.Value, checkUnspentPoints: false);
+                            DebugLogger.Log($"[StoryProbe] attribute grant {npcId}: {grant.Key} {grant.Value:+#;-#;0} -> {Hero.MainHero.GetAttributeValue(attribute)}");
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound(
+                                "LWN_story_attribute_grant", "Training: {ATTRIBUTE} +{GAIN}",
+                                ("ATTRIBUTE", LWNTextHelper.ResolveText(StoryProbeDefs.AttributeDisplayKey(grant.Key), grant.Key)),
+                                ("GAIN", grant.Value.ToString()))));
+                        }
+                        catch (Exception ex) { DebugLogger.Log($"[StoryProbe] attribute grant failed {npcId}/{grant.Key}: {ex.Message}"); }
+                    }
                 StoryProbeState.SetGoal("tool");
                 Message("LWN_story_narr_turnin", "He pays up, and he remembers your face.");
             }

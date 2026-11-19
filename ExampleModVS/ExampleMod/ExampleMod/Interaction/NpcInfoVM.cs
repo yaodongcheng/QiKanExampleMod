@@ -62,6 +62,8 @@ namespace LivingWorldNpcs
             // ── 个人属性 ──
             // 个人属性 Tab：模板 NPC 无详细人设的兜底文案
             SelfCognitionText = _profile?.GetSelfInfo() ?? LWNTextHelper.ResolveText("LWN_ui_info_no_persona", "(Non-hero unit: no detailed profile)");
+            if (_memory != null && Hero.MainHero != null)
+                SelfCognitionText += "\n" + BuildFavorText(_memory, detailed: false);
             MotivationText = "";
             AgentStateText = "";
 
@@ -177,11 +179,33 @@ namespace LivingWorldNpcs
         /// 只读快照（Snapshot* 走实例锁，LLM 后台线程写时安全）；段标题走 LWN 本地化，内容为动态数据豁免。
         /// 调试视图绝不抛异常——构建失败降级为兜底文案 + 日志，保证探查面板永远可开。
         /// </summary>
+        internal static string BuildFavorText(SingNpcMemorySystem memory, bool detailed = true)
+        {
+            string playerId = Hero.MainHero?.StringId ?? string.Empty;
+            var records = memory.SnapshotFavorRecords(playerId);
+            int balance = records.Sum(r => r.Amount);
+            var sb = new StringBuilder(LWNTextHelper.ResolveCompound("LWN_favor_balance",
+                "Favors owed to you: {BALANCE}", ("BALANCE", balance.ToString())));
+            if (detailed)
+            {
+                sb.AppendLine();
+                if (records.Count == 0) sb.AppendLine(LWNTextHelper.ResolveText("LWN_favor_none", "No favor transactions."));
+                foreach (var r in records)
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_favor_record", "{DELTA} · {TIME} · {SOURCE}",
+                        ("DELTA", r.Amount > 0 ? "+" + r.Amount : r.Amount.ToString()),
+                        ("TIME", FormatGameTime(r.CampaignDay)),
+                        ("SOURCE", LWNTextHelper.ResolveText(r.SourceKey, r.SourceFallback))));
+            }
+            return sb.ToString();
+        }
+
         private static string BuildMemoryDebugText(SingNpcMemorySystem memory)
         {
             try
             {
                 var sb = new StringBuilder();
+                sb.AppendLine(BuildFavorText(memory));
+                sb.AppendLine();
                 string heroId = memory._profile?.StringId ?? "";
                 if (!string.IsNullOrEmpty(heroId))
                     sb.AppendLine("ID: " + heroId);   // 数据行：跨存档定位（与 save_inspect dump 对照）

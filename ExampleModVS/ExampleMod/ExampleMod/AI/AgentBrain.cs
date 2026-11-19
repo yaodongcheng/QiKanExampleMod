@@ -547,7 +547,10 @@ namespace LivingWorldNpcs
             ConfrontingBrain = this;
             _storyInterceptElapsed = 0f;
             _storyInterceptAction = new AlertForceConversationAction(storyEntry: entry, onStoryReady: ready);
-            EnqueueAction(new FollowAgentAction(player, false, radius: 2f, angleOffset: 0f, stopDistance: 1.5f));
+            // 🔴 走到"玩家本人跟前"，不是"玩家面前 2 米的虚拟点"（2026-11-19 实机复发）：
+            //    radius=2 时到位判定 = 离那个虚拟点 ≤1.5 米，守卫可以停在离玩家 3.5 米处，
+            //    而 AlertForceConversationAction 的开窗门槛是 3 米 → 回执 null → 玩家直接走进城。
+            EnqueueAction(new FollowAgentAction(player, false, radius: 0f, angleOffset: 0f, stopDistance: 1.5f));
             EnqueueAction(new LookAtAction(player, 0.0f));
             EnqueueAction(_storyInterceptAction);
             DebugLogger.Log($"[StoryIntercept] queued entry={entry}");

@@ -207,7 +207,7 @@
         "cleaver_2hsword_t3",
         "lwn_grapple_rope"
       ],
-      "AttrItemId": "lwn_whetstone",
+      "AttrItemId": "seax",
       "AttrSkill": "OneHanded",
       "Money": "Disdain",
       "MoneyHintKey": "LWN_story_money_butcher",
@@ -234,9 +234,9 @@
       "TroubleKey": "LWN_story_butcher_trouble",
       "TroubleFallback": "Ma Heng wrecks the stall and has scared off my apprentice; using a knife would give the gang an excuse for reprisals.",
       "PlayerHelpKey": "LWN_story_butcher_playerhelp",
-      "PlayerHelpFallback": "I need an outsider to make Ma Heng stop; I offer equipment and teach stance and force, granting 15 Force.",
-      "AttributeRewards": {
-        "force": 15
+      "PlayerHelpFallback": "I need an outsider to make Ma Heng stop; I offer equipment and teach stance and force.",
+      "AttributeGrants": {
+        "Vigor": 1
       }
     },
     {

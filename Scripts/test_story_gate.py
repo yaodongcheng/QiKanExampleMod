@@ -20,7 +20,9 @@ def main():
     assert 'CheckHandsOnGate' not in second
     methods = '\n'.join(method(host, name) for name in (
         'GateAlong', 'GateLateral', 'TrackGateCrossing', 'TickPlayerGate',
-        'CheckHandsOnGate', 'GateWatchers', 'IsGateObserved', 'CompletePrologue'))
+        'CheckHandsOnGate', 'GateWatchers', 'IsGateObserved', 'CompletePrologue',
+        # 2026-11-19：守卫"看见过"就该推回，没看见过不推（随从引开守卫靠的是后者）。
+        'SampleGateGuardSight', 'NearestAwareGateGuard'))
     for name in ['PlayerHasCrossed', 'GoalCompleted']:
         methods += '\n' + re.search(r'public bool ' + name + r'\s*=>[\s\S]*?;', host).group()
     program = (ROOT / 'Scripts/story_gate_harness.cs').read_text(encoding='utf-8-sig')

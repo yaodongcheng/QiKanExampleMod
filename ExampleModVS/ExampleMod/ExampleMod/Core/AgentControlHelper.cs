@@ -23,6 +23,31 @@ namespace LivingWorldNpcs
 {
     public static class AgentControlHelper
     {
+        /// <summary>玩家人情资源收发入口。余额和业务收据在 NPC 通用记忆内原子提交。</summary>
+        public static bool ChangePlayerFavor(SingNpcMemorySystem memory, int amount, string operationId,
+            string sourceKey, string sourceFallback, bool notify = true)
+        {
+            var player = Hero.MainHero;
+            if (memory == null || player == null) return false;
+            float day = Campaign.Current != null ? (float)CampaignTime.Now.ToDays : 0f;
+            if (!memory.TryChangeFavor(player.StringId, operationId, amount, sourceKey, sourceFallback,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), day, out bool changed)) return false;
+            if (!changed) return true;
+            DebugLogger.Log("[Favor] npc=" + memory._profile?.StringId + " player=" + player.StringId
+                + " operation=" + operationId + " delta=" + amount + " balance=" + memory.FavorBalance(player.StringId)
+                + " source=" + sourceKey);
+            if (notify)
+            {
+                string text = LWNTextHelper.ResolveCompound("LWN_favor_changed",
+                    "{NPC}: favors owed to you {DELTA} (balance {BALANCE}). {SOURCE}",
+                    ("NPC", memory._profile?.Name ?? ""), ("DELTA", amount > 0 ? "+" + amount : amount.ToString()),
+                    ("BALANCE", memory.FavorBalance(player.StringId).ToString()),
+                    ("SOURCE", LWNTextHelper.ResolveText(sourceKey, sourceFallback)));
+                InformationManager.DisplayMessage(new InformationMessage(text));
+            }
+            return true;
+        }
+
         /// <summary>
         /// 🔴 安全判活统一入口（2026-08-26 击杀崩溃修复，玩家反馈 10:47:45）：
         /// Agent.IsActive() 内部 = AgentHelper.GetAgentState(_statePointer)——unsafe 解引用 native 指针。

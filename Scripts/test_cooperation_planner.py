@@ -17,6 +17,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from test_story_perception import block
+from test_npc_favor import favor_methods
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -102,6 +103,7 @@ def check_recruitment_authorization():
         r"public sealed class Eligibility",
         r"public static CoopContractMode GetMode\(Hero hero\)",
         r"public static bool HasFavor\(Hero hero\)",
+        r"public static bool ConsumeFavor\(Hero hero, string purpose, double simTime, string activityId = null\)",
         r"public static Eligibility Evaluate\(string candidateId, bool diagnostic = false\)",
         r"public static bool TrySetTemporary\(string candidateId, string purpose, double simTime, out string reason, bool diagnostic = false\)",
         r"private static bool EventSettled\(string actorId\)",
@@ -109,6 +111,7 @@ def check_recruitment_authorization():
         r"public static bool CanRequestPurpose\(string actorId, CoopActivity activity, string purpose, out string reason\)"))
     with io.open(os.path.join(HERE, "coop_recruitment_authorization_harness.cs"), encoding="utf-8") as f:
         program = f.read().replace("/* ACTUAL_AUTHORIZATION_METHODS */", methods)
+    program = program.replace("/* ACTUAL_FAVOR_MEMORY */", favor_methods())
     with io.open(os.path.join(SRC, "CoopCommands.cs"), encoding="utf-8-sig") as f:
         diagnostic = block(f.read(), r"public static class CoopTestSession")
     program = program.replace("/* ACTUAL_DIAGNOSTIC_SESSION */",

@@ -1,0 +1,12 @@
+{
+  "_comment": "对话检定的道具临时加成（2026-11-19 用户裁定）：背包里有（或正穿在身上）就生效；同一属性只取持有物里加成最高的一件，不叠加。改数值只改这张表，不用重编。",
+  "Schema": "story_item_bonuses/1",
+  "Items": {
+    "lwn_grapple_hook": { "Ability": "Guile", "Bonus": 5 },
+    "lwn_lockpick_kit": { "Ability": "Guile", "Bonus": 3 },
+    "fine_town_tunic": { "Ability": "Charm", "Bonus": 10 },
+    "lwn_ledger_book": { "Ability": "Charm", "Bonus": 5 },
+    "jewelry": { "Ability": "Charm", "Bonus": 5 },
+    "seax": { "Ability": "Force", "Bonus": 5 }
+  }
+}

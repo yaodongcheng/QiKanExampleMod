@@ -33,7 +33,6 @@ namespace LivingWorldNpcs.Planner.Cooperation
         }
 
         private const string ModeKey = "contract.mode";
-        private const string FavorKey = "contract.favor";
 
         public static CoopRecruitmentConfig Config
         {
@@ -67,7 +66,9 @@ namespace LivingWorldNpcs.Planner.Cooperation
             {
                 return false;
             }
-            return string.IsNullOrEmpty(director.Ledger.GetRelation(hero.StringId, FavorKey));
+            var memory = CoopTestSession.FavorMemory(hero) ?? AllNpcMemoryManager.GetMemory(hero.StringId);
+            return Config != null && Config.FavorCost > 0 && Hero.MainHero != null
+                && memory != null && memory.FavorBalance(Hero.MainHero.StringId) >= Config.FavorCost;
         }
 
         /// <summary>资格复核：任何一项不满足都直接报告原因，不消耗随机输入。</summary>
@@ -137,7 +138,7 @@ namespace LivingWorldNpcs.Planner.Cooperation
 
             result.Mode = GetMode(hero);
             result.Price = Math.Max(0, config.PriceGold);
-            result.FavorAvailable = HasFavor(hero) && result.Mode == CoopContractMode.None;
+            result.FavorAvailable = HasFavor(hero) && result.Mode != CoopContractMode.Companion;
             if (result.Mode == CoopContractMode.Companion)
             {
                 result.Reason = "already_companion";
@@ -150,18 +151,22 @@ namespace LivingWorldNpcs.Planner.Cooperation
         /// <summary>
         /// 临时人情的提交点：首个合法交涉真正开始时消费一次；预览、早停、走位受阻不消费。
         /// </summary>
-        public static bool ConsumeFavor(Hero hero, string purpose, double simTime)
+        public static bool ConsumeFavor(Hero hero, string purpose, double simTime, string activityId = null)
         {
             var director = CoopDirector.Current;
             if (hero == null || director == null || director.Ledger == null || !HasFavor(hero))
             {
                 return false;
             }
-            director.Ledger.SetRelation(hero.StringId, FavorKey, "used:" + purpose);
+            if (string.IsNullOrEmpty(activityId)) return false;
+            var memory = CoopTestSession.FavorMemory(hero) ?? AllNpcMemoryManager.GetMemory(hero.StringId);
+            string operation = director.RunId + ":favor:" + activityId;
+            if (!AgentControlHelper.ChangePlayerFavor(memory, -Config.FavorCost, operation,
+                Config.FavorSourceKey, Config.FavorSourceFallback, notify: !CoopTestSession.Owns(activityId))) return false;
             director.Ledger.SetRelation(hero.StringId, ModeKey, CoopContractMode.Temporary.ToString());
             CoopLog.Event("favor.used")
                 .Actor(hero.StringId).ContractMode("temporary")
-                .Operation(CoopInteraction.OperationId("favor", hero.StringId, null, purpose))
+                .Operation(operation).Raw("amount", Config.FavorCost)
                 .SimTime(simTime)
                 .Write();
             return true;
@@ -269,7 +274,7 @@ namespace LivingWorldNpcs.Planner.Cooperation
                 reason = eligibility.Reason;
                 return false;
             }
-            if (!HasFavor(eligibility.Hero)) { reason = "favor_used"; return false; }
+            if (!HasFavor(eligibility.Hero)) { reason = "favor_insufficient"; return false; }
             if (eligibility.Mode == CoopContractMode.Companion)
             {
                 reason = "already_companion";
@@ -316,7 +321,7 @@ namespace LivingWorldNpcs.Planner.Cooperation
                 || director.Ledger.GetRelation(hero.StringId, "contract.scene") != director.RunId)
             { reason = "no_current_agreement"; return false; }
             if (!HasFavor(hero) && (activity == null || !activity.FavorCommitted))
-            { reason = "favor_used"; return false; }
+            { reason = "favor_insufficient"; return false; }
             if (!EventSettled(actorId) && !CoopTestSession.AllowsPreparedActor(actorId, activity))
             { reason = "event_not_settled"; return false; }
             return true;

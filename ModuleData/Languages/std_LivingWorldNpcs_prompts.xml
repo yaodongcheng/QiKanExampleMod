@@ -611,9 +611,9 @@ A dispute is under way. The specifics: {CONFLICT}" />
     <string id="LWN_speech_relation_companion" text="【Other's Relation】The other party is your companion {NAME}" />
     <string id="LWN_speech_relation_friendly" text="【Other's Relation】The other party is friendly toward you ({NAME})" />
     <string id="LWN_speech_situation_surrender" text="【Current Situation】You are surrendering and begging the other party for mercy{HP}" />
-    <string id="LWN_speech_situation_fighting" text="【Current Situation】You are locked in combat with the other party{HP}" />
+    <string id="LWN_speech_situation_fighting" text="【Current Situation】You are locked in combat with {OPPONENT}; he is the enemy you must put down, not an ally{HP}" />
     <string id="LWN_speech_situation_attacked" text="【Current Situation】The other party just struck at you, and you are about to retaliate{HP}" />
-    <string id="LWN_speech_situation_combat" text="【Current Situation】A fight just broke out, and you are about to act{HP}" />
+    <string id="LWN_speech_situation_combat" text="【Current Situation】A fight just broke out, and you are about to strike at {OPPONENT}, your enemy{HP}" />
     <string id="LWN_speech_situation_approach" text="【Current Situation】The other party is approaching you" />
     <string id="LWN_speech_situation_seen_crime" text="【Current Situation】You just witnessed the other party committing a misdeed" />
     <string id="LWN_speech_situation_spoken_to" text="【Current Situation】The other party just spoke to you" />

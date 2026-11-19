@@ -57,7 +57,7 @@ namespace LivingWorldNpcs
             Add("quest_turned", true, "委托是否已交差（可选参数=npc id）");
             Add("coop_recruitable", true, "当前演员满足内容定义的招募前置", new string[0]);
             Add("coop_available", true, "当前演员有有效协作约定或是主队同伴", new string[0]);
-            Add("coop_favor_available", true, "当前演员仍有一次合法临时人情", new string[0]);
+            Add("coop_favor_available", true, "当前演员的人情余额足够支付数据配置的协作费用", new string[0]);
             Add("gold>=", true, "玩家钱数下限（参数=无符号整数）");
             Add("item", true, "玩家是否持有物品（参数=物品 id）");
             Add("event_resolved", true, "某起市井纠纷是否已解决（参数=事件编号）");
@@ -159,6 +159,8 @@ namespace LivingWorldNpcs
             Add("lesson_start", true, new[] { "lesson" }, new[] { "lesson" }, "开始真实实操教学（场景恢复控制后执行）");
             Add("lesson_cancel", true, new string[0], new string[0], "停止本场实操教学并撤销授权");
             Add("message", true, new[] { "key" }, new[] { "key" }, "显示一条本地化消息");
+            Add("favor_grant", true, new[] { "npc", "amount", "source", "key", "fallback", "quest", "event" },
+                new[] { "npc", "amount", "source", "key", "fallback" }, "真实交差或成功事件给予人情，通用 NPC 记忆保留来源", new[] { "amount", "event" });
             // 随从协助破局（2026-11-18）：协作约定／正式招募／开始活动。
             // 效果只接既有业务管线，不在这里写玩法分支。
             Add("coop_contract", true, new[] { "mode", "purpose" }, new[] { "mode" },
@@ -767,6 +769,19 @@ namespace LivingWorldNpcs
                     if (eff.Params.TryGetValue("beneficiaries", out string beneficiaries)
                         && beneficiaries.Split('|').Any(id => !Regex.IsMatch(id, @"^[a-z][a-z0-9_]*$")))
                         errors.Add(new StoryDialogueIssue(path + ".Effects.start_fight.Params.beneficiaries", "bad_param", "受益者须用已登记演员ID，以|分隔"));
+                }
+                if (eff.Id == "favor_grant")
+                {
+                    if (!eff.Params.TryGetValue("amount", out var favorAmount)
+                        || !int.TryParse(favorAmount, out int amount) || amount <= 0)
+                        errors.Add(new StoryDialogueIssue(path + ".Effects.favor_grant.Params.amount", "bad_param", "人情奖励必须是正整数"));
+                    if (!eff.Params.TryGetValue("key", out var favorKey) || !Regex.IsMatch(favorKey, @"^LWN_[A-Za-z0-9_]+$"))
+                        errors.Add(new StoryDialogueIssue(path + ".Effects.favor_grant.Params.key", "bad_param", "必须是本地化语言键"));
+                    if (!eff.Params.TryGetValue("source", out var favorSource) || !Regex.IsMatch(favorSource, @"^[A-Za-z0-9_.:-]+$"))
+                        errors.Add(new StoryDialogueIssue(path + ".Effects.favor_grant.Params.source", "bad_param", "来源须为稳定 ASCII 业务编号"));
+                    if (eff.Params.TryGetValue("event", out var favorEvent)
+                        && (!int.TryParse(favorEvent, out int evt) || evt <= 0))
+                        errors.Add(new StoryDialogueIssue(path + ".Effects.favor_grant.Params.event", "bad_param", "纠纷编号必须是正整数"));
                 }
             }
         }

@@ -90,6 +90,46 @@ def code_keys(module):
     return keys
 
 
+def hint_pair_problems(name, nid, opt, cn):
+    """悬停第二行（2026-11-19 用户裁定）：随机检定必须写成「成功：…｜失败：…」，
+    没有检定的选项不许出现成败字样（它没有随机性）。中文缺失交给 missing_cn 那条报，这里不重复。"""
+    hint_text = cn.get(opt.get("HintKey") or "", "") if cn else ""
+    if not hint_text:
+        return []
+    has_pair = "成功：" in hint_text and "失败：" in hint_text
+    if opt.get("Check") is not None and not has_pair:
+        return ["dialogue[%s]: option '%s/%s' check hint must spell out 成功：…｜失败：…" %
+                (name, nid, opt["Id"])]
+    if opt.get("Check") is None and ("成功：" in hint_text or "失败：" in hint_text):
+        return ["dialogue[%s]: option '%s/%s' has no check but hint claims success/failure" %
+                (name, nid, opt["Id"])]
+    return []
+
+
+def check_item_bonuses(module, problems):
+    """道具临时加成表（2026-11-19 用户裁定）：能力必须是三维之一，加成 1..50。"""
+    path = os.path.join(module, "ModuleData", "DesignData", "StoryItemBonuses.json")
+    if not os.path.exists(path):
+        problems.append("missing StoryItemBonuses.json (dialogue check item bonuses)")
+        return
+    try:
+        data = json.loads(io.open(path, encoding="utf-8").read())
+    except (ValueError, OSError) as ex:
+        problems.append("StoryItemBonuses.json: json_parse %s" % ex)
+        return
+    items = data.get("Items") or {}
+    for item_id, entry in items.items():
+        if not isinstance(entry, dict):
+            problems.append("StoryItemBonuses: %s must be an object" % item_id)
+            continue
+        ability = entry.get("Ability")
+        bonus = entry.get("Bonus")
+        if ability not in ("Force", "Guile", "Charm"):
+            problems.append("StoryItemBonuses: %s Ability '%s' is not Force/Guile/Charm" % (item_id, ability))
+        if isinstance(bonus, bool) or not isinstance(bonus, int) or not 1 <= bonus <= 50:
+            problems.append("StoryItemBonuses: %s Bonus must be an integer 1..50" % item_id)
+
+
 def check_json(module, problems):
     """直接审阅正式定义的图和代价；契约仍由既有story_dialogue_issues校验。"""
     cn = _load_lang_cached(module, True)
@@ -149,6 +189,7 @@ def check_json(module, problems):
                 if opt.get("Check") is None and not opt.get("HintKey"):
                     problems.append("dialogue[%s]: option '%s/%s' missing deterministic outcome HintKey" %
                                     (name, nid, opt["Id"]))
+                problems.extend(hint_pair_problems(name, nid, opt, cn))
                 req = opt.get("Requires", [])
                 for effect in opt.get("Effects", []):
                     flag = effect.get("Params", {}).get("flag", "")
@@ -1218,6 +1259,7 @@ def check_flow_contract(module, problems, overrides=None):
     controller = source("AI/AgentAIController.cs")
     stage = source("Interaction/StoryProbe/StoryStageRunner.cs")
     street = source("Interaction/StoryProbe/StreetLifeDirector.cs")
+    posts = source("Interaction/StoryProbe/StoryPostDirector.cs")
     dialogue = source("Interaction/StoryProbe/StoryProbeDialogue.cs")
     state = source("Interaction/StoryProbe/StoryProbeState.cs")
     defs = source("Interaction/StoryProbe/StoryProbeDefs.cs")
@@ -1307,6 +1349,26 @@ def check_flow_contract(module, problems, overrides=None):
         ('"event_story_intercept"' in member(brain, "ReceiveEvent") and "ConfrontingBrain" in member(brain, "StartStoryIntercept")
          and "FollowAgentAction" in member(brain, "StartStoryIntercept"),
          "story interrogation must reuse Brain follow and conversation ownership"),
+        # 2026-11-19 实机：跟随的目标点是"玩家面前 2 米"，到位容差 1.5 米 ⇒ 守卫可停在离玩家 3.5 米，
+        # 而开窗门槛是 3 米 ⇒ 回执 null、只有 brain refused，玩家直接走进城。
+        # 拦问紧挨开窗，必须走到"玩家本人"跟前（radius 0），否则 3 米门槛与到位判定必然打架。
+        ("radius: 0f" in member(brain, "StartStoryIntercept")
+         and "radius: 2f" not in member(brain, "StartStoryIntercept")
+         and "Distance(Agent.Main.Position) > 3f" in atomic,
+         "story intercept must walk to the player, not to a virtual point 2m ahead of him"),
+        # 2026-11-19 用户裁定：守卫看见你闯进去就推回；没看见就不推（随从引开守卫靠的是后者）。
+        # 只看当下这一帧必然失效 —— 守卫面朝街面，玩家穿过门洞后就在他背后。
+        ("SampleGateGuardSight" in member(host, "EnforceGateBarrier")
+         and "NearestAwareGateGuard" in member(host, "EnforceGateBarrier")
+         and "SeenMemorySec" in member(host, "NearestAwareGateGuard")
+         and "no guard saw the entry" in member(host, "EnforceGateBarrier"),
+         "gate pushback must act on remembered sight and never push an unseen entry"),
+        # 2026-11-19 实机：一名守卫谈崩开打后，另一名仍在战斗中开质问窗，玩家卡在对话框里挨打。
+        # 修法 = 同岗组一起参战 + 战斗中一律不申请/不开窗。
+        ("StoryFightSiblings" in member(host, "RequestStoryFight")
+         and "CombatManager.IsPlayerInCombat" in member(posts, "TrySelectQuestioner")
+         and "CombatManager.IsPlayerInCombat" in atomic,
+         "a gate fight must enlist the whole post group and never open interrogation during combat"),
         ("public sealed class PerformanceAction : IAtomicAction" in atomic
          and "Started && !Paused && !_ended" in atomic and "_brain.OwnsPerformance(this)" in atomic
          and '_performance?.Finish("queue-cleared")' in member(brain, "ClearAllActions")
@@ -2138,7 +2200,7 @@ def stage_v2_issues(data, cast_ids, formal=False, source="<memory>", csv_points=
                 text(trigger, "TargetGate", bpath + ".Trigger", required=False)
                 boolean(trigger, "PlayerInsideGate", bpath + ".Trigger", True)
                 boolean(trigger, "PlayerInPostZone", bpath + ".Trigger", False)
-                integer(trigger, "MaxPerEncounter", bpath + ".Trigger", 1, 1, 16)
+                integer(trigger, "MaxPerEncounter", bpath + ".Trigger", 1, 0, 16)  # 0 = 不限次数（2026-11-19 用户裁定）
             cooldown = bo.get("Cooldown")
             if isinstance(cooldown, dict):
                 keys(cooldown, bpath + ".Cooldown", ("RetrySec", "ReentrySec"))
@@ -2668,6 +2730,8 @@ DLG_PREDICATES = {
 }
 # 效果原子：name -> (params, required, implemented)
 DLG_EFFECTS = {
+    "favor_grant": (("npc", "amount", "source", "key", "fallback", "quest", "event"),
+                    ("npc", "amount", "source", "key", "fallback"), True),
     "coop_contract": (("mode", "purpose"), ("mode",), True),
     "coop_recruit": (("mode", "npc"), ("mode",), True),
     "coop_start": (("role", "npc"), ("role",), True),
@@ -2836,6 +2900,14 @@ def story_dialogue_issues(data, formal=False):
                     bad(epath + ".Params.mode", "bad_param", "真实战斗模式只能是wound/mortal")
                 if eid == 'complete_quest' and 'if_accepted' in params and params['if_accepted'] != '1':
                     bad(epath + '.Params.if_accepted', 'bad_param', 'if_accepted只能是1')
+                if eid == 'favor_grant':
+                    for key in ('amount', 'event'):
+                        if key in params and not re.fullmatch(r'[1-9][0-9]*', str(params[key])):
+                            bad(epath + '.Params.' + key, 'bad_param', '必须是正整数')
+                    if not re.fullmatch(r'LWN_[A-Za-z0-9_]+', str(params.get('key', ''))):
+                        bad(epath + '.Params.key', 'bad_param', '必须是本地化语言键')
+                    if not re.fullmatch(r'[A-Za-z0-9_.:-]+', str(params.get('source', ''))):
+                        bad(epath + '.Params.source', 'bad_param', '来源须为稳定 ASCII 业务编号')
                 if eid == 'start_fight':
                     for key in ('reason', 'start_line', 'end_line'):
                         if key in params and (not isinstance(params[key], str) or not re.fullmatch(r'LWN_[A-Za-z0-9_]+', params[key])):
@@ -3278,6 +3350,7 @@ def main():
 
     problems = []
     keys, node_total = check_json(module, problems)
+    check_item_bonuses(module, problems)
 
     en_path = os.path.join(module, "ModuleData", "Languages", "std_LivingWorldNpcs_strings.xml")
     cn_path = os.path.join(module, "ModuleData", "Languages", "CNs", "std_LivingWorldNpcs_strings.xml")

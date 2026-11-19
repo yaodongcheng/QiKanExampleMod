@@ -2133,11 +2133,22 @@ namespace LivingWorldNpcs
             if (_storyEntry != null)
             {
                 if (_interrupted) return;
+                // 🔴 2026-11-19 实机：战斗已经打响（第一名守卫谈崩开打）时，另一名守卫仍在
+                //    1 秒后把质问窗开出来，玩家被卡在对话框里挨打。开窗前必须复核玩家是否在战斗中。
                 if (Agent.Main == null || !AgentControlHelper.SafeIsActive(agent)
                     || !AgentControlHelper.SafeIsActive(Agent.Main)
                     || agent.Position.Distance(Agent.Main.Position) > 3f
+                    || CombatManager.IsPlayerInCombat
                     || ConversationEntryPatch.IsConversationActive())
                 {
+                    // 这条取消以前是**静默**的：日志只留一句 brain refused，分不清是没走到位、
+                    // 玩家不在、还是被别的对话占着（2026-11-19 实机靠排除法才查出来）。
+                    float gap = Agent.Main != null ? agent.Position.Distance(Agent.Main.Position) : -1f;
+                    DebugLogger.Log($"[StoryIntercept] cancelled entry={_storyEntry}: main={(Agent.Main != null)}"
+                        + $" agentActive={AgentControlHelper.SafeIsActive(agent)}"
+                        + $" mainActive={(Agent.Main != null && AgentControlHelper.SafeIsActive(Agent.Main))}"
+                        + $" dist={gap:F2} (>3 refused) combat={CombatManager.IsPlayerInCombat}"
+                        + $" conv={ConversationEntryPatch.IsConversationActive()}");
                     NotifyStoryCancelled();
                     return;
                 }

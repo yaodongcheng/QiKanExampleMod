@@ -383,7 +383,7 @@
           "PlayerKey": "LWN_story_blocker_opt_threat",
           "PlayerKeyZh": "[威吓] 好狗不挡道，让开。",
           "HintKey": "LWN_story_hint_threat_gate",
-          "HintKeyZh": "逼他让路；可能交战或被捕",
+          "HintKeyZh": "成功：他让开｜失败：他拔刀",
           "Requires": [
             "!gate_open",
             "!stripped_disarmed",
@@ -395,8 +395,7 @@
             "Target": "questioner",
             "Success": "blocker_threat_ok",
             "Fail": "blocker_threat_fail",
-            "Capability": "Intimidate",
-            "MinimumGrowth": 15
+            "Capability": "Intimidate"
           },
           "Speaker": "player",
           "Listener": "questioner",
@@ -416,7 +415,7 @@
           "PlayerKey": "LWN_story_blocker_opt_disguise",
           "PlayerKeyZh": "[冒充贵客] 我来办事还得等你同意，把你们管事的叫来。",
           "HintKey": "LWN_story_hint_disguise_gate",
-          "HintKeyZh": "借行头压人；识破可能被捕",
+          "HintKeyZh": "成功：他放行｜失败：识破，当场拿你",
           "Requires": [
             "noble",
             "!gate_open",
@@ -667,7 +666,9 @@
       "OnEnter": [
         {
           "Id": "start_fight",
-          "Params": {},
+          "Params": {
+            "reason": "LWN_story_conflict_gate_push"
+          },
           "Commit": "on_session_end",
           "Receipt": "session"
         }
@@ -707,7 +708,9 @@
       "OnEnter": [
         {
           "Id": "start_fight",
-          "Params": {},
+          "Params": {
+            "reason": "LWN_story_conflict_gate_threat"
+          },
           "Commit": "on_session_end",
           "Receipt": "session"
         }
@@ -747,7 +750,9 @@
       "OnEnter": [
         {
           "Id": "start_fight",
-          "Params": {},
+          "Params": {
+            "reason": "LWN_story_conflict_gate_disguise"
+          },
           "Commit": "on_session_end",
           "Receipt": "session"
         }

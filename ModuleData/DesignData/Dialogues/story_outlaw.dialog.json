@@ -94,7 +94,7 @@
           "PlayerKey": "LWN_story_outlaw_opt_settle",
           "PlayerKeyZh": "[劝说] 他靠钩索吃饭，手又伤着，别再抢他的东西、找他的麻烦了。",
           "HintKey": "LWN_story_hint_outlaw_opt_settle",
-          "HintKeyZh": "劝他归还工具",
+          "HintKeyZh": "成功：他归还工具｜失败：他不松口",
           "Requires": ["clue:son_tools"],
           "Effects": [
             {
@@ -188,7 +188,7 @@
           "PlayerKey": "LWN_story_outlaw_opt_settle",
           "PlayerKeyZh": "[劝说] 他靠钩索吃饭，手又伤着，别再抢他的东西、找他的麻烦了。",
           "HintKey": "LWN_story_hint_outlaw_opt_settle",
-          "HintKeyZh": "劝他归还工具",
+          "HintKeyZh": "成功：他归还工具｜失败：他不松口",
           "Requires": ["clue:son_tools"],
           "Effects": [
             {
@@ -282,7 +282,7 @@
           "PlayerKey": "LWN_story_outlaw_opt_settle",
           "PlayerKeyZh": "[劝说] 他靠钩索吃饭，手又伤着，别再抢他的东西、找他的麻烦了。",
           "HintKey": "LWN_story_hint_outlaw_opt_settle",
-          "HintKeyZh": "劝他归还工具",
+          "HintKeyZh": "成功：他归还工具｜失败：他不松口",
           "Requires": ["clue:son_tools"],
           "Effects": [
             {

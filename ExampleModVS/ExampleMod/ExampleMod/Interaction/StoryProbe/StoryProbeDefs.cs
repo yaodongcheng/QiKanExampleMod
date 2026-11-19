@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
@@ -41,8 +42,9 @@ namespace LivingWorldNpcs
         public string GoalKey, GoalFallback;
         public string TroubleKey, TroubleFallback;
         public string PlayerHelpKey, PlayerHelpFallback;
-        // 已交差的真实委托提供的训练收益；从完成记录推导，不能反复领取。
-        public Dictionary<string, int> AttributeRewards;
+        // 交差时给出的**原版属性**永久加值（2026-11-19 用户裁定）：键 = Vigor/Cunning/Social…，值 = 点数。
+        // 例：屠户教发力 → Vigor +1（检定口径的力量随之 +10）。靠交差收据防重复。
+        public Dictionary<string, int> AttributeGrants;
         public string ReactiveRole;
         public ReactivePersonality Personality;
         public string Faction;          // StoryFactionDef.Id
@@ -153,6 +155,7 @@ namespace LivingWorldNpcs
         public static void ReloadCast()
         {
             _cast = null;
+            StoryItemBonuses.Reload();
             var _ = Cast;
         }
 
@@ -209,8 +212,9 @@ namespace LivingWorldNpcs
         // 玩家属性（§8.1：玩家某类属性 vs NPC 同一类属性；d20 掷点 ≥ 门槛）
         // ═══════════════════════════════════════════════════════════════
 
-        /// <summary>玩家三类属性的 0..100 口径（与 NPC 三维同一把尺）。</summary>
-        public static float PlayerAttr(StoryAbility ability)
+        /// <summary>玩家三维 = 原版三个属性 ×10（1..10 → 10..100），与 NPC 手写的 0..100 同一把尺。
+        /// 2026-11-19 用户裁定：基础值只认原版属性；道具的临时加成另算（见 <see cref="PlayerItemBonus"/>）。</summary>
+        public static float PlayerAttrBase(StoryAbility ability)
         {
             try
             {
@@ -219,13 +223,11 @@ namespace LivingWorldNpcs
                 switch (ability)
                 {
                     case StoryAbility.Force:
-                        // Vigor + Control（各 1..10）→ 0..100
-                        return MathF.Clamp((hero.GetAttributeValue(DefaultCharacterAttributes.Vigor)
-                                          + hero.GetAttributeValue(DefaultCharacterAttributes.Control)) * 5f + PlayerGrowth(ability), 5f, 100f);
+                        return MathF.Clamp(hero.GetAttributeValue(DefaultCharacterAttributes.Vigor) * 10f, 0f, 100f);
                     case StoryAbility.Guile:
-                        return MathF.Clamp(hero.GetSkillValue(DefaultSkills.Roguery) + PlayerGrowth(ability), 5f, 100f);
+                        return MathF.Clamp(hero.GetAttributeValue(DefaultCharacterAttributes.Cunning) * 10f, 0f, 100f);
                     case StoryAbility.Charm:
-                        return MathF.Clamp(hero.GetSkillValue(DefaultSkills.Charm) + PlayerGrowth(ability), 5f, 100f);
+                        return MathF.Clamp(hero.GetAttributeValue(DefaultCharacterAttributes.Social) * 10f, 0f, 100f);
                 }
             }
             catch (Exception ex)
@@ -233,6 +235,86 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[StoryProbe] PlayerAttr({ability}) failed: {ex.Message}");
             }
             return 50f;
+        }
+
+        /// <summary>持有道具给该属性的临时加成（2026-11-19 用户裁定）：背包里有、或正穿在身上即生效；
+        /// **同一属性只取持有物里加成最高的一件**，不叠加。数值表 = StoryItemBonuses.json。</summary>
+        public static int PlayerItemBonus(StoryAbility ability)
+        {
+            var items = StoryItemBonuses.Items;
+            if (items == null || items.Count == 0) return 0;
+            Hero hero = Hero.MainHero;
+            if (hero == null) return 0;
+            var roster = hero.PartyBelongedTo?.ItemRoster;
+            int best = 0;
+            foreach (var entry in items)
+            {
+                var def = entry.Value;
+                if (def == null || def.Bonus <= 0) continue;
+                if (!TryParseAbility(def.Ability, out var entryAbility) || entryAbility != ability) continue;
+                if (!HoldsItem(hero, roster, entry.Key)) continue;
+                if (def.Bonus > best) best = def.Bonus;
+            }
+            return best;
+        }
+
+        private static bool HoldsItem(Hero hero, ItemRoster roster, string itemId)
+        {
+            var item = FindItem(itemId);
+            if (item != null && roster != null && roster.GetItemNumber(item) > 0) return true;
+            // 穿在身上也算持有（贵族戏服这类必须实际穿戴才算数）；装备槽固定 12 个。
+            var worn = hero.BattleEquipment;
+            if (worn != null)
+                for (int i = 0; i < 12; i++)
+                    if (worn[(EquipmentIndex)i].Item?.StringId == itemId) return true;
+            worn = hero.CivilianEquipment;
+            if (worn != null)
+                for (int i = 0; i < 12; i++)
+                    if (worn[(EquipmentIndex)i].Item?.StringId == itemId) return true;
+            return false;
+        }
+
+        /// <summary>检定用的合计值 = 原版属性 + 道具临时加成（上限 100）。</summary>
+        public static float PlayerAttr(StoryAbility ability)
+            => MathF.Clamp(PlayerAttrBase(ability) + PlayerItemBonus(ability), 0f, 100f);
+
+        /// <summary>悬停要同时给出「永久 + 临时」两段数值。</summary>
+        public static void PlayerAttrParts(StoryAbility ability, out float baseValue, out int bonus)
+        {
+            baseValue = PlayerAttrBase(ability);
+            bonus = PlayerItemBonus(ability);
+        }
+
+        /// <summary>数据里的原版属性名 → CharacterAttribute（交差加属性用）。</summary>
+        public static bool TryParseCharacterAttribute(string name, out CharacterAttribute attribute)
+        {
+            attribute = null;
+            switch ((name ?? "").Trim().ToLowerInvariant())
+            {
+                case "vigor": attribute = DefaultCharacterAttributes.Vigor; return true;
+                case "control": attribute = DefaultCharacterAttributes.Control; return true;
+                case "endurance": attribute = DefaultCharacterAttributes.Endurance; return true;
+                case "cunning": attribute = DefaultCharacterAttributes.Cunning; return true;
+                case "social": attribute = DefaultCharacterAttributes.Social; return true;
+                case "intelligence": attribute = DefaultCharacterAttributes.Intelligence; return true;
+                default: return false;
+            }
+        }
+
+        public static string AttributeDisplayKey(string name)
+            => "LWN_story_attr_" + (name ?? "").Trim().ToLowerInvariant();
+
+        /// <summary>查单件道具的属性加成（不管玩家有没有；用于拿到的提示）。</summary>
+        public static bool TryGetItemBonus(string itemId, out StoryAbility ability, out int bonus)
+        {
+            ability = default;
+            bonus = 0;
+            var items = StoryItemBonuses.Items;
+            if (items == null || string.IsNullOrEmpty(itemId) || !items.TryGetValue(itemId, out var def)
+                || def == null || def.Bonus <= 0) return false;
+            if (!TryParseAbility(def.Ability, out ability)) return false;
+            bonus = def.Bonus;
+            return true;
         }
 
         public static float NpcAttr(string npcId, StoryAbility ability)
@@ -247,18 +329,8 @@ namespace LivingWorldNpcs
             }
         }
 
-        public static int PlayerGrowth(StoryAbility ability)
-        {
-            int total = 0;
-            foreach (var npc in Npcs)
-                if (StoryProbeState.IsQuestTurnedIn(npc.Id) && npc.AttributeRewards != null
-                    && npc.AttributeRewards.TryGetValue(AbilityId(ability), out int gain))
-                    total += Math.Max(0, gain);
-            return Math.Min(100, total);
-        }
-
-        public static bool MeetsCheckRequirement(string capability, int minimumGrowth)
-            => minimumGrowth <= 0 || (TryGetCapability(capability, out var ability) && PlayerGrowth(ability) >= minimumGrowth);
+        // 2026-11-19 用户裁定：随机检定不设门槛 —— 属性差就体现为成功率低（可为 0），
+        // 不再要求"先攒多少训练才能尝试"。MinimumGrowth 字段保留仅为兼容旧数据，不再拦人。
 
         private static readonly Dictionary<string, StoryAbility> DialogueCapabilities =
             new Dictionary<string, StoryAbility>(StringComparer.Ordinal)
@@ -296,15 +368,17 @@ namespace LivingWorldNpcs
             if (!string.IsNullOrEmpty(capability))
             {
                 if (!TryGetCapability(capability, out var ability)) return null;
-                float pa = PlayerAttr(ability);
+                // 永久（原版属性）+ 临时（持有道具）两段分开算：悬停要分别显示，检定用合计。
+                PlayerAttrParts(ability, out float paBase, out int paBonus);
+                float pa = MathF.Clamp(paBase + paBonus, 0f, 100f);
                 float na = NpcAttr(npcId, ability);
-                bool eligible = MeetsCheckRequirement(capability, minimumGrowth);
-                float chance = eligible ? SingleRollResolver.SimpleChance(pa, na) : 0f;
+                // 随机检定不设门槛：属性差多少就体现在成功率上，0% 也照实显示。
+                float chance = SingleRollResolver.SimpleChance(pa, na);
                 return new StoryRoll
                 {
                     Ability = ability, Capability = capability, NpcId = npcId, Tactic = tactic.ToString(),
-                    PlayerAttr = pa, NpcAttr = na, Chance = chance, Threshold = 1f - chance,
-                    Eligible = eligible, MinimumGrowth = minimumGrowth, Growth = PlayerGrowth(ability)
+                    PlayerAttr = pa, PlayerBonus = paBonus, NpcAttr = na, Chance = chance, Threshold = 1f - chance,
+                    Eligible = true, MinimumGrowth = 0, Growth = 0
                 };
             }
             var context = new IntentContext(agent, speaker: hero);
@@ -524,6 +598,7 @@ namespace LivingWorldNpcs
         public SkillObject Skill;
         public string NpcId;
         public float PlayerAttr;
+        public int PlayerBonus;   // 其中来自持有道具的临时加成（悬停显示成 "(+N)"）
         public float NpcAttr;
         public float Chance;      // 成功率（事前概率，可显示给玩家）
         public float Threshold;   // 门槛 = 1 − 成功率（铁律 17：只播报掷点 vs 门槛）

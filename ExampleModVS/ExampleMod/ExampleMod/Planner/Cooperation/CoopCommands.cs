@@ -338,6 +338,18 @@ namespace LivingWorldNpcs.Planner.Cooperation
         private static TaleWorlds.CampaignSystem.Hero _preparedHero;
 #endif
         private static readonly HashSet<string> _existing = new HashSet<string>(StringComparer.Ordinal);
+        private static readonly Dictionary<string, SingNpcMemorySystem> _favorCopies = new Dictionary<string, SingNpcMemorySystem>(StringComparer.Ordinal);
+        internal static SingNpcMemorySystem FavorMemory(TaleWorlds.CampaignSystem.Hero hero)
+        {
+            if (_original == null || _director != CoopDirector.Current || hero == null) return null;
+            if (!_favorCopies.TryGetValue(hero.StringId, out var memory))
+            {
+                memory = new SingNpcMemorySystem(new NPCProfile(hero));
+                memory.RestoreFavorRecords(AllNpcMemoryManager.GetMemory(hero.StringId)?.SnapshotFavorRecords());
+                _favorCopies[hero.StringId] = memory;
+            }
+            return memory;
+        }
         public static bool Begin(string caseId, int seed, out string reason)
         {
             reason = null;
@@ -374,6 +386,12 @@ namespace LivingWorldNpcs.Planner.Cooperation
             if (hero == null) { reason = "hero_missing"; return false; }
             _preparedActorId = actorId;
             _preparedHero = hero;
+            var memory = FavorMemory(hero);
+            int cost = _director.Content.Recruitment.FavorCost;
+            int balance = memory.FavorBalance(TaleWorlds.CampaignSystem.Hero.MainHero.StringId);
+            if (balance < cost)
+                AgentControlHelper.ChangePlayerFavor(memory, cost - balance, "diagnostic.seed",
+                    "LWN_coop_favor_diagnostic", "Diagnostic preparation", notify: false);
             if (!CoopRecruitment.TrySetTemporary(actorId, "talk", CoopMissionBehavior.Current?.SimTime ?? 0,
                 out reason, diagnostic: true))
             { _preparedActorId = null; _preparedHero = null; return false; }
@@ -445,6 +463,7 @@ namespace LivingWorldNpcs.Planner.Cooperation
             _second = null;
             _allSuccess = false;
             _existing.Clear();
+            _favorCopies.Clear();
         }
     }
 }

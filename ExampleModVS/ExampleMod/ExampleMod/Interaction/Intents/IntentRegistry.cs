@@ -224,7 +224,9 @@ namespace LivingWorldNpcs
             float offerBonus = MathF.Clamp(offerValue, 0f, 1f);
             float chance = baseChance * 0.85f + offerBonus * 0.15f;
 
-            return MathF.Clamp(chance, 0.05f, 0.95f);
+            // 2026-11-19 用户裁定：允许 0% —— 实力差到一定程度就该掷不出来，
+            // 不再用 5% 保底把"打不过"伪装成"还有机会"。
+            return MathF.Clamp(chance, 0f, 0.95f);
         }
     }
 }

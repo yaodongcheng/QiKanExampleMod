@@ -135,6 +135,8 @@ namespace LivingWorldNpcs
         private bool _crossingDoor;
         private bool _crossingWall;
         private readonly HashSet<string> _fightRequests = new HashSet<string>();
+        // 上一帧玩家是否在战斗中（2026-11-19）：战斗结束 = 这次遭遇结束，用来重置质问计数。
+        private bool _wasPlayerInCombat;
         private sealed class FightRequest
         {
             public string Mode, Reason, Beneficiaries, StartLine, EndLine;
@@ -1416,6 +1418,15 @@ namespace LivingWorldNpcs
             }
 
             if (_stage?.Active == true) return; // 镜头演出占用期间不识破、不开战、不判通关。
+            // 🔴 2026-11-19 实机：打完一架（赢/输/认输）应当等于"这次遭遇结束"。
+            //    否则 MaxPerEncounter 早被用满，玩家再冲门时守卫一声不吭，直接放他进去。
+            bool playerInCombat = CombatManager.IsPlayerInCombat;
+            if (_wasPlayerInCombat && !playerInCombat)
+            {
+                _posts?.ResetEncounters();
+                DebugLogger.Log("[StoryV2] player left combat -> question counters reset (a fight ends the encounter)");
+            }
+            _wasPlayerInCombat = playerInCombat;
             _posts?.Tick(dt, "second_meet");
             if (_prep?.Ready == true && _posts?.HasRules("second_meet") == true)
                 _posts.TryRequestQuestion("second_meet");
@@ -1653,7 +1664,37 @@ namespace LivingWorldNpcs
                 Beneficiaries = beneficiaries, StartLine = startLine, EndLine = endLine, ResolveEvent = resolvedEvent,
                 RequestedAt = _time };
             _fightRequests.Add(npcId);
+            // 🔴 2026-11-19 用户裁定：冲突属于**这个岗位**，不是某一个人 —— 同岗组在岗的守卫一起参战。
+            //    不这么做的话，另一名守卫会在战斗中继续按岗位质问，把玩家卡在对话框里挨打（实机 16:52）。
+            foreach (string sibling in StoryFightSiblings(npcId).ToArray())
+            {
+                var mate = GetAgent(sibling);
+                if (mate == null || !AgentControlHelper.SafeIsActive(mate) || mate.Health <= 0f
+                    || AgentBrain.IsKnockedOut(mate) || AgentBrain.IsRoped(mate) || AgentBrain.IsHeldByStatus(mate)
+                    || _fightRequests.Contains(sibling)) continue;
+                _fightDefinitions[sibling] = new FightRequest { Mode = mode ?? "wound", Reason = reason,
+                    Beneficiaries = beneficiaries, StartLine = startLine, EndLine = endLine, ResolveEvent = resolvedEvent,
+                    RequestedAt = _time };
+                _fightRequests.Add(sibling);
+                DebugLogger.Log($"[StoryProbe] fight group: {sibling} joins the same fight as {npcId}");
+            }
             return true;
+        }
+
+        /// <summary>同岗组的其他成员（来自 v2 数据的 Behaviors[].Members，不写死 id）。</summary>
+        private IEnumerable<string> StoryFightSiblings(string npcId)
+        {
+            var file = StoryLayoutRegistry.Published;
+            if (file == null) yield break;
+            string stage = Phase == StoryProbePhase.Second ? "second_meet" : "first_meet";
+            var seen = new HashSet<string>(StringComparer.Ordinal) { npcId };
+            foreach (var behavior in file.Behaviors.Values)
+            {
+                if (behavior == null || behavior.Kind != "post" || !behavior.Stages.Contains(stage)
+                    || !behavior.Members.Contains(npcId)) continue;
+                foreach (var member in behavior.Members)
+                    if (seen.Add(member)) yield return member;
+            }
         }
 
         private void PumpStoryFights()
@@ -1953,6 +1994,8 @@ namespace LivingWorldNpcs
         private void EnforceGateBarrier(Agent player, float dt)
         {
             if (_gateOpen || player == null || !_gateGeometryReady) return;
+            // 对话进行中不抢玩家身体（推回会把对话框里的人瞬移）。
+            if (Campaign.Current?.ConversationManager?.IsConversationInProgress == true) return;
             var gt = StoryProbeTuning.Current.Gate;
             float along = GateAlong(player.Position);
             bool pulling = GrappleLogic.GetSession(player)?.IsPullingSelf == true;
@@ -1998,24 +2041,43 @@ namespace LivingWorldNpcs
                 }
                 else return; // 正在真实拉拽/下落时不能争抢其身体或传送。
             }
+            // 「他看见你进去了」= 此刻看得见，或刚才确实看见过（2026-11-19 用户裁定）。
+            // 守卫面朝街面（点位 Facing≈0° 即 +X），玩家一穿过门洞就落到他背后 ⇒ 只看当下这一帧必然判"没看见"，
+            // 结果就是"明明看着你走上来也不推"。没看见过的（随从把守卫引开那条路）仍然不推。
+            SampleGateGuardSight(player, gt);
             if (along <= gt.PastMeters || GateLateral(player.Position) > gt.ClimbHalfWidthMeters
                 || _time < _nextBarrierAt) return;
             // 谁离得近谁推（副卫也履职），并留下可查的日志 —— 以前这里一行日志都没有，
             // 出现"人就这么走过去了"时查不出是没推还是推了没拦住。
-            Agent pusher = NearestGateGuard();
+            Agent pusher = NearestAwareGateGuard(player, out string awareReason);
             if (pusher == null)
             {
-                // 无人承担职责（或全都不在）：不得隔空推回玩家。
+                // 没人看见（或全员离岗/失能）：不得隔空推回玩家 —— 这正是随从引开守卫那条路的通行条件。
+                // 日志节流到 0.5 秒一次，并逐人给出视线原因与"上次看见距今多久"，下次能分清背对/被挡/记忆过期。
+                if (_time >= _nextNoAwareLogAt)
+                {
+                    _nextNoAwareLogAt = _time + 0.5f;
+                    var diag = new List<string>();
+                    foreach (var def in StoryProbeDefs.Npcs)
+                    {
+                        if (def == null || !def.FirstMeetGuard) continue;
+                        var guard = GetAgent(def.Id);
+                        if (guard == null) { diag.Add(def.Id + ": no agent"); continue; }
+                        string age = _gateGuardSeenAt.TryGetValue(def.Id, out float at) ? (_time - at).ToString("F1") + "s" : "never";
+                        diag.Add(def.Id + ": " + NpcSightSystem.ExplainSight(guard, player, gt.RecognizeDistanceMeters) + " seenAgo=" + age);
+                    }
+                    DebugLogger.Log("[StoryProbe] barrier skip: no guard saw the entry (" + awareReason + ") | " + string.Join(" ; ", diag.ToArray()));
+                }
                 return;
             }
-            if (AgentAIController.GetBrainForAgent(pusher)?.IsInCombat == true) return;
-            // 推回必须有真实可及条件：本人看得见 + 同层 + 近身，缺一不拦。
+            // 推回必须有真实可及条件：同层 + 近身（"看见"已由上面的判据给出）。
             bool pusherSees = NpcSightSystem.CanAgentSeeTarget(pusher, player, gt.RecognizeDistanceMeters);
             bool sameLevel = Math.Abs(pusher.Position.z - player.Position.z) <= gt.GroundToleranceMeters;
             bool near = pusher.Position.Distance(player.Position) <= gt.PushBackReachMeters;
-            if (!pusherSees || !sameLevel || !near)
+            if (!sameLevel || !near)
             {
-                DebugLogger.Log($"[StoryProbe] barrier skip: sees={pusherSees} sameLevel={sameLevel} near={near} dist={pusher.Position.Distance(player.Position):F1}");
+                DebugLogger.Log($"[StoryProbe] barrier skip: sees={pusherSees} sameLevel={sameLevel} near={near} dist={pusher.Position.Distance(player.Position):F1}"
+                    + " aware=" + awareReason + " sight=" + NpcSightSystem.ExplainSight(pusher, player, gt.RecognizeDistanceMeters));
                 return;
             }
             _nextBarrierAt = _time + gt.PushBackCooldownSec;
@@ -2025,26 +2087,72 @@ namespace LivingWorldNpcs
             _lastGatePosition = outside;
             _crossedGate = false;
             string pusherId = pusher?.Character?.StringId ?? "none";
-            DebugLogger.Log($"[StoryGate] pushback by {pusherId} along={along:F2} lateral={lateralAtPush:F2} → outside {gt.PushBackMeters:F1}m");
+            // 🔴 2026-11-19 实机：他刚亲手把你推回去，当然知道你还在门口 —— 这一下要刷新"看见记忆"。
+            //    否则推完 1 秒记忆过期，玩家再迈一步就"没人看见"，直接走进城。
+            foreach (var def in StoryProbeDefs.Npcs)
+                if (def != null && def.FirstMeetGuard && GetAgent(def.Id) == pusher)
+                    _gateGuardSeenAt[def.Id] = _time;
+            DebugLogger.Log($"[StoryGate] pushback by {pusherId} along={along:F2} lateral={lateralAtPush:F2} → outside {gt.PushBackMeters:F1}m seen={(pusherSees ? "now" : "recent")}");
             // 朝向交给 Brain 质问/反应，屏障不再另写守卫身体。
             SayOnAgent(pusher ?? GetAgent("blocker"), "LWN_story_blocker_bar", "Papers.", SpeechPriority.Warning);
             InformationManager.DisplayMessage(new InformationMessage(
                 LWNTextHelper.ResolveText("LWN_story_gate_blocked", "He pushes you back.")));
+            // 🔴 2026-11-19 用户裁定：推回不是"顶回去就完事"——挡住之后当场强制开口盘问。
+            //    不这么做，玩家会趁 1.2 秒冷却全速冲过去（守卫够得着 6 米，一次冲就出圈）。
+            string stage = Phase == StoryProbePhase.Second ? "second_meet" : "first_meet";
+            DebugLogger.Log("[StoryGate] pushback -> force interrogation request stage=" + stage);
+            _posts?.TryRequestQuestion(stage, null, force: true);
         }
 
-        /// <summary>离玩家最近、还能正常履职的守门人（数据里的 FirstMeetGuard 名单，不写死 id）。</summary>
-        private Agent NearestGateGuard()
+        /// <summary>每名守门人「最后一次确实看见玩家」的时刻（按角色 id 记，不按 Agent 序号）。
+        /// 只在门区附近采样，避免在城里到处做视线射线。</summary>
+        private readonly Dictionary<string, float> _gateGuardSeenAt = new Dictionary<string, float>();
+        private float _nextNoAwareLogAt;
+
+        private void SampleGateGuardSight(Agent player, GateTuning gt)
         {
-            Agent best = null;
-            float bestDist = float.MaxValue;
+            float lateral = GateLateral(player.Position);
+            float along = GateAlong(player.Position);
+            if (lateral > gt.ClimbHalfWidthMeters
+                || along < -gt.RecognizeDistanceMeters || along > gt.InsideMeters) return;
             foreach (var def in StoryProbeDefs.Npcs)
             {
                 if (def == null || !def.FirstMeetGuard) continue;
                 var a = GetAgent(def.Id);
                 if (a == null || !AgentControlHelper.SafeIsActive(a) || a.Health <= 0f) continue;
                 if (AgentBrain.IsRoped(a) || AgentBrain.IsHeldByStatus(a) || AgentBrain.IsKnockedOut(a)) continue;
-                float d = Agent.Main != null ? a.Position.Distance(Agent.Main.Position) : 0f;
-                if (d < bestDist) { bestDist = d; best = a; }
+                if (NpcSightSystem.CanAgentSeeTarget(a, player, gt.RecognizeDistanceMeters))
+                    _gateGuardSeenAt[def.Id] = _time;
+            }
+        }
+
+        /// <summary>离玩家最近、且「知道你闯进去了」的守门人（数据里的 FirstMeetGuard 名单，不写死 id）。
+        /// 判据 = 此刻看得见，或 <see cref="GateTuning.SeenMemorySec"/> 秒内确实看见过。
+        /// 没看见过的一律不推 —— 随从把守卫引开的路线靠的就是这个「没看见」。</summary>
+        private Agent NearestAwareGateGuard(Agent player, out string reason)
+        {
+            var gt = StoryProbeTuning.Current.Gate;
+            Agent best = null;
+            float bestDist = float.MaxValue;
+            reason = "nobody saw it";
+            foreach (var def in StoryProbeDefs.Npcs)
+            {
+                if (def == null || !def.FirstMeetGuard) continue;
+                var a = GetAgent(def.Id);
+                if (a == null || !AgentControlHelper.SafeIsActive(a) || a.Health <= 0f) continue;
+                if (AgentBrain.IsRoped(a) || AgentBrain.IsHeldByStatus(a) || AgentBrain.IsKnockedOut(a)) continue;
+                if (AgentAIController.GetBrainForAgent(a)?.IsInCombat == true) continue;
+                bool seesNow = NpcSightSystem.CanAgentSeeTarget(a, player, gt.RecognizeDistanceMeters);
+                bool sawRecently = _gateGuardSeenAt.TryGetValue(def.Id, out float at)
+                    && _time - at <= gt.SeenMemorySec;
+                if (!seesNow && !sawRecently) continue;
+                float d = a.Position.Distance(player.Position);
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    best = a;
+                    reason = def.Id + (seesNow ? " sees now" : $" saw {(_time - _gateGuardSeenAt[def.Id]):F1}s ago");
+                }
             }
             return best;
         }
@@ -2458,7 +2566,7 @@ namespace LivingWorldNpcs
         /// 🔴 注入必须早于 StartConversation（ConversationEntryPatch 的 Prefix 统一收口）。
         /// </summary>
         public void StartStoryConversation(Agent agent, string entryNode = null, string triggerId = "player_talk",
-            string dialogueId = null)
+            string dialogueId = null, bool force = false)
         {
             if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
             if (Agent.Main == null) return;
@@ -2484,7 +2592,7 @@ namespace LivingWorldNpcs
                     return;
                 }
                 if (!StoryDialogueRuntime.TryRequest(resolvedId, triggerId, npcId, null, null,
-                        out var session, out string reason))
+                        out var session, out string reason, force))
                 {
                     DebugLogger.Log($"[StoryDialogue] request rejected dialogue={resolvedId} trigger={triggerId} actor={npcId}: {reason}");
                     return;

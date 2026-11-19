@@ -82,7 +82,7 @@
           "PlayerKey": "LWN_story_rival_opt_settle",
           "PlayerKeyZh": "[说服] 两家各唱各的，先把到她台前的路让出来，别让客人听戏还得挤过去。",
           "HintKey": "LWN_story_hint_rival_opt_settle",
-          "HintKeyZh": "劝领班让路",
+          "HintKeyZh": "成功：他挪开人｜失败：他不认，僵着",
           "Requires": [
             "quest_accepted@widow",
             "!quest_done@widow",
@@ -184,7 +184,7 @@
           "PlayerKey": "LWN_story_rival_opt_settle",
           "PlayerKeyZh": "[说服] 两家各唱各的，先把到她台前的路让出来，别让客人听戏还得挤过去。",
           "HintKey": "LWN_story_hint_rival_opt_settle",
-          "HintKeyZh": "劝领班让路",
+          "HintKeyZh": "成功：他挪开人｜失败：他不认，僵着",
           "Requires": [
             "quest_accepted@widow",
             "!quest_done@widow",
@@ -286,7 +286,7 @@
           "PlayerKey": "LWN_story_rival_opt_settle",
           "PlayerKeyZh": "[说服] 两家各唱各的，先把到她台前的路让出来，别让客人听戏还得挤过去。",
           "HintKey": "LWN_story_hint_rival_opt_settle",
-          "HintKeyZh": "劝领班让路",
+          "HintKeyZh": "成功：他挪开人｜失败：他不认，僵着",
           "Requires": [
             "quest_accepted@widow",
             "!quest_done@widow",

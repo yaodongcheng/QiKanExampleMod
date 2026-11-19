@@ -136,8 +136,8 @@ namespace LivingWorldNpcs.Planner.Cooperation
             var hero = pending.Runtime.Host?.GetHero(pending.Activity.ActorId);
             if (hero != null && CoopRecruitment.GetMode(hero) == CoopContractMode.Temporary && !pending.Activity.FavorCommitted)
             {
-                if (!CoopRecruitment.ConsumeFavor(hero, purpose, time))
-                { Complete(pending, CoopStepOutcome.Failed("favor_used")); return; }
+                if (!CoopRecruitment.ConsumeFavor(hero, purpose, time, pending.Activity.Id))
+                { Complete(pending, CoopStepOutcome.Failed("favor_insufficient")); return; }
                 pending.Activity.FavorCommitted = true;
             }
             var offer = CoopMissionRuntime.ReadFloat(pending.Action, "offer", 0f);

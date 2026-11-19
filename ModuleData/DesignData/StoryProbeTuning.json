@@ -69,6 +69,8 @@
     "GoalRadiusMeters": 3.0,
     "ClimbHeightMeters": 2.0,
     "PushBackCooldownSec": 1.2,
+    "_seenComment": "守卫面朝街面，玩家穿过门洞后就在他背后；按最后看见的时刻判定（秒），没看见过的不推 —— 随从引开守卫靠的就是没看见。",
+    "SeenMemorySec": 3.0,
     "GuardSpawnRadiusMeters": 60.0,
     "RecognizeDistanceMeters": 12.0,
     "PassItem": "lwn_gate_pass",

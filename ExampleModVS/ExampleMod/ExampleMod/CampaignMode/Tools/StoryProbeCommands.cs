@@ -23,7 +23,7 @@ namespace LivingWorldNpcs
         private static readonly HashSet<string> Known =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "enable", "disable", "city", "status", "crime", "quests", "enter", "intro", "phase", "where", "spawn",
+                "enable", "disable", "city", "status", "crime", "quests", "enter", "intro", "phase", "where", "spawn", "favor",
                 "check", "roll", "learn", "resolve", "strip", "restore", "reset", "talk", "goal",
                 "life", "lesson", "combat", "event", "dialogue", "goto", "abort", "money", "stage", "atom", "action", "reload", "hud",
                 "script", "population", "layout", "intercept", "work", "group", "persona", "gate", "trace", "scene", "environment", "help", "cooperate",
@@ -42,6 +42,28 @@ namespace LivingWorldNpcs
                 {
                     case "cooperate":
                         return CoopCommands.Handle(args, used);
+
+                    case "favor":
+                    {
+                        string id = Arg(args, used, 0);
+                        var host = StoryProbeMissionBehavior.Current;
+                        var hero = host?.GetHero(id);
+                        if (hero == null || Hero.MainHero == null) return "NO: actor unavailable. Usage: custom.story_probe favor <actorId> [ui]";
+                        var memory = AllNpcMemoryManager.GetMemory(hero.StringId);
+                        if (memory == null) return "NO: NPC memory unavailable.";
+                        if (Arg(args, used, 1) == "ui")
+                            return InteractionMissionView.Instance?.ShowNPCMemoryInfo(host.GetAgent(id)) == true
+                                ? "OK: NPC memory panel opened; no favor or story state changed."
+                                : "NO: NPC info view unavailable.";
+                        var report = new System.Text.StringBuilder("OK: player favor (read only)");
+                        report.AppendLine("\nactor=" + id + " hero=" + hero.StringId
+                            + " balance=" + memory.FavorBalance(Hero.MainHero.StringId)
+                            + " cost=" + (CoopRecruitment.Config?.FavorCost ?? 0)
+                            + " available=" + CoopRecruitment.HasFavor(hero));
+                        foreach (var r in memory.SnapshotFavorRecords(Hero.MainHero.StringId))
+                            report.AppendLine(FormattableString.Invariant($"delta={r.Amount} day={r.CampaignDay:F3} operation={r.OperationId} source={r.SourceKey}"));
+                        return report.ToString();
+                    }
 
                     case "enable":
                         Settings.Instance.StoryProbeEnabled = true;
@@ -1492,7 +1514,7 @@ namespace LivingWorldNpcs
         private static string HelpText()
         {
             return "custom.story_probe <sub> -- subs: enable | disable | city [id] | status | crime | quests | enter | intro | " +
-                   "phase first|second | where | persona [actorId] | spawn | check <ability> | roll <ability> <0-100> | " +
+                   "phase first|second | where | persona [actorId] | favor <actorId> [ui] | spawn | check <ability> | roll <ability> <0-100> | " +
                    "learn <ability> | resolve <ability> | strip | restore | reset | talk <npc> | goal <0..4> | " +
                    "gate [grant|revoke] | " +
                    "lesson status|cancel|reload | combat status | life debug on|off|status|list|force|say <speaker> <listener>|bark <npc>|facing <npc>|release <npc>|scene|stop|resume | event list|force <n> | dialogue | goto | abort | money | " +

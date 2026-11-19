@@ -15,6 +15,78 @@ namespace LivingWorldNpcs
 {
     public class SingNpcMemorySystem
     {
+        /// <summary>确定性人情账目；独立于 LLM 总结及热度裁剪，所属 NPC 使用原有记忆身份。</summary>
+        public sealed class FavorRecord
+        {
+            public string PlayerId { get; set; }
+            public string OperationId { get; set; }
+            public int Amount { get; set; }
+            public string SourceKey { get; set; }
+            public string SourceFallback { get; set; }
+            public double TimeStamp { get; set; }
+            public float CampaignDay { get; set; }
+            public FavorRecord Copy() => (FavorRecord)MemberwiseClone();
+        }
+
+        private List<FavorRecord> _favorRecords = new List<FavorRecord>();
+
+        public List<FavorRecord> SnapshotFavorRecords(string playerId = null)
+        {
+            lock (_lock)
+                return _favorRecords.Where(r => playerId == null || r.PlayerId == playerId).Select(r => r.Copy()).ToList();
+        }
+
+        public int FavorBalance(string playerId)
+        {
+            lock (_lock) return _favorRecords.Where(r => r.PlayerId == playerId).Sum(r => r.Amount);
+        }
+
+        public bool TryChangeFavor(string playerId, string operationId, int amount, string sourceKey,
+            string sourceFallback, double timeStamp, float campaignDay, out bool changed)
+        {
+            changed = false;
+            if (string.IsNullOrWhiteSpace(playerId) || string.IsNullOrWhiteSpace(operationId) || amount == 0
+                || string.IsNullOrWhiteSpace(sourceKey) || string.IsNullOrWhiteSpace(sourceFallback)) return false;
+            lock (_lock)
+            {
+                var previous = _favorRecords.FirstOrDefault(r => r.PlayerId == playerId && r.OperationId == operationId);
+                // 同一个业务来源改文案或数值不能再发一笔。
+                if (previous != null) return previous.Amount == amount && previous.SourceKey == sourceKey;
+                long balance = (long)FavorBalance(playerId) + amount;
+                if (balance < 0 || balance > int.MaxValue) return false;
+                _favorRecords.Add(new FavorRecord { PlayerId = playerId, OperationId = operationId, Amount = amount,
+                    SourceKey = sourceKey, SourceFallback = sourceFallback, TimeStamp = timeStamp, CampaignDay = campaignDay });
+                if (_profile != null) _profile.DebtOfGraditude = FavorBalance(Hero.MainHero?.StringId);
+                changed = true;
+                return true;
+            }
+        }
+
+        /// <summary>存档和效果事务恢复；深拷贝，零余额仍保留来源与防重收据。</summary>
+        public void RestoreFavorRecords(List<FavorRecord> records)
+        {
+            lock (_lock)
+            {
+                var restored = new List<FavorRecord>();
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var balances = new Dictionary<string, long>(StringComparer.Ordinal);
+                foreach (var r in records ?? new List<FavorRecord>())
+                {
+                    if (r == null || string.IsNullOrWhiteSpace(r.PlayerId) || string.IsNullOrWhiteSpace(r.OperationId)
+                        || string.IsNullOrWhiteSpace(r.SourceKey) || string.IsNullOrWhiteSpace(r.SourceFallback)
+                        || r.Amount == 0 || !seen.Add(r.PlayerId + "\n" + r.OperationId))
+                        throw new InvalidOperationException("invalid_favor_record");
+                    balances.TryGetValue(r.PlayerId, out long before);
+                    long after = before + r.Amount;
+                    if (after < 0 || after > int.MaxValue) throw new InvalidOperationException("invalid_favor_balance");
+                    balances[r.PlayerId] = after;
+                    restored.Add(r.Copy());
+                }
+                _favorRecords = restored;
+                if (_profile != null) _profile.DebtOfGraditude = FavorBalance(Hero.MainHero?.StringId);
+            }
+        }
+
         // NPC 个人资料
         public readonly NPCProfile _profile;
         // 1. 近期对话历史 (保留容量随互动热度动态分档)
@@ -433,10 +505,11 @@ namespace LivingWorldNpcs
         /// <summary>读档重建（MyBehavior.SyncData → AllNpcMemoryManager.DeserializeSlot 调用）。</summary>
         public void RestoreFromSave(List<ChatMessage> history, List<RecentMemory> dynamic, string permanent,
             string backgroundStory = null, string personality = null, string specialty = null,
-            List<string> importantEvents = null)
+            List<string> importantEvents = null, List<FavorRecord> favorRecords = null)
         {
             lock (_lock)
             {
+                RestoreFavorRecords(favorRecords);
                 if (history != null)
                 {
                     RecentHistory.Clear();

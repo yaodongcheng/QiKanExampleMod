@@ -84,7 +84,7 @@
           "PlayerKey": "LWN_story_thug_opt_settle",
           "PlayerKeyZh": "[说服] 你把摊子砸了，他明天拿什么交钱，先让他好好做生意。",
           "HintKey": "LWN_story_hint_thug_opt_settle",
-          "HintKeyZh": "劝他停手",
+          "HintKeyZh": "成功：他停手｜失败：他拒绝，事情没完",
           "Requires": [
             "quest_accepted@butcher",
             "!quest_done@butcher",
@@ -164,7 +164,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "!quest_done@butcher",
             "!event_resolved:1"
@@ -185,7 +185,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "!quest_done@butcher",
             "event_resolved:1",
@@ -207,7 +207,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "!quest_done@butcher",
             "event_resolved:1",
@@ -255,7 +255,7 @@
           "PlayerKey": "LWN_story_thug_opt_settle",
           "PlayerKeyZh": "[说服] 你把摊子砸了，他明天拿什么交钱，先让他好好做生意。",
           "HintKey": "LWN_story_hint_thug_opt_settle",
-          "HintKeyZh": "劝他停手",
+          "HintKeyZh": "成功：他停手｜失败：他拒绝，事情没完",
           "Requires": [
             "quest_accepted@butcher",
             "!quest_done@butcher",
@@ -335,7 +335,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "!quest_done@butcher",
             "!event_resolved:1"
@@ -356,7 +356,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "!quest_done@butcher",
             "event_resolved:1",
@@ -378,7 +378,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "!quest_done@butcher",
             "event_resolved:1",
@@ -426,7 +426,7 @@
           "PlayerKey": "LWN_story_thug_opt_settle",
           "PlayerKeyZh": "[说服] 你把摊子砸了，他明天拿什么交钱，先让他好好做生意。",
           "HintKey": "LWN_story_hint_thug_opt_settle",
-          "HintKeyZh": "劝他停手",
+          "HintKeyZh": "成功：他停手｜失败：他拒绝，事情没完",
           "Requires": [
             "quest_accepted@butcher",
             "!quest_done@butcher",
@@ -458,7 +458,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "!quest_done@butcher",
             "!event_resolved:1"
@@ -479,7 +479,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "!quest_done@butcher",
             "event_resolved:1",
@@ -501,7 +501,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "!quest_done@butcher",
             "event_resolved:1",
@@ -548,7 +548,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "!event_resolved:1"
           ],
@@ -568,7 +568,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "event_resolved:1",
             "quest_accepted@butcher",
@@ -590,7 +590,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "event_resolved:1",
             "!quest_accepted@butcher"
@@ -695,7 +695,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "!event_resolved:1"
           ],
@@ -715,7 +715,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "event_resolved:1",
             "quest_accepted@butcher",
@@ -737,7 +737,7 @@
           "PlayerKey": "LWN_story_thug_opt_fight",
           "PlayerKeyZh": "[威吓] 别拿码头帮吓唬我，要打就来。",
           "HintKey": "LWN_story_hint_thug_opt_fight",
-          "HintKeyZh": "逼他退让；可能激怒他",
+          "HintKeyZh": "成功：他怂了｜失败：他动手",
           "Requires": [
             "event_resolved:1",
             "!quest_accepted@butcher"

@@ -436,18 +436,21 @@ namespace LivingWorldNpcs
                 string intent = context.Intent ?? "";
                 string action = context.CurrentAction ?? "";
                 string stim = context.StimulusType ?? "";
+                // 🔴 2026-11-19 实机：战斗台词不能只说"在厮杀" —— 不点名对手是谁，
+                //    LLM 会把玩家当成同伴写出"跟紧我别乱冲"。这里把对手名字与"他是敌人"一起给它。
+                string opponent = context.Speaker?.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_other");
                 // 本地化：LWN_speech_situation_surrender（认输求饶处境，双桶；{HP} = 血况后缀，可空）
                 if (intent == "Surrendering") return LWNTextHelper.ResolveCompound("LWN_speech_situation_surrender", ("HP", hp));
                 // 本地化：LWN_speech_situation_fighting（厮杀处境，双桶；{HP} = 血况后缀，可空）
                 if (intent == "Fighting" || action == "FightEnemyAction")
-                    return LWNTextHelper.ResolveCompound("LWN_speech_situation_fighting", ("HP", hp))
+                    return LWNTextHelper.ResolveCompound("LWN_speech_situation_fighting", ("HP", hp), ("OPPONENT", opponent))
                         + (string.IsNullOrEmpty(context.KnownConflict) ? "" : "\n" + context.KnownConflict);
                 switch (stim)
                 {
                     // 本地化：LWN_speech_situation_attacked（被攻击处境，双桶；{HP} = 血况后缀，可空）
                     case "attacked": return LWNTextHelper.ResolveCompound("LWN_speech_situation_attacked", ("HP", hp));
                     // 本地化：LWN_speech_situation_combat（战斗爆发处境，双桶；{HP} = 血况后缀，可空）
-                    case "combat": return LWNTextHelper.ResolveCompound("LWN_speech_situation_combat", ("HP", hp));
+                    case "combat": return LWNTextHelper.ResolveCompound("LWN_speech_situation_combat", ("HP", hp), ("OPPONENT", opponent));
                     // 本地化：LWN_speech_situation_approach（靠近处境，双桶）
                     case "approach_by": return LWNTextHelper.ResolvePrompt("LWN_speech_situation_approach");
                     // 本地化：LWN_speech_situation_seen_crime（目击不法处境，双桶）

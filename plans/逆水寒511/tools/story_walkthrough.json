@@ -14,23 +14,6 @@
       "Params",
       "amount"
     ],
-    "training": [
-      "dialogues",
-      "gate_interrogation",
-      "Nodes",
-      "blocker_open",
-      "Options",
-      "threat",
-      "Check",
-      "MinimumGrowth"
-    ],
-    "force_reward": [
-      "cast",
-      "Npcs",
-      "butcher",
-      "AttributeRewards",
-      "force"
-    ],
     "errand_pay": [
       "dialogues",
       "story_pawnbroker",
@@ -124,61 +107,16 @@
     },
     {
       "Id": "threat",
-      "Title": "先练武力，再威吓守卫",
+      "Title": "硬碰硬：直接威吓守卫",
       "Ability": "force",
       "Approach": "force",
-      "Summary": "大山委托交差后获得{{force_reward}}点武力培养，再尝试威吓。",
+      "Summary": "力量就是本钱：和守卫比活力，开局胜算很低，输了会打起来。",
       "Conditions": [
-        "已经拿到至少{{training}}点武力培养收益；守卫仍带武器，自己没有穿贵族戏服。初始角色不能直接用这句通关。"
+        "守卫仍带武器，自己没有穿贵族戏服；威吓按双方力量随机检定，开局胜算很低，失败会进入对峙。"
       ],
       "Steps": [
         {
-          "Text": "找肉案旁的郑大山，从生意话题进入差事，听完砸摊的麻烦，答应帮忙。",
-          "Links": [
-            {
-              "Actor": "butcher",
-              "Node": "butcher_work_hub",
-              "Option": "deal",
-              "Label": "了解差事"
-            },
-            {
-              "Actor": "butcher",
-              "Node": "butcher_deal",
-              "Option": "job",
-              "Label": "接砸摊委托"
-            }
-          ]
-        },
-        {
-          "Text": "先替老周处理眼前的保护费纠纷，再找马横谈郑大山已托付的砸摊差事。可尝试劝说或威吓；威吓按双方实际武力随机检定，失败后答应迎战，听完回应才真实开打。双方掉真实血量，落败者重伤倒地；玩家输了不算办妥差事。",
-          "Links": [
-            {
-              "Actor": "thug",
-              "Node": "thug_hub",
-              "Option": "settle",
-              "Label": "和平处理"
-            },
-            {
-              "Actor": "thug",
-              "Node": "thug_hub",
-              "Option": "fight_butcher",
-              "Label": "威吓／失败后迎战"
-            }
-          ]
-        },
-        {
-          "Text": "回大山处真正交差，领到培养收益和工具。只听教学、只接单或只把马横打倒，都不能代替交差。",
-          "Links": [
-            {
-              "Actor": "butcher",
-              "Node": "butcher_turnin",
-              "Option": "ok",
-              "Label": "交差学发力"
-            }
-          ]
-        },
-        {
-          "Text": "再找铁头，选择威吓，先看悬停里的双方能力和概率，再决定是否尝试。",
+          "Text": "走到城门，找铁头选威吓。悬停会给出双方力量与成功率，再决定要不要赌。",
           "Links": [
             {
               "Actor": "blocker",
