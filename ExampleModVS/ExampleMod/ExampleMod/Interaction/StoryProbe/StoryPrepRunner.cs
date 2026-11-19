@@ -28,6 +28,22 @@ namespace LivingWorldNpcs
         private readonly HashSet<string> _placed = new HashSet<string>(StringComparer.Ordinal);
         public Dictionary<string, Vec3> ResolvedAnchors { get; private set; }
         public StoryLayoutDef Layout => _layout;
+        /// <summary>运行活动消费同一份已准备点位；缺锚点不猜玩家坐标。</summary>
+        public bool TryResolvePoint(string id, out Vec3 position)
+        {
+            position = Vec3.Zero;
+            var point = _layout?.FindPoint(id);
+            if (!Ready || point == null || ResolvedAnchors == null) return false;
+            if (!point.Place.HasAbsolute && (!IsAnchorResolved(point.Place.Anchor)
+                || !ResolvedAnchors.ContainsKey(point.Place.Anchor))) return false;
+            if (!string.IsNullOrEmpty(point.Prop)) return false;
+            position = PointPos(_host, ResolvedAnchors, point.Place);
+            // 行走点复用真实地面查询，不能把门实体的高度当成道路高度。
+            float ground = V.GroundHeight(Mission.Current?.Scene, position);
+            if (float.IsNaN(ground) || float.IsInfinity(ground) || Math.Abs(ground) >= 100000f) return false;
+            position.z = ground;
+            return true;
+        }
         public bool IsAnchorResolved(string id) => id == "player" || _results.TryGetValue("anchor:" + id, out var result)
             && result.StartsWith("ok", StringComparison.Ordinal);
         private bool _skipRequested;

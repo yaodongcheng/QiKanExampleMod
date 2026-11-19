@@ -235,12 +235,13 @@ namespace LivingWorldNpcs
         /// 重新核对完整 CanOpen，最终闸口不丢。静态闸口（PlotEnabled/LLM 配置/战斗/对话/系统弹窗）
         /// 无论何时都保留。
         /// </summary>
-        public static bool CanOpen(bool screenStateAgnostic = false)
+        public static bool CanOpen(bool screenStateAgnostic = false, bool localCooperation = false)
         {
             try
             {
                 if (!Settings.Instance.PlotEnabled) return false;
-                if (!Settings.Instance.IsLLMConfigured) return false;
+                if (!Settings.Instance.IsLLMConfigured && !(localCooperation && Mission.Current != null
+                    && Planner.Cooperation.CoopView.HasLocalCard)) return false;
                 if (Mission.Current != null && Settings.Instance.IsInteractionDisabled()) return false;
                 // 🔴 2026-08-23（用户指引：复用既有对话判定）：任何对话激活中（原版对话流打开——
                 // 定居点对话/正常 mission 内对话/大地图对话）→ M 键/↑/按钮/通知全部禁呼出。
@@ -270,6 +271,22 @@ namespace LivingWorldNpcs
             catch { return false; }
         }
 
+        public static bool ShowCooperationCard()
+        {
+            if (!Planner.Cooperation.CoopView.HasLocalCard || !CanOpen(localCooperation: true)) return false;
+            if (IsOpen)
+            {
+                if (IsCompactMode) ToggleExpand();
+                SelectConversation(NearbyFeed.Conversation);
+            }
+            else
+            {
+                _mode = ImChatMode.Full;
+                if (!Open(NearbyFeed.Conversation, localCooperation: true)) return false;
+            }
+            return IsOpen && _layerOwnerScreen == ScreenManager.TopScreen && _vm != null
+                && _selected?.Id == NearbyFeed.ChannelId;
+        }
         public static void Toggle() => ToggleTo(null);
 
         /// <summary>打开并定位到指定会话（通知点击路径）。</summary>
@@ -291,9 +308,9 @@ namespace LivingWorldNpcs
         /// 定位附近频道 + 预填「@名字 #编号 」前缀，玩家可删掉转普通喊话）；SelectConversation 之后
         /// 设置（_vm 已创建 + LoadMovie 完成，双向绑定会把文本推给控件，无时序空隙）。
         /// </summary>
-        public static bool Open(ImConversation selectConv = null, string prefill = null)
+        public static bool Open(ImConversation selectConv = null, string prefill = null, bool localCooperation = false)
         {
-            if (IsOpen || !CanOpen()) return false;
+            if (IsOpen || !CanOpen(localCooperation: localCooperation)) return false;
             EnsureSubscribed();
 
             try
@@ -301,7 +318,7 @@ namespace LivingWorldNpcs
                 // 玩家体验完善（Q1f）：首次打开引导提示（玩家可能不知道热键/功能存在）
                 // 🔴 2026-08-17（Q4 手柄）：{OPEN_KEY} 动态 = 当前设备呼出键字形（M / ↑）——
                 // 手柄设备玩家看到「↑ 打开」而非「M 打开」
-                if (!_welcomed)
+                if (!_welcomed && !localCooperation)
                 {
                     _welcomed = true;
                     string openKey = ModInput.Glyph(InteractionIds.IM);
@@ -2093,6 +2110,8 @@ namespace LivingWorldNpcs
 
         public static void SelectConversation(ImConversation conv)
         {
+            // 本地协作卡不开放普通传讯频道；LLM配置总闸继续约束自由输入。
+            if (!Settings.Instance.IsLLMConfigured && conv?.Type != ImConversationType.Nearby) return;
             _selected = conv;
             // 🔴 十一轮：切会话默认贴底（IM 惯例：打开会话看最新；面板引用首帧才解析，
             // ScrollToBottom 的 val=max 由 Tick 里的贴底闭环持续补上）
@@ -2127,6 +2146,11 @@ namespace LivingWorldNpcs
             RefreshTitle();
             RefreshMessages();
             RefreshDynamic();
+        }
+        public static void RebuildCardMessages()
+        {
+            _vm?.Messages.Clear();
+            RefreshAll();
         }
 
         private static void RefreshChannels()
@@ -2555,7 +2579,8 @@ namespace LivingWorldNpcs
             foreach (var m in msgs)
             {
                 if (m == null) continue;
-                if (m.IsProposal && !m.IsProposalResolved) latestCard = m;
+                if (m.IsCoopCard && Planner.Cooperation.CoopDirector.Current?.Find(m.CooperationActivityId)?.IsActive == true) latestCard = m;
+                else if (m.IsProposal && !m.IsProposalResolved) latestCard = m;
                 else if (m.IsPlanCard && (string.IsNullOrEmpty(m.ExecutorId) || ImCommandFlow.IsExecuting(m))) latestCard = m;
                 // 🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议消息（待决）参与锚点竞争——最新者接管
                 else if (m.IsPlanSuggest && !m.IsSuggestionResolved) latestCard = m;
@@ -2570,7 +2595,7 @@ namespace LivingWorldNpcs
                 ImMessage card = null;
                 if (m != null)
                 {
-                    if (m.IsPlanCard || m.IsProposal || m.IsPlanSuggest || m.IsTargetConfirm || m.IsAskPlayerCard)
+                    if (m.IsCoopCard || m.IsPlanCard || m.IsProposal || m.IsPlanSuggest || m.IsTargetConfirm || m.IsAskPlayerCard)
                         card = m;
                     else if (m.IsPlanChainMessage)
                     {

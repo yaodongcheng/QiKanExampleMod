@@ -791,6 +791,22 @@
     <Compile Include="Planner\TargetRiskEvaluator.cs" />
     <Compile Include="Planner\ReactiveAgent.cs" />
     <Compile Include="Planner\PlanReplan.cs" />
+    <Compile Include="Planner\Cooperation\CoopCore.cs" />
+    <Compile Include="Planner\Cooperation\CoopState.cs" />
+    <Compile Include="Planner\Cooperation\CoopGoap.cs" />
+    <Compile Include="Planner\Cooperation\CoopHtn.cs" />
+    <Compile Include="Planner\Cooperation\CoopPlanner.cs" />
+    <Compile Include="Planner\Cooperation\CoopContent.cs" />
+    <Compile Include="Planner\Cooperation\CoopFacts.cs" />
+    <Compile Include="Planner\Cooperation\CoopLog.cs" />
+    <Compile Include="Planner\Cooperation\CoopDirector.cs" />
+    <Compile Include="Planner\Cooperation\CoopInteraction.cs" />
+    <Compile Include="Planner\Cooperation\CoopRecruitment.cs" />
+    <Compile Include="Planner\Cooperation\CoopView.cs" />
+    <Compile Include="Planner\Cooperation\CoopMissionRuntime.cs" />
+    <Compile Include="Planner\Cooperation\CoopRequestRouter.cs" />
+    <Compile Include="Planner\Cooperation\CoopMissionBehavior.cs" />
+    <Compile Include="Planner\Cooperation\CoopCommands.cs" />
     <!-- Properties -->
     <Compile Include="Properties\AssemblyInfo.cs" />
     <!-- Quests -->

@@ -441,10 +441,16 @@ namespace LivingWorldNpcs
                 var receipt = args != null && args.Length > 1 ? args[1] as Action<PerformanceAction> : null;
                 var stopped = args != null && args.Length > 2 ? args[2] as Action<string> : null;
                 PerformanceAction accepted = null;
+                bool replaceAmbient = args != null && args.Length > 3 && args[3] is bool replace && replace;
                 if (!string.IsNullOrEmpty(token) && !IsBound && !IsStatusHeld && !IsStunned
                     && !IsStoryIntercepting && !Settings.Instance.IsInteractionDisabled()
                     && AgentControlHelper.SafeIsActive(Owner) && !ConversationEntryPatch.IsConversationActive())
                 {
+                    if (replaceAmbient && IsPerforming && _performance.OwnerToken.StartsWith("street-ambient-", StringComparison.Ordinal))
+                    {
+                        _performance.Finish("priority-request");
+                        ClearAllActions(lockPlace: false);
+                    }
                     if (IsPerforming && _performance.OwnerToken == token) accepted = _performance;
                     else if (!IsPerforming && (EffectiveAction == null || EffectiveAction is StayAction
                             || EffectiveAction is StreetIdleAction)   // 市井常驻态可被演出/工作/群戏直接抢占

@@ -55,6 +55,9 @@ namespace LivingWorldNpcs
             Add("quest_accepted", true, "委托是否已接（可选参数=npc id）");
             Add("quest_done", true, "委托是否已完成（可选参数=npc id）");
             Add("quest_turned", true, "委托是否已交差（可选参数=npc id）");
+            Add("coop_recruitable", true, "当前演员满足内容定义的招募前置", new string[0]);
+            Add("coop_available", true, "当前演员有有效协作约定或是主队同伴", new string[0]);
+            Add("coop_favor_available", true, "当前演员仍有一次合法临时人情", new string[0]);
             Add("gold>=", true, "玩家钱数下限（参数=无符号整数）");
             Add("item", true, "玩家是否持有物品（参数=物品 id）");
             Add("event_resolved", true, "某起市井纠纷是否已解决（参数=事件编号）");
@@ -156,6 +159,14 @@ namespace LivingWorldNpcs
             Add("lesson_start", true, new[] { "lesson" }, new[] { "lesson" }, "开始真实实操教学（场景恢复控制后执行）");
             Add("lesson_cancel", true, new string[0], new string[0], "停止本场实操教学并撤销授权");
             Add("message", true, new[] { "key" }, new[] { "key" }, "显示一条本地化消息");
+            // 随从协助破局（2026-11-18）：协作约定／正式招募／开始活动。
+            // 效果只接既有业务管线，不在这里写玩法分支。
+            Add("coop_contract", true, new[] { "mode", "purpose" }, new[] { "mode" },
+                "临时协作约定：限当前场景、不占队伍名额");
+            Add("coop_recruit", true, new[] { "mode", "npc" }, new[] { "mode" },
+                "正式招募：paid=按报价付款，charm=免招募费说服成功后入队");
+            Add("coop_start", true, new[] { "role", "npc" }, new[] { "role" },
+                "按已约定的分工开始本人协作活动");
         }
 
         private static void Add(string name, bool implemented, string[] allowed, string[] required, string notes,

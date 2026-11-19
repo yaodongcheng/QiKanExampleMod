@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.ObjectSystem;
@@ -544,5 +545,61 @@ namespace LivingWorldNpcs
                 ("RESULT", LWNTextHelper.ResolveText(
                     Success ? "LWN_story_check_success" : "LWN_story_check_fail",
                     Success ? "success" : "failed")));
+    }
+
+    // ── 剧情演员出场判据（2026-11-19 立，单一判据）──
+    // 为什么要收口：旧存档的剧情演员会挂着上一座城的 CurrentSettlement，以前每个调用点各写一遍，
+    // 于是"换城后整场布景判 missing"这种故障只能靠读日志才发现。
+    public enum StoryCastAvailability
+    {
+        Ok = 0,
+        /// <summary>本人不在任何队伍、只是挂着旧据点：按剧情演员放到当前场景。</summary>
+        OkStaleSettlement = 1,
+        Dead = 2,
+        Detained = 3,
+        InOtherParty = 4,
+        Missing = 5
+    }
+
+    public static class StoryCastAvailabilityHelper
+    {
+        /// <summary>纯判据（可离线测试）：不得引入其他硬拒绝条件。</summary>
+        public static StoryCastAvailability Evaluate(bool alive, bool prisoner, bool inOtherParty, bool staleSettlement)
+        {
+            if (!alive) return StoryCastAvailability.Dead;
+            if (prisoner) return StoryCastAvailability.Detained;
+            if (inOtherParty) return StoryCastAvailability.InOtherParty;
+            return staleSettlement ? StoryCastAvailability.OkStaleSettlement : StoryCastAvailability.Ok;
+        }
+
+        public static bool IsRefused(StoryCastAvailability availability)
+        {
+            return availability == StoryCastAvailability.Dead
+                || availability == StoryCastAvailability.Detained
+                || availability == StoryCastAvailability.InOtherParty
+                || availability == StoryCastAvailability.Missing;
+        }
+
+        public static string Describe(StoryCastAvailability availability)
+        {
+            switch (availability)
+            {
+                case StoryCastAvailability.Ok: return "ok";
+                case StoryCastAvailability.OkStaleSettlement: return "ok(stale_settlement)";
+                case StoryCastAvailability.Dead: return "dead";
+                case StoryCastAvailability.Detained: return "detained";
+                case StoryCastAvailability.InOtherParty: return "in_other_party";
+                default: return "missing";
+            }
+        }
+
+        /// <summary>引擎侧包装：只读英雄状态，不修改世界。</summary>
+        public static StoryCastAvailability Evaluate(Hero hero, Settlement currentSettlement)
+        {
+            if (hero == null) return StoryCastAvailability.Missing;
+            bool inOtherParty = hero.PartyBelongedTo != null && hero.PartyBelongedTo != MobileParty.MainParty;
+            bool stale = hero.CurrentSettlement != null && hero.CurrentSettlement != currentSettlement;
+            return Evaluate(hero.IsAlive, hero.IsPrisoner, inOtherParty, stale);
+        }
     }
 }

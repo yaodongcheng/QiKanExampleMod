@@ -1,0 +1,43 @@
+{
+  "_comment": "线索登记表（手维护源）：clue 只表达“玩家知道什么”，与任务/事件状态分开。未登记=拒收。",
+  "Schema": 1,
+  "Clues": [
+    {
+      "Id": "son_tools",
+      "Owner": "player",
+      "Type": "clue",
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_son.dialog.json:son_quest_accept",
+        "story_son.dialog.json:son_deal_why"
+      ],
+      "Readers": [
+        "story_outlaw.dialog.json:outlaw_intro/settle",
+        "story_outlaw.dialog.json:outlaw_intro/ask",
+        "story_outlaw.dialog.json:outlaw_intro/fight",
+        "story_outlaw.dialog.json:outlaw_hub/settle",
+        "story_outlaw.dialog.json:outlaw_hub/ask",
+        "story_outlaw.dialog.json:outlaw_hub/fight"
+      ],
+      "Note": "玩家从小六口中知道：杜野一伙抢了他的工具、伤了手"
+    },
+    {
+      "Id": "dock_girl",
+      "Owner": "player",
+      "Type": "clue",
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_widow.dialog.json:widow_ask_sister"
+      ],
+      "Readers": [
+        "story_thug.dialog.json:thug_intro/ask",
+        "story_thug.dialog.json:thug_intro/fight_personal",
+        "story_thug.dialog.json:thug_hub/ask",
+        "story_thug.dialog.json:thug_hub/fight_personal"
+      ],
+      "Note": "玩家从顾长生口中知道：青布姑娘被码头帮的人带走"
+    }
+  ]
+}

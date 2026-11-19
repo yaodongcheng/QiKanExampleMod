@@ -4,6 +4,7 @@ post_b,empire_town_m,gate_outer,post,gate_entity,-3,1.2,0,-1,,,
 pawnbroker_work,empire_town_m,market_square,work,pawnbroker_desk,1.05,0,0,180,act_bartender_wipe,1,0.6
 butcher_work,empire_town_m,market_square,work,butcher_block,1.05,0,0,180,act_bartender_meat,1,0.6
 widow_work,empire_town_m,market_square,work,widow_stage,0,0,0.572,180,act_play_celtic_harp_stand,1,0.6
+coop_lure_spot,empire_town_m,market_square,spot,gate,-18,5,0,-1,,,
 blocker_spot,empire_town_m,market_square,spot,gate,-3,-1.2,0,-1,,,
 debtor_spot,empire_town_m,market_square,spot,player,8.74747,-8.5524,0,-1,,,
 gate_sentry_spot,empire_town_m,market_square,spot,gate,-3,1.2,0,-1,,,

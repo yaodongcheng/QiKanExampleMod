@@ -78,16 +78,24 @@
       ],
       "Options": [
         {
+          "Id": "who",
+          "PlayerKey": "LWN_story_outlaw_opt_who",
+          "PlayerKeyZh": "这粮仓里放着什么？",
+          "HintKey": "LWN_story_hint_outlaw_opt_who",
+          "HintKeyZh": "先问点不涉及任何旧事的闲话。",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "outlaw_stranger",
+          "Speaker": "player",
+          "Listener": "npc"
+        },
+        {
           "Id": "settle",
           "PlayerKey": "LWN_story_outlaw_opt_settle",
           "PlayerKeyZh": "[劝说] 他靠钩索吃饭，手又伤着，别再抢他的东西、找他的麻烦了。",
           "HintKey": "LWN_story_hint_outlaw_opt_settle",
           "HintKeyZh": "劝他归还工具",
-          "Requires": [
-            "quest_accepted@son",
-            "!quest_done@son",
-            "!asked:attempt_LWN_story_outlaw_opt_settle"
-          ],
+          "Requires": ["clue:son_tools"],
           "Effects": [
             {
               "Id": "mark",
@@ -114,9 +122,7 @@
           "PlayerKeyZh": "你们昨天抢了墙头那个半大孩子的飞钩，还伤了人。",
           "HintKey": "LWN_story_hint_outlaw_opt_ask",
           "HintKeyZh": "打听抢飞钩和伤人的事。",
-          "Requires": [
-            "!asked:outlaw_ask"
-          ],
+          "Requires": ["clue:son_tools"],
           "Effects": [
             {
               "Id": "mark",
@@ -137,9 +143,7 @@
           "PlayerKeyZh": "你要靠拳头讲理，那就来。",
           "HintKey": "LWN_story_hint_outlaw_opt_fight",
           "HintKeyZh": "直接与野贼开战。",
-          "Requires": [
-            "!quest_done@son"
-          ],
+          "Requires": ["clue:son_tools"],
           "Effects": [
             {
               "Id": "start_fight",
@@ -185,11 +189,7 @@
           "PlayerKeyZh": "[劝说] 他靠钩索吃饭，手又伤着，别再抢他的东西、找他的麻烦了。",
           "HintKey": "LWN_story_hint_outlaw_opt_settle",
           "HintKeyZh": "劝他归还工具",
-          "Requires": [
-            "quest_accepted@son",
-            "!quest_done@son",
-            "!asked:attempt_LWN_story_outlaw_opt_settle"
-          ],
+          "Requires": ["clue:son_tools"],
           "Effects": [
             {
               "Id": "mark",
@@ -216,9 +216,7 @@
           "PlayerKeyZh": "你们昨天抢了墙头那个半大孩子的飞钩，还伤了人。",
           "HintKey": "LWN_story_hint_outlaw_opt_ask",
           "HintKeyZh": "打听抢飞钩和伤人的事。",
-          "Requires": [
-            "!asked:outlaw_ask"
-          ],
+          "Requires": ["clue:son_tools"],
           "Effects": [
             {
               "Id": "mark",
@@ -239,9 +237,7 @@
           "PlayerKeyZh": "你要靠拳头讲理，那就来。",
           "HintKey": "LWN_story_hint_outlaw_opt_fight",
           "HintKeyZh": "直接与野贼开战。",
-          "Requires": [
-            "!quest_done@son"
-          ],
+          "Requires": ["clue:son_tools"],
           "Effects": [
             {
               "Id": "start_fight",
@@ -287,11 +283,7 @@
           "PlayerKeyZh": "[劝说] 他靠钩索吃饭，手又伤着，别再抢他的东西、找他的麻烦了。",
           "HintKey": "LWN_story_hint_outlaw_opt_settle",
           "HintKeyZh": "劝他归还工具",
-          "Requires": [
-            "quest_accepted@son",
-            "!quest_done@son",
-            "!asked:attempt_LWN_story_outlaw_opt_settle"
-          ],
+          "Requires": ["clue:son_tools"],
           "Effects": [
             {
               "Id": "mark",
@@ -318,9 +310,7 @@
           "PlayerKeyZh": "你要靠拳头讲理，那就来。",
           "HintKey": "LWN_story_hint_outlaw_opt_fight",
           "HintKeyZh": "直接与野贼开战。",
-          "Requires": [
-            "!quest_done@son"
-          ],
+          "Requires": ["clue:son_tools"],
           "Effects": [
             {
               "Id": "start_fight",
@@ -359,20 +349,7 @@
         "act_conversation_aggressive_very_negative"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "outlaw_settled",
@@ -394,32 +371,7 @@
           "Receipt": "once"
         }
       ],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "outlaw_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "outlaw_settle_refused",
@@ -438,7 +390,7 @@
           "PlayerKeyZh": "你要靠拳头讲理，那就来。",
           "HintKey": "LWN_story_hint_outlaw_opt_fight",
           "HintKeyZh": "直接与野贼开战。",
-          "Requires": [],
+          "Requires": ["clue:son_tools"],
           "Effects": [
             {
               "Id": "start_fight",
@@ -478,6 +430,18 @@
           "Listener": "npc"
         }
       ]
+    },
+    {
+      "Id": "outlaw_stranger",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_outlaw_stranger",
+      "TextKeyZh": "不关你的事，赶紧走开。",
+      "LineActions": [
+        "act_conversation_aggressive_trivial"
+      ],
+      "OnEnter": [],
+      "NextNode": ""
     }
   ],
   "_Speaker说明": "节点只能由NPC说话；npc/questioner绑定本次入口演员，其余为Actors中的实名ID。",

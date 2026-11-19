@@ -808,6 +808,29 @@ namespace LivingWorldNpcs
                 case "lesson_cancel": return true;
                 case "message":
                     return !string.IsNullOrEmpty(P("key"));
+                case "coop_contract":
+                case "coop_recruit":
+                {
+                    var mode = P("mode");
+                    if (string.IsNullOrEmpty(mode)) { error = effect.Id + ".mode missing"; return false; }
+                    var eligibility = Planner.Cooperation.CoopRecruitment.Evaluate(actor);
+                    if (!eligibility.Ok) { error = "recruit not eligible: " + eligibility.Reason; return false; }
+                    if (effect.Id == "coop_recruit" && string.Equals(mode, "paid", StringComparison.OrdinalIgnoreCase)
+                        && TaleWorlds.CampaignSystem.Hero.MainHero.Gold < eligibility.Price)
+                    {
+                        error = "gold insufficient";
+                        return false;
+                    }
+                    return true;
+                }
+                case "coop_start":
+                {
+                    var behavior = Planner.Cooperation.CoopMissionBehavior.Current;
+                    if (behavior == null) { error = "coop host unavailable"; return false; }
+                    if (string.IsNullOrEmpty(P("role"))) { error = "coop_start.role missing"; return false; }
+                    if (!Planner.Cooperation.CoopRecruitment.CanCooperate(actor, null, out error)) return false;
+                    return true;
+                }
                 default:
                     return true;   // 迁移桥动词由既有管线自行复核
             }
@@ -1124,6 +1147,39 @@ namespace LivingWorldNpcs
                         if (string.IsNullOrEmpty(P("key"))) { error = "message.key missing"; return false; }
                         StoryProbeDialogue.ShowMessageKey(P("key"));
                         return true;
+
+                    case "coop_contract":
+                    {
+                        var mode = P("mode");
+                        if (!string.Equals(mode, "temporary", StringComparison.OrdinalIgnoreCase))
+                        { error = "coop_contract.mode must be temporary"; return false; }
+                        var behavior = Planner.Cooperation.CoopMissionBehavior.Current;
+                        double sim = behavior != null ? behavior.SimTime : 0;
+                        return Planner.Cooperation.CoopRecruitment.TrySetTemporary(actor, P("purpose"), sim, out error);
+                    }
+                    case "coop_recruit":
+                    {
+                        var behavior = Planner.Cooperation.CoopMissionBehavior.Current;
+                        double sim = behavior != null ? behavior.SimTime : 0;
+                        var mode = P("mode") ?? string.Empty;
+                        if (string.Equals(mode, "paid", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return Planner.Cooperation.CoopRecruitment.TryCommitPaid(actor, sim, out error);
+                        }
+                        if (string.Equals(mode, "charm", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return Planner.Cooperation.CoopRecruitment.TryCommitCharm(actor, sim, out error);
+                        }
+                        error = "coop_recruit.mode must be paid or charm";
+                        return false;
+                    }
+                    case "coop_start":
+                    {
+                        var behavior = Planner.Cooperation.CoopMissionBehavior.Current;
+                        if (behavior == null) { error = "coop host unavailable"; return false; }
+                        var started = behavior.StartCooperation(actor, P("role"), out error, preview: true);
+                        return started != null;
+                    }
 
                     case "skill_check":
                     {

@@ -122,6 +122,12 @@ SECOND_MODULE_CHECKS = [
     ("check_module_registration.py", ["--unloaded-only"]),
     # 序章「市井 · 城门序章」（2026-11-12）：对话树节点/路由不悬空 + 每个 LWN_story_* 键中英两层都在。
     ("check_story_probe.py", None),
+    # 剧情标记登记（2026-11-19）：对白里 mark/asked 的标记必须在 StoryFlags.json 登记；
+    # 未登记 = 拒收；非 Legacy 必须带 knows./npc./scene. 命名空间；quest_* 必须用结构化谓词。
+    ("check_story_flags.py", None),
+    # 选项"来源"闸门（2026-11-19）：后果类选项必须有 现场／线索／已承接业务 之一，
+    # 现场含 门岗盘问、街头事件、刚谈崩的对峙；线索必须已登记。
+    ("check_dialogue_option_basis.py", None),
 ]
 
 

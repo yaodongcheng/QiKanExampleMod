@@ -9,6 +9,7 @@ using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using LivingWorldNpcs.Planner.Cooperation;
 
 namespace LivingWorldNpcs
 {
@@ -25,7 +26,7 @@ namespace LivingWorldNpcs
                 "enable", "disable", "city", "status", "crime", "quests", "enter", "intro", "phase", "where", "spawn",
                 "check", "roll", "learn", "resolve", "strip", "restore", "reset", "talk", "goal",
                 "life", "lesson", "combat", "event", "dialogue", "goto", "abort", "money", "stage", "atom", "action", "reload", "hud",
-                "script", "population", "layout", "intercept", "work", "group", "persona", "gate", "trace", "scene", "environment", "help",
+                "script", "population", "layout", "intercept", "work", "group", "persona", "gate", "trace", "scene", "environment", "help", "cooperate",
             };
 
         [CommandLineFunctionality.CommandLineArgumentFunction("story_probe", "custom")]
@@ -39,6 +40,9 @@ namespace LivingWorldNpcs
 
                 switch (sub)
                 {
+                    case "cooperate":
+                        return CoopCommands.Handle(args, used);
+
                     case "enable":
                         Settings.Instance.StoryProbeEnabled = true;
                         return "OK: story_probe enabled (runtime only; set StoryProbeEnabled in config.json to persist). " +
@@ -426,7 +430,7 @@ namespace LivingWorldNpcs
                                 return "OK: goal HUD forced OFF (next tick).";
                             case "auto":
                                 StoryGoalHudMissionView.ForceVisible = null;
-                                return "OK: goal HUD back to auto (prologue active only).";
+                                return "OK: goal HUD back to auto (active prologue or completed in this mission).";
                             case "left":
                                 StoryGoalHudMissionView.ForcePosition = "top-left";
                                 return "OK: goal HUD position -> top-left.";
@@ -442,6 +446,8 @@ namespace LivingWorldNpcs
                                        $"highlight={StoryGoalHudMissionView.LastHighlight} " +
                                        $"fightPending={StoryProbeMissionBehavior.Current?.FirstGuardFightPending == true} " +
                                        $"defeated={StoryProbeMissionBehavior.Current?.FirstGuardDefeated == true} " +
+                                       $"completedHere={StoryProbeMissionBehavior.Current?.GoalCompleted == true} " +
+                                       $"crossed={StoryProbeMissionBehavior.Current?.PlayerHasCrossed == true} " +
                                        $"(usage: custom.story_probe hud on|off|auto|left|right|flash|status)";
                         }
                     }
@@ -454,10 +460,12 @@ namespace LivingWorldNpcs
                         // P0-D.5：新格式对话定义（*.dialog.json）整批重载；坏文件保留旧版
                         string dialogueReload = StoryDialogueLoader.ReloadAll();
                         string journalReload = PrologueJournalQuest.Reload();
+                        string cooperationReload = Planner.Cooperation.CoopMissionBehavior.Current?.ReloadContent()
+                            ?? "cooperation content will load on next mission";
                         StoryV2Data.Reload();
                         return $"OK: reloaded StoryProbeCast/Tuning/Stage/Dialogues -- npcs={StoryProbeDefs.Npcs.Count} " +
                                $"events={StoryProbeDefs.Events.Count}; dialogue defs: {dialogueReload}; {journalReload}; layout rules: {StoryV2Data.Report}; " +
-                               "active dialogue sessions retain their definitions; deferred layouts require reload on the map before the next entry.";
+                               "active dialogue sessions retain their definitions; deferred layouts require reload on the map before the next entry.; " + cooperationReload;
 
                     case "action":
                     {

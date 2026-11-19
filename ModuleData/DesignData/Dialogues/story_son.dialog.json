@@ -2,7 +2,7 @@
   "_comment": "511对话唯一维护源（story_dialogue/2）：触发、条件、入口、节点、效果与LineActions直接维护本文件。EntryOptionZh/TextKeyZh/PlayerKeyZh保留中文审阅副本，由annotate_dialogue_zh.py与中文语言表同步；旧格式与迁移生成链已退出维护。 一句一节点；Speaker/Listener控制真实参与者；NextNode仅连续NPC台词使用；Options为玩家真实回应；所有入口NPC先开口。原节点ID留在末句，效果/选项收据保持。",
   "Schema": "story_dialogue/2",
   "DialogueId": "story_son",
-  "ContentVersion": 13,
+  "ContentVersion": 14,
   "EntryOption": "LWN_story_son_entry",
   "EntryOptionZh": "[说两句] 这墙头是你的地盘？",
   "SkipVanillaOpening": true,
@@ -429,7 +429,14 @@
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
-      "OnEnter": [],
+      "OnEnter": [        {
+          "Id": "clue",
+          "Params": {
+            "clue": "son_tools"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }],
       "Options": [
         {
           "Id": "job",
@@ -488,7 +495,14 @@
           "Commit": "on_enter",
           "Receipt": "once"
         }
-      ],
+      ,        {
+          "Id": "clue",
+          "Params": {
+            "clue": "son_tools"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }],
       "Options": [
         {
           "Id": "back",
@@ -499,6 +513,18 @@
           "Requires": [],
           "Effects": [],
           "NextNode": "son_hub",
+          "Speaker": "player",
+          "Listener": "npc"
+        },
+        {
+          "Id": "ask_terms",
+          "PlayerKey": "LWN_story_son_opt_accept_ask",
+          "PlayerKeyZh": "谈不拢怎么办？",
+          "HintKey": "LWN_story_hint_son_opt_accept_ask",
+          "HintKeyZh": "问他万一谈不成该怎么收场。",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_quest_accept_notes",
           "Speaker": "player",
           "Listener": "npc"
         },
@@ -560,32 +586,7 @@
           "Receipt": "once"
         }
       ],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_son_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "son_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "son_chat",
@@ -618,6 +619,21 @@
             }
           ],
           "NextNode": "son_chat_2",
+          "Speaker": "player",
+          "Listener": "npc"
+        },
+        {
+          "Id": "coop",
+          "PlayerKey": "LWN_story_son_opt_coop",
+          "PlayerKeyZh": "有桩事想请你搭把手。",
+          "HintKey": "LWN_story_hint_son_opt_coop",
+          "HintKeyZh": "谈合作与招募。",
+          "Requires": [
+            "quest_turned",
+            "event_resolved:4"
+          ],
+          "Effects": [],
+          "NextNode": "son_coop_open",
           "Speaker": "player",
           "Listener": "npc"
         },
@@ -1608,32 +1624,8 @@
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
-      "Options": [
-        {
-          "Id": "back",
-          "Speaker": "player",
-          "Listener": "npc",
-          "PlayerKey": "LWN_story_son_practice_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_son_practice_back",
-          "HintKeyZh": "回到钩索和锁具的话题。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "son_tools_hub"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ],
+      "Options": [],
+      "OptionsFrom": "son_tools_hub",
       "OnEnter": [
         {
           "Id": "mark",
@@ -2328,6 +2320,478 @@
       ],
       "OnEnter": [],
       "OptionsFrom": "son_methods_routes"
+    },
+    {
+      "Id": "son_coop_open",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_open",
+      "TextKeyZh": "你帮我把工具拿回来了，还有要我搭把手的地方？",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "start",
+          "PlayerKey": "LWN_story_son_opt_coop_go",
+          "PlayerKeyZh": "你去跟门口的守卫说几句，我留在这里看着。",
+          "HintKey": "LWN_story_hint_son_opt_coop_go",
+          "HintKeyZh": "请他先去找门口的守卫搭话，自己留在原地观察。",
+          "Requires": [
+            "coop_available"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_coop_member_ready"
+        },
+        {
+          "Id": "temp",
+          "PlayerKey": "LWN_story_son_opt_coop_temp",
+          "PlayerKeyZh": "你去跟守门的聊聊，我自己找机会过去。",
+          "HintKey": "LWN_story_hint_son_opt_coop_temp",
+          "HintKeyZh": "请他牵制门岗；成不成要看他，机会不保证。",
+          "Requires": [
+            "coop_favor_available"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_coop_temp"
+        },
+        {
+          "Id": "formal",
+          "PlayerKey": "LWN_story_son_opt_coop_formal",
+          "PlayerKeyZh": "我想让你跟着我干，什么条件？",
+          "HintKey": "LWN_story_hint_son_opt_coop_formal",
+          "HintKeyZh": "问正式同行的条件与价钱。",
+          "Requires": [
+            "coop_recruitable"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_coop_formal"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 说点别的。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
+          "Requires": [],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_coop_temp",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_temp",
+      "TextKeyZh": "我替你搭话能行，可这只手攥不住绳子。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "agree",
+          "PlayerKey": "LWN_story_son_opt_coop_agree",
+          "PlayerKeyZh": "[应下] 你就去搭话，别逞强。",
+          "HintKey": "LWN_story_hint_son_opt_coop_agree",
+          "HintKeyZh": "约定这一次帮忙的目的与限度。",
+          "Requires": [
+            "coop_favor_available"
+          ],
+          "Effects": [
+            {
+              "Id": "coop_contract",
+              "Params": {
+                "mode": "temporary",
+                "purpose": "talk"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_coop_ready"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 说点别的。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
+          "Requires": [],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_coop_ready",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_ready",
+      "TextKeyZh": "成，我去试试，成不成得看他。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "go",
+          "PlayerKey": "LWN_story_son_opt_coop_go",
+          "PlayerKeyZh": "你去跟门口的守卫说几句，我留在这里看着。",
+          "HintKey": "LWN_story_hint_son_opt_coop_go",
+          "HintKeyZh": "请他先去找门口的守卫搭话，自己留在原地观察。",
+          "Requires": [
+            "coop_available"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_coop_depart_temp"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 说点别的。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
+          "Requires": [],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_coop_formal",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_formal",
+      "TextKeyZh": "我不想一直替人看街，可伤着手，总得吃饭。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "price",
+          "PlayerKey": "LWN_story_son_opt_coop_price",
+          "PlayerKeyZh": "你要多少？",
+          "HintKey": "LWN_story_hint_son_opt_coop_price",
+          "HintKeyZh": "问清招募的价钱。",
+          "Requires": [],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_coop_price"
+        },
+        {
+          "Id": "charm",
+          "PlayerKey": "LWN_story_son_opt_coop_charm",
+          "PlayerKeyZh": "跟着我，你这只伤手能做些什么？",
+          "HintKey": "LWN_story_hint_son_opt_coop_charm",
+          "HintKeyZh": "试图免去招募费；成败取决于双方魅力。",
+          "Requires": [
+            "coop_recruitable",
+            "!asked:coop_recruit_charm"
+          ],
+          "Effects": [
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "coop_recruit_charm"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "Speaker": "player",
+          "Listener": "npc",
+          "Check": {
+            "Tactic": "Plead",
+            "Target": "son",
+            "Success": "son_coop_charm_ok",
+            "Fail": "son_coop_charm_no",
+            "Capability": "Persuade"
+          }
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 说点别的。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
+          "Requires": [],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_coop_price",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_price",
+      "TextKeyZh": "给我三十第纳尔添点路上的东西，我就跟你走。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "pay",
+          "PlayerKey": "LWN_story_son_opt_coop_pay",
+          "PlayerKeyZh": "这三十第纳尔你拿着，跟我走。",
+          "HintKey": "LWN_story_hint_son_opt_coop_pay",
+          "HintKeyZh": "支付三十第纳尔并正式招募；钱不够或队伍满了会当场说明。",
+          "Requires": [
+            "coop_recruitable",
+            "gold>=30"
+          ],
+          "Effects": [
+            {
+              "Id": "coop_recruit",
+              "Params": {
+                "mode": "paid"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_coop_joined"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_back",
+          "PlayerKeyZh": "[收住] 说点别的。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
+          "Requires": [],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_hub"
+        }
+      ]
+    },
+    {
+      "Id": "son_coop_joined",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_joined",
+      "TextKeyZh": "钱收下了，我跟你走。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "go",
+          "PlayerKey": "LWN_story_son_opt_coop_go",
+          "PlayerKeyZh": "你去跟门口的守卫说几句，我留在这里看着。",
+          "HintKey": "LWN_story_hint_son_opt_coop_go",
+          "HintKeyZh": "请他先去找门口的守卫搭话，自己留在原地观察。",
+          "Requires": [
+            "coop_available"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_coop_depart_paid"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开] 我先走了。",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
+          "Requires": [],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "son_coop_charm_ok",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_charm_ok",
+      "TextKeyZh": "那我跟你走，先做些不伤手的活。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [
+        {
+          "Id": "coop_recruit",
+          "Params": {
+            "mode": "charm"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
+        }
+      ],
+      "Options": [
+        {
+          "Id": "go",
+          "PlayerKey": "LWN_story_son_opt_coop_go",
+          "PlayerKeyZh": "你去跟门口的守卫说几句，我留在这里看着。",
+          "HintKey": "LWN_story_hint_son_opt_coop_go",
+          "HintKeyZh": "请他先去找门口的守卫搭话，自己留在原地观察。",
+          "Requires": [
+            "coop_available"
+          ],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": "son_coop_depart_charm"
+        },
+        {
+          "Id": "leave",
+          "PlayerKey": "LWN_story_opt_leave",
+          "PlayerKeyZh": "[离开] 我先走了。",
+          "HintKey": "LWN_story_hint_leave",
+          "HintKeyZh": "结束交谈。",
+          "Requires": [],
+          "Effects": [],
+          "Speaker": "player",
+          "Listener": "npc",
+          "NextNode": ""
+        }
+      ]
+    },
+    {
+      "Id": "son_coop_charm_no",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_charm_no",
+      "TextKeyZh": "你说得好听，我还是得先顾自己的日子。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [],
+      "OptionsFrom": "son_hub"
+    },
+    {
+      "Id": "son_coop_depart_temp",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_depart_temp",
+      "TextKeyZh": "我先把打算跟你说清楚，你点头了我再去。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [
+        {
+          "Id": "coop_start",
+          "Params": {
+            "role": "companion"
+          },
+          "Commit": "on_session_end",
+          "Receipt": "session"
+        }
+      ],
+      "NextNode": "",
+      "Options": []
+    },
+    {
+      "Id": "son_coop_depart_paid",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_depart_paid",
+      "TextKeyZh": "我先把打算跟你说清楚，你点头了我再去。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [
+        {
+          "Id": "coop_start",
+          "Params": {
+            "role": "companion"
+          },
+          "Commit": "on_session_end",
+          "Receipt": "session"
+        }
+      ],
+      "NextNode": "",
+      "Options": []
+    },
+    {
+      "Id": "son_coop_depart_charm",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_depart_charm",
+      "TextKeyZh": "我先把打算跟你说清楚，你点头了我再去。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [
+        {
+          "Id": "coop_start",
+          "Params": {
+            "role": "companion"
+          },
+          "Commit": "on_session_end",
+          "Receipt": "session"
+        }
+      ],
+      "NextNode": "",
+      "Options": []
+    },
+    {
+      "Id": "son_coop_member_ready",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_coop_member_ready",
+      "TextKeyZh": "我先把打算跟你说清楚，你点头了我再去。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [
+        {
+          "Id": "coop_start",
+          "Params": {
+            "role": "companion"
+          },
+          "Commit": "on_session_end",
+          "Receipt": "session"
+        }
+      ],
+      "NextNode": "",
+      "Options": []
+    },
+    {
+      "Id": "son_quest_accept_notes",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_accept_notes",
+      "TextKeyZh": "谈不拢就回来，别为这点事把自己搭进去。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [],
+      "OptionsFrom": "son_hub"
     }
   ],
   "_Speaker说明": "节点只能由NPC说话；npc/questioner绑定本次入口演员，其余为Actors中的实名ID。",

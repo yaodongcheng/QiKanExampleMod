@@ -33,6 +33,18 @@ def load_lang(path):
     return out
 
 
+def cooperation_text_issues(data, en, cn):
+    """检查协作维护词条实际进入语言XML，覆盖C#字面量扫描不到的数据键。"""
+    issues = []
+    for key, translations in (data.get('Texts') or {}).items():
+        for language, actual in [('en', en), ('zh', cn)]:
+            if key not in actual:
+                issues.append('cooperation text missing in ' + language + ': ' + key)
+            elif actual[key] != translations.get(language):
+                issues.append('cooperation generated text mismatch in ' + language + ': ' + key)
+    return issues
+
+
 def dialogue_paths(module):
     """正式对话的唯一维护源；旧格式不作为校验替身。"""
     return sorted(glob.glob(os.path.join(module, "ModuleData", "DesignData", "Dialogues", "*.dialog.json")))
@@ -1068,6 +1080,11 @@ def check_dialogue_rules(module, problems, en, cn):
 
 def selftest():
     """负面测试：造一个"对话引用了不存在的 key"的临时模块，必须报错。"""
+    coop = {'Texts': {'LWN_coop_test': {'en': 'A plan', 'zh': '计划'}}}
+    assert not cooperation_text_issues(coop, {'LWN_coop_test': 'A plan'}, {'LWN_coop_test': '计划'})
+    assert cooperation_text_issues(coop, {'LWN_coop_test': 'A plan'}, {})
+    assert cooperation_text_issues(coop, {'LWN_coop_test': 'An old plan'}, {'LWN_coop_test': '计划'})
+    print('SELFTEST OK: cooperation missing translation and stale generated text rejected')
     import shutil
     import tempfile
     tmp = tempfile.mkdtemp(prefix="lwn_story_probe_")
@@ -1308,10 +1325,16 @@ def check_flow_contract(module, problems, overrides=None):
          "cleanup events must survive interaction mode switches"),
         ("Layouts.TryGetValue" in member(host, "ResolveAnchors") and "no guessed success" in member(host, "ResolveAnchors")
          and "CrossingMaxStepMeters" in member(host, "TrackGateCrossing")
-         and "_crossedGate" in member(host, "TickSecondPhase"),
+         and "TickPlayerGate(player, dt);" in member(host, "TickSecondPhase")
+         and "_crossedGate" in member(host, "TickPlayerGate")
+         and "TrackGateCrossing(player, dt);" in member(host, "TickPlayerGate")
+         and "if (!_gateOpen && player != null) CheckHandsOnGate(player);" in member(host, "TickPlayerGate"),
          "gate passage requires verified geometry and real bounded outside-to-inside crossing"),
         ("player.SpawnEquipment[slot].Item == expected" in member(host, "IsWearingStoryDisguise")
-         and "IsWearingStoryDisguise(true)" in dialogue and "CanAgentSeeTarget" in member(host, "IsBlockerWatching"),
+         and "IsWearingStoryDisguise(true)" in dialogue
+         and "IsGateObserved(player)" in member(host, "IsBlockerWatching")
+         and "GateWatchers()" in member(host, "IsGateObserved")
+         and "CanAgentSeeTarget" in member(host, "IsGateObserved"),
          "recognition requires actual wearing and shared sight"),
         ("_crossingDoor" in member(host, "CheckHandsOnGate")
          and "GrappleLogic.GetSession(player)?.IsPullingSelf" in member(host, "EnforceGateBarrier")
@@ -2635,6 +2658,7 @@ DLG_PREDICATES = {
     "stripped": (False, True), "gate_open": (False, True), "stripped_disarmed": (False, True),
     "asked": (True, True), "reward": (True, True), "quest_accepted": (False, True),
     "quest_done": (False, True), "quest_turned": (False, True), "gold>=": (True, True),
+    "coop_recruitable": (False, True), "coop_available": (False, True), "coop_favor_available": (False, True),
     "item": (True, True), "event_resolved": (True, True), "resolution": (True, True),
     "money_attitude": (True, True),
     "errand_ready": (False, True), "can_redeem_keepsake": (False, True),
@@ -2644,6 +2668,9 @@ DLG_PREDICATES = {
 }
 # 效果原子：name -> (params, required, implemented)
 DLG_EFFECTS = {
+    "coop_contract": (("mode", "purpose"), ("mode",), True),
+    "coop_recruit": (("mode", "npc"), ("mode",), True),
+    "coop_start": (("role", "npc"), ("role",), True),
     "mark": (("flag",), ("flag",), True),
     "hazard": (("flag",), ("flag",), True),
     "clue": (("clue",), ("clue",), True),
@@ -3256,6 +3283,13 @@ def main():
     cn_path = os.path.join(module, "ModuleData", "Languages", "CNs", "std_LivingWorldNpcs_strings.xml")
     en = load_lang(en_path)
     cn = load_lang(cn_path)
+    cooperation_path = os.path.join(module, 'ModuleData', 'DesignData', 'Cooperation', 'cooperation.json')
+    if os.path.exists(cooperation_path):
+        try:
+            with io.open(cooperation_path, encoding='utf-8-sig') as cooperation_file:
+                problems.extend(cooperation_text_issues(json.load(cooperation_file), en, cn))
+        except (ValueError, OSError) as ex:
+            problems.append('cooperation content unreadable: ' + str(ex))
 
     if not en:
         problems.append("english localization file missing/empty")

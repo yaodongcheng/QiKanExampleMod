@@ -4787,6 +4787,7 @@
     <string id="LWN_story_goal_quest_named" text="「{TASK}」——去找{TARGET}。" />
     <string id="LWN_story_goal_asked_dock" text="往码头找。老周说那姑娘跟着穿水靠的走了——别一个人去。" />
     <string id="LWN_story_hud_title" text="进城" />
+    <string id="LWN_story_hud_done_title" text="入城已完成" />
     <string id="LWN_story_issue_title_fallback" text="委托" />
     <string id="LWN_story_issue_brief" text="有件事要办。" />
     <string id="LWN_story_issue_accept" text="说来听听。" />
@@ -4916,7 +4917,7 @@
     <string id="LWN_story_widow_intro" text="看戏就往里面站，别堵台前的路，有事找我就说，后面还有人等着唱。" />
     <string id="LWN_story_widow_hub" text="你说，我听着，待会儿还得照看台上。" />
     <string id="LWN_story_widow_ask_stage" text="城里租场地太贵，这里来往的人多，唱一天总还能挣出几个人的饭钱。" />
-    <string id="LWN_story_widow_ask_sister" text="是有个穿青布的姑娘来买过通行文书，后来跟着一个水手走了。" />
+    <string id="LWN_story_widow_ask_sister" text="有个穿青布的姑娘来买过通行文书，后来被码头帮的人带走了。" />
     <string id="LWN_story_widow_ask_sister_2" text="他催得很急，我问她认不认得这人，她只说没别的去处，我没能留住她。" />
     <string id="LWN_story_widow_ask_rival" text="顾长生把人拉在我台前唱，客人连路都过不来，这样下去今晚几个人都得饿着。" />
     <string id="LWN_story_widow_deal" text="你想借体面的行头，我想让台前那条路空出来，去跟对面领班谈谈，办成了衣裳归你。" />
@@ -5180,7 +5181,7 @@
     <string id="LWN_story_intro_no_companion" text="没人愿意跟你一起进去。你一个人站在城门前。" />
     <string id="LWN_story_narr_ko" text="眼前一黑。" />
     <string id="LWN_story_narr_second_enter" text="又回到城门前。什么都没变——除了你已经没什么可输的。" />
-    <string id="LWN_story_narr_done" text="你进来了。接下来的路，自己走。" />
+    <string id="LWN_story_narr_done" text="入城目标已完成。妹妹仍未找到；后续寻人内容尚未开放。" />
     <string id="LWN_story_narr_quest_accepted" text="你应下了。" />
     <string id="LWN_story_narr_quest_done" text="办完了。回去告诉{NAME}。" />
     <string id="LWN_story_narr_turnin" text="他把说好的东西给了你，也记住了你的脸。" />
@@ -5190,7 +5191,7 @@
     <string id="LWN_story_goal_asked" text="问出妹妹的下落。四个人，四截线索。" />
     <string id="LWN_story_goal_quest" text="弄到进城的门路。帮谁，谁教你一手。" />
     <string id="LWN_story_goal_tool" text="走过那道门。" />
-    <string id="LWN_story_goal_done" text="序章完。门内的路，自己走。" />
+    <string id="LWN_story_goal_done" text="你已进入城内，妹妹仍未找到。后续寻人内容尚未开放。" />
     <string id="LWN_story_ability_charm" text="魅力" />
     <string id="LWN_story_ability_guile" text="技巧" />
     <string id="LWN_story_ability_force" text="武力" />
@@ -5550,7 +5551,7 @@
     <string id="LWN_story_journal_warehouse_hint" text="小耗子说，那夜被押走的人往大西门里的私仓去了。他躲在高处，没有看清全部经过。" />
     <string id="LWN_story_journal_warehouse_risk" text="屠户说，码头帮曾在半夜押人往西码头暗仓去。他警告我，去那里救人得有趁手的家伙。" />
     <string id="LWN_story_journal_gate" text="守卫这次已经放行。我可以继续往门内走。" />
-    <string id="LWN_story_journal_finish" text="我已经进了城，城外这一段事情告一段落。妹妹仍未找到；已经听到的线索留在这里，接下来还要继续打听。" />
+    <string id="LWN_story_journal_finish" text="我已经进了城，城外这一段事情告一段落。妹妹仍未找到；已经听到的线索留在这里，供以后回顾。后续寻人内容尚未开放。" />
     <string id="LWN_story_son_learn_opt_methods" text="正门堵着，教我几样绕过去的本事。" />
     <string id="LWN_story_hint_son_learn_methods" text="请教潜行、扒窃和工具的用途。" />
     <string id="LWN_story_son_learn_opt_business" text="你手伤着，要是需要帮忙，就跟我说。" />
@@ -5858,5 +5859,120 @@
     <string id="LWN_story_thug_personal_combat_start" text="敢吓唬我？接招！" />
     <string id="LWN_story_thug_personal_combat_end" text="下回把嘴管住！" />
     <string id="LWN_story_combat_cancelled" text="与{NAME}的交手没能继续，这次不算胜出。" />
+    <string id="LWN_coop_stage_approach" text="往门岗那边走" />
+    <string id="LWN_coop_stage_talk" text="跟守门的搭话" />
+    <string id="LWN_coop_stage_investigate" text="请他去看看动静" />
+    <string id="LWN_coop_stage_observe" text="盯着门口" />
+    <string id="LWN_coop_stage_signal" text="给你递信号" />
+    <string id="LWN_coop_stage_wait" text="等你过去" />
+    <string id="LWN_coop_stage_regroup" text="到约定地方碰头" />
+    <string id="LWN_coop_stage_return" text="回岗上" />
+    <string id="LWN_coop_stage_inspect" text="去瞧那点动静" />
+    <string id="LWN_coop_stage_watch" text="守着门口" />
+    <string id="LWN_coop_goal_help_cross" text="给你找个过门的机会" />
+    <string id="LWN_coop_goal_guard_inspect" text="看一眼动静再回岗" />
+    <string id="LWN_coop_goal_guard_watch" text="把门口看住" />
+    <string id="LWN_coop_line_ask_talk" text="大哥，跟你打听个事儿，就两句。" />
+    <string id="LWN_coop_line_ask_investigate" text="里头刚才好像有响动，你不过去看看？" />
+    <string id="LWN_coop_line_accept_talk" text="说吧，我听着。" />
+    <string id="LWN_coop_line_accept_investigate" text="我叫个人替我盯一下，过去瞅一眼就回来。" />
+    <string id="LWN_coop_line_refuse_talk" text="这会儿不成。我走不开。" />
+    <string id="LWN_coop_line_ineligible" text="我走不开，这事儿不成。" />
+    <string id="LWN_coop_line_last_sentry" text="就我一个人守着，我可不走。" />
+    <string id="LWN_coop_line_signal" text="我朝门口比了个手势：趁空当过去。" />
+    <string id="LWN_coop_plan_title" text="打算这么办" />
+    <string id="LWN_coop_plan_goal" text="图的是：{GOAL}" />
+    <string id="LWN_coop_step_done" text="已经办了" />
+    <string id="LWN_coop_step_now" text="眼下正在" />
+    <string id="LWN_coop_step_wait" text="要是能成，接着" />
+    <string id="LWN_coop_step_next" text="再往后" />
+    <string id="LWN_coop_waiting" text="等他一句实在话，成不成还两说。" />
+    <string id="LWN_coop_plan_stop" text="你要是不想干了，随时喊一声；已经出的事收不回来。" />
+    <string id="LWN_coop_progress_waiting" text="正在{STAGE}，等个回话。" />
+    <string id="LWN_coop_progress_active" text="正在{STAGE}。" />
+    <string id="LWN_coop_progress_idle" text="这会儿手上没活儿。" />
+    <string id="LWN_coop_detail_state" text="现况" />
+    <string id="LWN_coop_detail_reason" text="缘由" />
+    <string id="LWN_coop_detail_revision" text="打算改过几回" />
+    <string id="LWN_coop_price_hint" text="三十第纳尔，够我路上添点东西。" />
+    <string id="LWN_story_son_coop_open" text="你帮我把工具拿回来了，还有要我搭把手的地方？" />
+    <string id="LWN_story_son_coop_temp" text="我替你搭话能行，可这只手攥不住绳子。" />
+    <string id="LWN_story_son_coop_ready" text="成，我去试试，成不成得看他。" />
+    <string id="LWN_story_son_coop_formal" text="我不想一直替人看街，可伤着手，总得吃饭。" />
+    <string id="LWN_story_son_coop_price" text="给我三十第纳尔添点路上的东西，我就跟你走。" />
+    <string id="LWN_story_son_coop_joined" text="钱收下了，我跟你走。" />
+    <string id="LWN_story_son_coop_charm_ok" text="那我跟你走，先做些不伤手的活。" />
+    <string id="LWN_story_son_coop_charm_no" text="你说得好听，我还是得先顾自己的日子。" />
+    <string id="LWN_story_son_opt_coop" text="有桩事想请你搭把手。" />
+    <string id="LWN_story_son_opt_coop_temp" text="你去跟守门的聊聊，我自己找机会过去。" />
+    <string id="LWN_story_son_opt_coop_formal" text="我想让你跟着我干，什么条件？" />
+    <string id="LWN_story_son_opt_coop_agree" text="[应下] 你就去搭话，别逞强。" />
+    <string id="LWN_story_son_opt_coop_go" text="你去跟门口的守卫说几句，我留在这里看着。" />
+    <string id="LWN_story_son_opt_coop_price" text="你要多少？" />
+    <string id="LWN_story_son_opt_coop_charm" text="跟着我，你这只伤手能做些什么？" />
+    <string id="LWN_story_son_opt_coop_pay" text="这三十第纳尔你拿着，跟我走。" />
+    <string id="LWN_story_hint_son_opt_coop" text="谈合作与招募。" />
+    <string id="LWN_story_hint_son_opt_coop_temp" text="请他牵制门岗；成不成要看他，机会不保证。" />
+    <string id="LWN_story_hint_son_opt_coop_formal" text="问正式同行的条件与价钱。" />
+    <string id="LWN_story_hint_son_opt_coop_agree" text="约定这一次帮忙的目的与限度。" />
+    <string id="LWN_story_hint_son_opt_coop_go" text="请他先去找门口的守卫搭话，自己留在原地观察。" />
+    <string id="LWN_story_hint_son_opt_coop_price" text="问清招募的价钱。" />
+    <string id="LWN_story_hint_son_opt_coop_charm" text="试图免去招募费；成败取决于双方魅力。" />
+    <string id="LWN_story_hint_son_opt_coop_pay" text="支付三十第纳尔并正式招募；钱不够或队伍满了会当场说明。" />
+    <string id="LWN_coop_btn_basic" text="查看分工" />
+    <string id="LWN_coop_btn_polish" text="听他说说" />
+    <string id="LWN_coop_btn_stop" text="先停下" />
+    <string id="LWN_coop_btn_start" text="开始" />
+    <string id="LWN_coop_plan_actor" text="由谁来做：{ACTOR}" />
+    <string id="LWN_coop_plan_target" text="交涉对象：{TARGET}" />
+    <string id="LWN_coop_unknown_person" text="门口的守卫" />
+    <string id="LWN_coop_plan_player_task" text="你怎么配合：先留在门外，别跟着我走。等我牵住他们的注意力、也确认门口有空当，就朝门口打手势。看见信号，你再自己贴着没被盯住的地方过去；他们随时可能回头。" />
+    <string id="LWN_coop_plan_risk" text="风险：他们可能不信，也可能中途回头。拿编造的藏货作借口，查不出东西还会让他们起疑。我的手势只说这会儿看见了空当，不是拿到了通行许可。" />
+    <string id="LWN_coop_plan_rendezvous" text="后续安排：给了信号，我还留在这里牵住他们，你自己过门。看见你过去了，这次帮忙就算办成；不用等我再走到你身边，之后有事再来找我。" />
+    <string id="LWN_coop_plan_cost" text="约定：我替你试这次口头交涉，不额外花钱，也不动武。你可以叫停；已经引起的事情收不回来。" />
+    <string id="LWN_coop_plan_failure" text="没成怎么办：有人不信、跟不上，或还没露出空当就回头，你先别往门里冲。我会收住这次尝试，回来把缘由说清楚，再回原处等你。不会擅自加钱或动手。" />
+    <string id="LWN_coop_plan_preview" text="我打算这么做，等你点头再开始。" />
+    <string id="LWN_coop_result_success" text="看见你过门了，这次帮忙办成了。" />
+    <string id="LWN_coop_result_cancelled" text="我停下了。已经发生的事收不回来。" />
+    <string id="LWN_coop_result_failed" text="这边没办成。你先离门口远点，我们再商量别的办法。" />
+    <string id="LWN_coop_result_paused" text="先把话说完，我在这儿等着。" />
+    <string id="LWN_coop_reason_refused" text="他不肯。先别往门口走，我们得换个办法。" />
+    <string id="LWN_coop_reason_timeout" text="我没能及时办完。你先离门口远点，我们再商量。" />
+    <string id="LWN_coop_reason_gap_lost" text="门口又有人盯着了。先留在外面，刚才的招呼不算数。" />
+    <string id="LWN_coop_reason_budget" text="我没找到稳妥的下一步。你先留在外面，我们再商量。" />
+    <string id="LWN_coop_prompt_polish" text="把这份已确定的本地计划改写成执行者向玩家当面交代的行动安排。用符合人物身份的口语，讲清要办什么、说辞为什么可能奏效、双方怎么分工、看到什么信号才能行动、什么情况撤回、何时结束协助。执行者留在原处牵制，玩家自行过门，不要求走到玩家身边会合。不要堆算法阶段，不把准备尝试写成已经成功。保留实际对象、未知、代价和风险；不增添动作、证据、通行许可、付款或战斗。只返回含一个text字符串字段的JSON，正文不超过240字。" />
+    <string id="LWN_coop_stage_unknown" text="下一步" />
+    <string id="LWN_story_son_coop_depart_temp" text="我先把打算跟你说清楚，你点头了我再去。" />
+    <string id="LWN_story_son_coop_depart_paid" text="我先把打算跟你说清楚，你点头了我再去。" />
+    <string id="LWN_story_son_coop_depart_charm" text="我先把打算跟你说清楚，你点头了我再去。" />
+    <string id="LWN_story_son_coop_member_ready" text="我先把打算跟你说清楚，你点头了我再去。" />
+    <string id="LWN_story_son_opt_accept_ask" text="谈不拢怎么办？" />
+    <string id="LWN_story_hint_son_opt_accept_ask" text="问他万一谈不成该怎么收场。" />
+    <string id="LWN_story_son_accept_notes" text="谈不拢就回来，别为这点事把自己搭进去。" />
+    <string id="LWN_coop_stage_lure" text="拿藏货的借口试探守卫" />
+    <string id="LWN_coop_stage_lead" text="亲自带守卫去查看" />
+    <string id="LWN_coop_stage_follow" text="跟着报信的人走" />
+    <string id="LWN_coop_stage_report" text="回来说明这次为什么没成" />
+    <string id="LWN_coop_plan_lure_method" text="我的办法：编个门外藏着漏税货的说辞。他们不会平白丢下岗位，我就拿查货这桩差事说动他们：一个验货，一个看住搬货的人。我会分别把话说到，两人都答应了才亲自带路；等他们都到了巷口，再看门口有没有空当。" />
+    <string id="LWN_coop_line_ask_lure" text="外面巷口有人藏着没交税的货。我带路，你们一个看住人，一个查货。" />
+    <string id="LWN_coop_line_accept_lure" text="先把话跟其他人说明白，再带路。我去看看，别耍花样。" />
+    <string id="LWN_coop_line_refuse_lure" text="想把我们都支走？这话我信不过。别在这儿绕了。" />
+    <string id="LWN_coop_line_look_cargo" text="就是这儿？麻袋指给我看。你站住别乱碰，我们查完就回岗。" />
+    <string id="LWN_coop_line_failed" text="这办法没走通，门口还不能放心过去。我先回来，咱们换个办法。" />
+    <string id="LWN_coop_plan_waiting_signal" text="你看见了我的手势；看准门口的空当再过去。" />
+    <string id="LWN_story_outlaw_opt_who" text="这粮仓里放着什么？" />
+    <string id="LWN_story_hint_outlaw_opt_who" text="先问点不涉及任何旧事的闲话。" />
+    <string id="LWN_story_outlaw_stranger" text="不关你的事，赶紧走开。" />
+    <string id="LWN_coop_line_ask_lure_gate_sentry" text="韩大哥，门外矮墙后有人搬麻袋，看见守门的就躲。像是在绕城门的税。" />
+    <string id="LWN_coop_line_challenge_gate_sentry" text="门还得守着。你说像，那到底看见什么了？" />
+    <string id="LWN_coop_line_clarify_gate_sentry" text="两个麻袋，压得那人直不起腰。我亲自领你过去；你们一个验货，一个看住人，单去一个，他扔下货跑了怎么办？" />
+    <string id="LWN_coop_line_accept_gate_sentry" text="查漏税货也是差事。先跟其他人说清楚，只去门外看一眼，没凭据就回来。你不许乱跑。" />
+    <string id="LWN_coop_line_ask_lure_blocker" text="罗大哥，门外巷口有人藏漏税的货。光顾着查麻袋，人就跑了，得你过去镇住。" />
+    <string id="LWN_coop_line_challenge_blocker" text="有人去查货，我就得看门。想让我们两个都走，你小子打什么主意？" />
+    <string id="LWN_coop_line_clarify_blocker" text="就在门外巷口，几步的事，我给你领路。真找不着货，你把我带回来问，跑不了我的。" />
+    <string id="LWN_coop_line_accept_blocker" text="行，查货扣人也归我们管。先把其他人叫上，你走前头，看完马上回来。敢扯谎，这笔账找你算。" />
+    <string id="LWN_coop_signal_received" text="{ACTOR}朝门口打了手势：现在有空当，赶紧过去，别撞进守卫的视线。" />
+    <string id="LWN_coop_plan_talk_method" text="我的办法：先走近，找话跟守卫多聊几句，把他的注意力牵住。聊上了也不等于肯放行；我会看门口的实际情况，有空当才给你信号。" />
+    <string id="LWN_coop_plan_investigate_method" text="我的办法：过去请守卫核查。不过他还有岗位要守，接替的人真到岗了才肯走。等不到接替，这条路就走不通；我确认有空当了才给你信号。" />
 </strings>
 </base>

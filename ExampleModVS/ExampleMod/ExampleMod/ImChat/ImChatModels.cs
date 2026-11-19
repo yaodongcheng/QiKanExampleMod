@@ -27,6 +27,7 @@ namespace LivingWorldNpcs
         Proposal,   // 🔴 2026-08-10（§四 Q4）：NPC 主动提议（「主公，我想去望风」+ 批准/拒绝按钮 → PlanCard 管线）
                     // 🔴 2026-08-11（闲聊高风险动作）：带 ActionCode 的决斗/攻击/击晕/扒窃卡片（批准 → 直接执行）
                     // 🔴 2026-08-12（决策卡片统一）：与 PlanCard 同渲染（卡片气泡 + 通用按钮行 CardButtons）
+        Cooperation,
     }
 
     /// <summary>
@@ -36,6 +37,10 @@ namespace LivingWorldNpcs
     [Serializable]
     public class ImMessage
     {
+        [JsonProperty("coop")]
+        public string CooperationActivityId;
+        [JsonIgnore]
+        public bool IsCoopCard => Kind == ImMessageKind.Cooperation;
         [JsonProperty("s")]
         public string SenderHeroId;      // "player" 或 Hero StringId
 

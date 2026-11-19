@@ -177,6 +177,22 @@ namespace LivingWorldNpcs
                 ? target.AgentVisuals.GetGlobalFrame().origin + new Vec3(0, 0, 1.2f)
                 : target.Position + new Vec3(0, 0, 1.5f);
 
+            return IsPointOccluded(eyePos, targetChestPos);
+        }
+
+        /// <summary>按同一视距、扇形与遮挡口径观察世界位置（门口、职责点等）。</summary>
+        public static bool CanAgentSeePoint(Agent observer, Vec3 point, float radius = 15f, float fovDegrees = DefaultFovDegrees)
+        {
+            if (!AgentControlHelper.SafeIsActive(observer) || observer.Position.Distance(point) > radius
+                || MathF.Abs(observer.Position.z - point.z) > 3f) return false;
+            var dir = (point - observer.Position).AsVec2;
+            if (dir.LengthSquared > 0.0001f && Vec2.DotProduct(dir.Normalized(), observer.LookDirection.AsVec2.Normalized())
+                < ViewConeThreshold(fovDegrees)) return false;
+            return !IsPointOccluded(observer.GetEyeGlobalPosition(), point + new Vec3(0, 0, 1.2f));
+        }
+
+        private static bool IsPointOccluded(Vec3 eyePos, Vec3 targetChestPos)
+        {
             float distanceToTarget = eyePos.Distance(targetChestPos);
 
             float collisionDistance;

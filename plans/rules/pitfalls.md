@@ -1906,6 +1906,8 @@ subModule2.OnMissionBehaviorInitialize(this);       // ← 各模块在这一步
 2. 别让 `OnBehaviorInitialize` 成为某个赋值的**唯一**发生地（尤其静态 `Current` 这类"别人靠它找你"的引用）。
 3. 旧记录「**追加**行为拿不到 `OnBehaviorInitialize`」只覆盖"运行时追加"（`NpcSightSystem` 那条）；本条覆盖"**初始化期挂载**"——**两种都中招**，判据统一：**只信 `OnCreated`**。
 
+**同因复发（2026-11-19，随从协作）：**`CoopMissionBehavior`在子模块中追加，`AfterStart`已加载`coop-511-4`，但`Current`只在未触发的`OnBehaviorInitialize`赋值；首条`custom.story_probe cooperate test begin T01 hybrid 32001 quick`因此报`NO: no mission cooperation host`。修复为`OnCreated`只登记宿主，内容／演员适配仍在`AfterStart`安装。`Scripts/test_cooperation_planner.py`现提取实际宿主生命周期及TestBegin方法，按跳过OnBehaviorInitialize的顺序运行；去掉OnCreated登记的隔离反例必须失败。原生挂载／身体仍须实机复验，不能用预先给Current赋值的替身冒充生命周期覆盖。
+
 ---
 
 ## 跟着手/骨骼走的东西「偶尔消失」（钩索的钩与绳一起甩到脚踝）（2026-10-08 钩索实机）
@@ -2311,3 +2313,15 @@ cmd /c rmdir "H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Bl
 - **两个 NPC 的「静态站位」不等于「这场戏的站位」** → 症状：砸摊/骂街演起来两个人隔着十米各自吼。
   根因：四家/仇家的坐标是"各家摊子"的布局，事件配对是另一套。规避：事件开演时若两人距离 >4 m，
   把对手挪到发起者面前 1.8 m（`StreetLifeDirector.StartEvent`），只动位置、不碰 agent 内部状态。
+
+- **`GetBrainForAgent(null)` 直接读 `agent.Index` → NRE（实机 2026-11-19，`StoryPostDirector.TickLeash`）** →
+  症状：进城后 Mission 每帧抛 `System.NullReferenceException: agent 是 null`，栈底是 `AgentAIController.GetBrainForAgent`。
+  根因：`TickLeash` 拿 `_host.GetAgent(standing.Actor)` 的结果没判空（角色还没生成或已移除），
+  `GetBrainForAgent` 又没有任何 null 守卫。规避：**收口处一律 null→返回 null**（已改 `GetBrainForAgent`），
+  调用方仍要自己判空（`TickLeash` 已加 `agent == null || !SafeIsActive` 跳过）。新增任何"按演员查脑"的代码照此办理。
+
+- **换城后整场布景报 `actor:blocker = missing`（实机 2026-11-19）** → 根因：剧情演员 Hero 挂着上一座城的
+  `CurrentSettlement`，`SpawnNpc` 把它当"在别处"拒绝；判据又在多个调用点各写一遍，改一处漏一处。
+  规避：出场资格只走 `StoryProbeDefs.StoryCastAvailabilityHelper.Evaluate(hero, 当前据点)`
+  （死亡／被拘／在别的队伍才是硬拒绝；陈旧据点照常出场并记 `stale settlement ... ignored`）；
+  源码闸门 `Scripts/check_story_cast_availability.py` 守"单一判据 + 陈旧据点不算拒绝"。

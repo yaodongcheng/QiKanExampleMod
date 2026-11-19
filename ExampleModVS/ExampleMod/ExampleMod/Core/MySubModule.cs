@@ -440,6 +440,9 @@ namespace LivingWorldNpcs
             // 常驻任务卡（2026-11-13）：右上角「任务名 + 目标行」，位置/尺寸读 StoryProbeTuning.json 的 ScreenGoal。
             // 纯显示层（整棵 DoNotAcceptEvents），只在序章 Active 时出现；关闭时每帧只判一个 bool。
             mission.AddMissionBehavior(new StoryGoalHudMissionView());
+            // 随从协助破局（2026-11-18，plans/逆水寒511/随从协助破局-实施计划.md）：
+            // 本地 GOAP/HTN 规划 + 活动执行层；身体仍由各人 AgentBrain 执行原子动作。
+            mission.AddMissionBehavior(new Planner.Cooperation.CoopMissionBehavior());
             //IM 传讯（Mission 侧 tick 驱动 + 热键）
             mission.AddMissionBehavior(new ImChatMissionView());
 

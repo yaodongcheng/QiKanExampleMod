@@ -531,32 +531,7 @@
           "Receipt": "once"
         }
       ],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_butcher_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "butcher_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "butcher_turnin",
@@ -602,32 +577,7 @@
           "Receipt": "once"
         }
       ],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_butcher_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "butcher_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "butcher_chat",

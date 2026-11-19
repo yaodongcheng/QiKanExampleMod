@@ -447,5 +447,15 @@
       "At": 15.6,
       "Cmd": "player_release"
     }
+  ],
+  "AdditionalPoints": [
+    {
+      "Id": "coop_lure_spot",
+      "Role": "spot",
+      "Anchor": "gate",
+      "Fwd": -18,
+      "Right": 5,
+      "Up": 0
+    }
   ]
 }

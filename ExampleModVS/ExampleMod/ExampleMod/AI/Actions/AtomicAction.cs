@@ -664,6 +664,7 @@ namespace LivingWorldNpcs
         private float _lastDist;
         private float _lastProgressTime;
         private bool _teleportOnEnd;
+        private readonly bool _allowTeleport;
         public void RequestInterrupt() { _interrupted = true; }
 
         /// <summary>跟随目标（执行器 following 谓词判定用）。</summary>
@@ -675,9 +676,10 @@ namespace LivingWorldNpcs
         private readonly MoveToPositionAction.EndBehavior _endBehavior;   // 收尾行为（同 MoveToPositionAction：InteractPrepare 默认 / Unlock 回岗）
 
         public FollowAgentAction(Agent target, bool run, float radius = 0.0f, float angleOffset = 0f, float stopDistance = 3.5f, float buffer = 1.5f, bool keepFollow = false, float optionalDuration = 0f,
-            MoveToPositionAction.EndBehavior endBehavior = MoveToPositionAction.EndBehavior.InteractPrepare)
+            MoveToPositionAction.EndBehavior endBehavior = MoveToPositionAction.EndBehavior.InteractPrepare, bool allowTeleport = true)
         {
             _target = target;
+            _allowTeleport = allowTeleport;
             _run = run;
             _stopDistance = stopDistance;
             _fixedTimer = 0f;
@@ -939,7 +941,7 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-12：卡死兜底瞬移移到 OnEnd（对齐 MoveToPositionAction——正常到达不瞬移，
             // 卡墙/寻路死角才瞬移；跟走模式/持续跟随永不标记 _teleportOnEnd）
             // 🔴 2026-08-21（在押守卫）：在押随从禁止瞬移（越狱路径）
-            if (_teleportOnEnd && AgentControlHelper.SafeIsActive(agent) && _target != null && AgentControlHelper.SafeIsActive(_target)
+            if (_allowTeleport && _teleportOnEnd && AgentControlHelper.SafeIsActive(agent) && _target != null && AgentControlHelper.SafeIsActive(_target)
                 && !CompanionDetentionBehavior.IsDetained(agent))
                 agent.TeleportToPosition(_currentIdealPosition);
             // 不瞬移：NPC 已在 stopDistance 内（ComeHere 默认 0.5m），
@@ -1580,7 +1582,9 @@ namespace LivingWorldNpcs
     /// </summary>
     public sealed class PerformanceAction : IAtomicAction
     {
-        private StoryMoveAction _walking;
+        private IAtomicAction _walking;
+        private Agent _walkTarget;
+        private float _followStop;
         public bool? WalkResult { get; private set; }
         public bool IsWalking => _walking != null;
 
@@ -1592,6 +1596,21 @@ namespace LivingWorldNpcs
             _brain.Owner.SetActionChannel(0, ActionIndexCache.act_none, ignorePriority: true, blendInPeriod: 0.2f);
             WalkResult = null;
             _walking = new StoryMoveAction(point, stopDistance, ok => WalkResult = ok, maxTime);
+            _walking.OnStart(_brain.Owner);
+            _bodyHeld = false;
+            return true;
+        }
+
+        /// <summary>租约内跟踪真实人物；卡死如实失败，不使用旧跟随的瞬移兜底。</summary>
+        public bool BeginFollow(Agent target, float stopDistance, bool keepFollowing = false)
+        {
+            if (!CanControl || _walking != null || !AgentControlHelper.SafeIsActive(target)) return false;
+            _presentation?.Stop();
+            _walkTarget = target;
+            _followStop = Math.Max(0.6f, stopDistance);
+            WalkResult = null;
+            _walking = new FollowAgentAction(target, false, stopDistance: _followStop, keepFollow: keepFollowing,
+                endBehavior: MoveToPositionAction.EndBehavior.Unlock, allowTeleport: false);
             _walking.OnStart(_brain.Owner);
             _bodyHeld = false;
             return true;
@@ -1616,9 +1635,18 @@ namespace LivingWorldNpcs
         private AgentControlHelper.FacingTracker _facingTracker = new AgentControlHelper.FacingTracker();
         public bool BodyTurnRequested { get; private set; }
         public Agent SpeechListener { get; private set; }
+        private bool _explicitBodyTurn;
+        public bool FaceTarget(Agent target, bool turnBody = true)
+        {
+            if (!CanControl || !AgentControlHelper.SafeIsActive(target)) return false;
+            SpeechListener = target;
+            _explicitBodyTurn = turnBody;
+            return true;
+        }
         /// <summary>固定站位演出可保留策划方向；发声仍注视真实听话者，不自动转身体。</summary>
         public bool AllowSpeechBodyTurn { get; set; } = true;
         public bool AllowSpeechGaze { get; set; } = true;
+        public bool PauseOnConversation { get; set; }
         public string OwnerToken { get; }
         public bool Started { get; private set; }
         public bool Paused { get; private set; }
@@ -1629,6 +1657,9 @@ namespace LivingWorldNpcs
             && AgentControlHelper.SafeIsActive(_brain.Owner) && _brain.Owner.Health > 0f
             && !ConversationEntryPatch.IsConversationActive();
 
+        /// <summary>交接现有租约前核对真实演员及仍有效的身体控制权。</summary>
+        public bool Controls(Agent actor) => actor != null && actor == _brain.Owner && CanControl;
+
         internal PerformanceAction(AgentBrain brain, string ownerToken, Action<string> onStopped)
         {
             _brain = brain;
@@ -1638,12 +1669,12 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>事件同步确认申请；非 null 仍是排队态，Started 前不得摆位/播动作。</summary>
-        public static PerformanceAction TryAcquire(Agent agent, string ownerToken, Action<string> onStopped = null)
+        public static PerformanceAction TryAcquire(Agent agent, string ownerToken, Action<string> onStopped = null, bool replaceAmbient = false)
         {
             if (agent == null || string.IsNullOrEmpty(ownerToken) || AgentAIController.Instance == null) return null;
             PerformanceAction result = null;
             AgentAIController.Instance.SendEventToAgent(agent, "event_performance_begin", ownerToken,
-                (Action<PerformanceAction>)(a => result = a), onStopped);
+                (Action<PerformanceAction>)(a => result = a), onStopped, replaceAmbient);
             return result;
         }
 
@@ -1728,7 +1759,8 @@ namespace LivingWorldNpcs
             }
             if (!Paused && ConversationEntryPatch.IsConversationActive())
             {
-                Finish("conversation", true);
+                if (PauseOnConversation) SetPaused(true);
+                else Finish("conversation", true);
                 return;
             }
             if (CanControl)
@@ -1740,6 +1772,12 @@ namespace LivingWorldNpcs
                     var completed = _walking;
                     _walking = null;
                     completed.OnEnd(agent);
+                    if (_walkTarget != null)
+                    {
+                        WalkResult = AgentControlHelper.SafeIsActive(_walkTarget)
+                            && agent.Position.Distance(_walkTarget.Position) <= _followStop + 0.5f;
+                        _walkTarget = null;
+                    }
                 }
                 _facingDebugElapsed += Math.Max(0f, dt);
                 HoldBody(dt);
@@ -1771,7 +1809,7 @@ namespace LivingWorldNpcs
             {
                 // 只控制正在冒泡的speaker；扇形内只追踪注视，出了身体前方视野才请求转身。
                 // 复用视线引擎的120度扇形部分，不把远、遮挡或高差当成转身条件。
-                bool turnBody = AllowSpeechBodyTurn
+                bool turnBody = _explicitBodyTurn || AllowSpeechBodyTurn
                     && !NpcSightSystem.IsTargetInViewCone(_brain.Owner, SpeechListener, useBodyFacing: true);
                 BodyTurnRequested = turnBody;
                 _facingTracker.Tick(_brain.Owner, SpeechListener, turnBody, false, dt, OwnerToken);

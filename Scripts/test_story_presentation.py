@@ -90,7 +90,13 @@ namespace TaleWorlds.CampaignSystem {
  public class ConversationManager {public bool IsConversationInProgress;public bool IsConversationAgent(Agent a)=>false;}
 }
 namespace LivingWorldNpcs {
- public interface IAtomicAction {}
+ public interface IAtomicAction {void OnStart(Agent a);void OnTick(Agent a,float dt);bool IsFinished(Agent a);void OnEnd(Agent a);void RequestInterrupt();string GetNarration(Agent a);}
+ // This presentation harness does not exercise follow navigation; the real persistent
+ // follow lifecycle is covered by test_cooperation_runtime.py.
+ public class FollowAgentAction : MoveToPositionAction {
+  public FollowAgentAction(Agent target,bool run,float stopDistance,bool keepFollow,MoveToPositionAction.EndBehavior endBehavior,bool allowTeleport)
+   : base(target.Position,Vec2.Zero,run,stopDistance,endBehavior:endBehavior,allowTeleport:allowTeleport){}
+ }
  public static class CompanionDetentionBehavior {public static bool IsDetained(Agent a)=>false;}
  public static class V {public static bool NavMesh(Scene s,Vec3 p,out int face){face=0;return true;}}
  public static class MBRandom {public static float RandomFloat=>.5f;}

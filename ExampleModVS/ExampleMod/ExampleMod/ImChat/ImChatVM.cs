@@ -405,7 +405,7 @@ namespace LivingWorldNpcs
         public bool ShowCompactSenderName => !IsSystem;
 
         [DataSourceProperty]
-        public bool IsPlanCard => _msg != null && _msg.IsPlanCard;
+        public bool IsPlanCard => _msg != null && (_msg.IsPlanCard || _msg.IsCoopCard);
 
         /// <summary>🔴 2026-08-12：计划链消息（讲解消息 = 带 ChainId 的 NPC 文本）——卡片气泡分支渲染。</summary>
         [DataSourceProperty]
@@ -522,7 +522,11 @@ namespace LivingWorldNpcs
             VerticalCardButtons.Clear();
             var anchor = AnchorCard;
             if (anchor == null) { IsVerticalButtons = false; return; }
-            if (anchor.IsPlanCard) { RebuildPlanCardButtons(anchor); }
+            if (anchor.IsCoopCard)
+            {
+                foreach (var button in Planner.Cooperation.CoopView.Buttons(anchor)) CardButtons.Add(button);
+            }
+            else if (anchor.IsPlanCard) { RebuildPlanCardButtons(anchor); }
             else if (anchor.IsProposal) { RebuildProposalButtons(anchor); }
             else if (anchor.IsPlanSuggest) { RebuildSuggestionButtons(anchor); }
             else if (anchor.IsTargetConfirm) { RebuildTargetConfirmButtons(anchor); }
@@ -808,7 +812,7 @@ namespace LivingWorldNpcs
 
         /// <summary>发送按钮可用（非空输入才可发，微信置灰语义）。</summary>
         [DataSourceProperty]
-        public bool CanSend => !string.IsNullOrWhiteSpace(InputText);
+        public bool CanSend => Settings.Instance.IsLLMConfigured && !string.IsNullOrWhiteSpace(InputText);
 
         /// <summary>「XX 正在思考回复…」（🔴 五轮：移入标题带显示，仅私聊回复在途时可见；空 = 隐藏）。</summary>
         [DataSourceProperty]

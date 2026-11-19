@@ -4682,6 +4682,7 @@
     <string id="LWN_story_goal_quest_named" text="{TASK} - find {TARGET}." />
     <string id="LWN_story_goal_asked_dock" text="Look down at the docks. A man in oilskins took her. Do not go alone." />
     <string id="LWN_story_hud_title" text="Get Inside" />
+    <string id="LWN_story_hud_done_title" text="Entered Town" />
     <string id="LWN_story_issue_title_fallback" text="Job" />
     <string id="LWN_story_issue_brief" text="There is a thing to be done." />
     <string id="LWN_story_issue_accept" text="Tell me." />
@@ -4811,7 +4812,7 @@
     <string id="LWN_story_widow_intro" text="Come further in to watch, and keep the way to the stage clear; if you need me, say so, as the others are waiting to sing." />
     <string id="LWN_story_widow_hub" text="Go on, I&#x27;m listening; I&#x27;ll have to see to the performers soon." />
     <string id="LWN_story_widow_ask_stage" text="A stage in town costs too much; enough people pass here for a day&#x27;s singing to feed the troupe." />
-    <string id="LWN_story_widow_ask_sister" text="A girl in blue did buy a travel document from me; she left with a sailor afterwards." />
+    <string id="LWN_story_widow_ask_sister" text="A girl in blue cloth bought a travel paper here, then the dock gang took her away." />
     <string id="LWN_story_widow_ask_sister_2" text="He was hurrying her; I asked whether she knew him, but she said she had nowhere else to go, and I couldn&#x27;t keep her here." />
     <string id="LWN_story_widow_ask_rival" text="Gu Changsheng&#x27;s people sing right in front of our stage; customers can&#x27;t get through, and at this rate we won&#x27;t eat tonight." />
     <string id="LWN_story_widow_deal" text="You need fine clothes and I need the path to our stage cleared; talk to the other troupe&#x27;s leader, and the clothes are yours if you settle it." />
@@ -5075,7 +5076,7 @@
     <string id="LWN_story_intro_no_companion" text="No one will walk in with you. You stand at the gate alone." />
     <string id="LWN_story_narr_ko" text="Everything goes dark." />
     <string id="LWN_story_narr_second_enter" text="The gate again. Nothing has changed — except you have nothing left to lose." />
-    <string id="LWN_story_narr_done" text="You are inside. The rest of the road is yours." />
+    <string id="LWN_story_narr_done" text="You made it into town. Your sister is still missing; the next part of the search is not yet available." />
     <string id="LWN_story_narr_quest_accepted" text="You took the job." />
     <string id="LWN_story_narr_quest_done" text="It&#x27;s done. Go back and tell {NAME}." />
     <string id="LWN_story_narr_turnin" text="He hands over what he promised — and remembers your face." />
@@ -5085,7 +5086,7 @@
     <string id="LWN_story_goal_asked" text="Find out what happened to your sister. Four people, four pieces." />
     <string id="LWN_story_goal_quest" text="Earn your way in. Help one of them, and they teach you a way." />
     <string id="LWN_story_goal_tool" text="Get through that gate." />
-    <string id="LWN_story_goal_done" text="The prologue is over. The road inside is yours." />
+    <string id="LWN_story_goal_done" text="You are inside. Your sister is still missing. The next part of the search is not yet available." />
     <string id="LWN_story_ability_charm" text="Charm" />
     <string id="LWN_story_ability_guile" text="Guile" />
     <string id="LWN_story_ability_force" text="Force" />
@@ -5445,7 +5446,7 @@
     <string id="LWN_story_journal_warehouse_hint" text="The young thief says the people taken away that night were heading toward a private warehouse inside the west gate. He was hiding above them and did not see everything." />
     <string id="LWN_story_journal_warehouse_risk" text="The butcher says the dock gang took prisoners toward a hidden warehouse at the western docks one night. He warned me to have a proper weapon before trying to rescue anyone there." />
     <string id="LWN_story_journal_gate" text="The guards have let me through this time. I can continue inside." />
-    <string id="LWN_story_journal_finish" text="I made it into town, bringing this part of the journey to an end. My sister is still missing. The accounts I have heard remain here for the search ahead." />
+    <string id="LWN_story_journal_finish" text="I made it into town, bringing this part of the journey to an end. My sister is still missing. The accounts I have heard remain here to look back on. The next part of the search is not yet available." />
     <string id="LWN_story_son_learn_opt_methods" text="The gate is barred to me; show me some ways around it." />
     <string id="LWN_story_hint_son_learn_methods" text="Ask about sneaking, pickpocketing and tools." />
     <string id="LWN_story_son_learn_opt_business" text="If you need a hand while yours is hurt, just say so." />
@@ -5753,5 +5754,120 @@
     <string id="LWN_story_thug_personal_combat_start" text="Threaten me? Take this!" />
     <string id="LWN_story_thug_personal_combat_end" text="Watch your mouth next time!" />
     <string id="LWN_story_combat_cancelled" text="The fight with {NAME} could not continue; no victory was recorded." />
+    <string id="LWN_coop_stage_approach" text="moving up to the gate" />
+    <string id="LWN_coop_stage_talk" text="talking to the gate guard" />
+    <string id="LWN_coop_stage_investigate" text="asking him to check the noise" />
+    <string id="LWN_coop_stage_observe" text="watching the gate" />
+    <string id="LWN_coop_stage_signal" text="giving you the signal" />
+    <string id="LWN_coop_stage_wait" text="waiting for you to get through" />
+    <string id="LWN_coop_stage_regroup" text="meeting you at the agreed spot" />
+    <string id="LWN_coop_stage_return" text="going back to his post" />
+    <string id="LWN_coop_stage_inspect" text="checking the noise" />
+    <string id="LWN_coop_stage_watch" text="standing watch" />
+    <string id="LWN_coop_goal_help_cross" text="find you a way past the gate" />
+    <string id="LWN_coop_goal_guard_inspect" text="check the noise, then go back to the post" />
+    <string id="LWN_coop_goal_guard_watch" text="keep the gate watched" />
+    <string id="LWN_coop_line_ask_talk" text="Got a moment? Just two words, big brother." />
+    <string id="LWN_coop_line_ask_investigate" text="Sounded like something moving in there. Aren't you going to look?" />
+    <string id="LWN_coop_line_accept_talk" text="Go on then. I'm listening." />
+    <string id="LWN_coop_line_accept_investigate" text="I'll have someone cover me. Quick look, then straight back." />
+    <string id="LWN_coop_line_refuse_talk" text="Not now. I can't leave this gate." />
+    <string id="LWN_coop_line_ineligible" text="I can't walk off. Not for this." />
+    <string id="LWN_coop_line_last_sentry" text="I'm the only one here. I'm not leaving it." />
+    <string id="LWN_coop_line_signal" text="I gesture for you to cross while the gate is clear." />
+    <string id="LWN_coop_plan_title" text="This is the plan" />
+    <string id="LWN_coop_plan_goal" text="Goal: {GOAL}" />
+    <string id="LWN_coop_step_done" text="Done" />
+    <string id="LWN_coop_step_now" text="Now" />
+    <string id="LWN_coop_step_wait" text="If" />
+    <string id="LWN_coop_step_next" text="Next" />
+    <string id="LWN_coop_waiting" text="Waiting for a real answer. Nothing is settled yet." />
+    <string id="LWN_coop_plan_stop" text="You can call this off any time. It won't undo what already happened." />
+    <string id="LWN_coop_progress_waiting" text="{STAGE}, waiting for a reply." />
+    <string id="LWN_coop_progress_active" text="{STAGE}." />
+    <string id="LWN_coop_progress_idle" text="Nothing in hand right now." />
+    <string id="LWN_coop_detail_state" text="State" />
+    <string id="LWN_coop_detail_reason" text="Reason" />
+    <string id="LWN_coop_detail_revision" text="Plan revisions" />
+    <string id="LWN_coop_price_hint" text="Thirty denars would keep me going." />
+    <string id="LWN_story_son_coop_open" text="You got my tools back, so what else do you need?" />
+    <string id="LWN_story_son_coop_temp" text="I can talk to him, though this hand won't hold a rope." />
+    <string id="LWN_story_son_coop_ready" text="Right, I'll try my luck with him." />
+    <string id="LWN_story_son_coop_formal" text="I don't want to watch streets forever, but this hand has to eat." />
+    <string id="LWN_story_son_coop_price" text="Thirty denars for the road and I'll come with you." />
+    <string id="LWN_story_son_coop_joined" text="Money's counted, so I'm with you." />
+    <string id="LWN_story_son_coop_charm_ok" text="Then I'll come and take work that spares the hand." />
+    <string id="LWN_story_son_coop_charm_no" text="Sounds fine, but I've still got my own life to mind." />
+    <string id="LWN_story_son_opt_coop" text="There's something I could use a hand with." />
+    <string id="LWN_story_son_opt_coop_temp" text="Go talk to the gate guard. I'll find my own way past." />
+    <string id="LWN_story_son_opt_coop_formal" text="I want you with me. What do you want for it?" />
+    <string id="LWN_story_son_opt_coop_agree" text="Then go and talk to him. Don't push it." />
+    <string id="LWN_story_son_opt_coop_go" text="Go and talk to the gate guard; I will keep watch here." />
+    <string id="LWN_story_son_opt_coop_price" text="How much do you want?" />
+    <string id="LWN_story_son_opt_coop_charm" text="With that hand, what could you actually do for me?" />
+    <string id="LWN_story_son_opt_coop_pay" text="Take these thirty denars and come with me." />
+    <string id="LWN_story_hint_son_opt_coop" text="Discuss help and recruitment." />
+    <string id="LWN_story_hint_son_opt_coop_temp" text="Ask him to occupy the gate guard. A chance to pass is uncertain." />
+    <string id="LWN_story_hint_son_opt_coop_formal" text="Ask about joining you and his price." />
+    <string id="LWN_story_hint_son_opt_coop_agree" text="Agree on the purpose and limits of this favor." />
+    <string id="LWN_story_hint_son_opt_coop_go" text="Ask him to talk to the gate guard while you stay here and watch." />
+    <string id="LWN_story_hint_son_opt_coop_price" text="Ask his recruitment price." />
+    <string id="LWN_story_hint_son_opt_coop_charm" text="Try to waive the recruitment fee; the check uses both characters' Charm." />
+    <string id="LWN_story_hint_son_opt_coop_pay" text="Pay thirty denars and recruit him. Requires enough money and room in the party." />
+    <string id="LWN_coop_btn_basic" text="Plan details" />
+    <string id="LWN_coop_btn_polish" text="In my words" />
+    <string id="LWN_coop_btn_stop" text="Stop" />
+    <string id="LWN_coop_btn_start" text="Start" />
+    <string id="LWN_coop_plan_actor" text="Who: {ACTOR}" />
+    <string id="LWN_coop_plan_target" text="Talk to: {TARGET}" />
+    <string id="LWN_coop_unknown_person" text="the guard at the gate" />
+    <string id="LWN_coop_plan_player_task" text="Your part: wait outside and keep an eye on me. Once I have drawn their attention and confirmed an opening, I will gesture toward the gate. That is your cue to slip through yourself; a guard who turns back can still see you." />
+    <string id="LWN_coop_plan_risk" text="The risk: they may refuse or turn back while checking. If I use a made-up report, finding no goods will make them suspicious. My signal only tells you what I can see at that moment; it is not permission to enter." />
+    <string id="LWN_coop_plan_rendezvous" text="After the signal: I will stay here to hold their attention while you cross. Once I see you through, my part is done. You do not need to wait for me to reach you; find me later if you need more help." />
+    <string id="LWN_coop_plan_cost" text="Our agreement: I will try the talk we agreed on. I will not pay extra or start a fight. You can call it off; events already set in motion still stand." />
+    <string id="LWN_coop_plan_failure" text="If it fails: if anyone refuses, cannot follow, or turns back before there is an opening, stay outside. I will stop, return to explain and wait at my old place. I will not pay or start a fight on my own." />
+    <string id="LWN_coop_plan_preview" text="These are the proposed steps. I will wait for your word." />
+    <string id="LWN_coop_result_success" text="You are through the gate. My part is done." />
+    <string id="LWN_coop_result_cancelled" text="I have stopped. What already happened still stands." />
+    <string id="LWN_coop_result_failed" text="I could not continue. Stay clear of the gate; we can discuss another way." />
+    <string id="LWN_coop_result_paused" text="I will wait while we talk." />
+    <string id="LWN_coop_reason_refused" text="He refused. Stay clear of the gate; we will need another way." />
+    <string id="LWN_coop_reason_timeout" text="I could not finish in time. Stay clear of the gate; we can discuss another way." />
+    <string id="LWN_coop_reason_gap_lost" text="The gate is being watched again. Wait outside; the old signal no longer holds." />
+    <string id="LWN_coop_reason_budget" text="I have no safe next step. Stay outside and we can discuss another way." />
+    <string id="LWN_coop_prompt_polish" text="Rewrite this fixed local plan as a concise briefing spoken by its named actor to the player. In plain, characterful language explain the objective, why the tactic could work, who does what, the actual signal and timing, the conditions for withdrawing, and when the assistance ends. The actor holds their attention in place while the player crosses; meeting the player is not required. Do not list algorithm stages or pretend future steps have succeeded. Preserve all named targets, uncertainty, costs and risk. Do not add actions, evidence, permission, money or combat. Return only JSON with one text string, no more than 240 words." />
+    <string id="LWN_coop_stage_unknown" text="the next step" />
+    <string id="LWN_story_son_coop_depart_temp" text="Let me explain my plan first; I will go when you agree." />
+    <string id="LWN_story_son_coop_depart_paid" text="Let me explain my plan first; I will go when you agree." />
+    <string id="LWN_story_son_coop_depart_charm" text="Let me explain my plan first; I will go when you agree." />
+    <string id="LWN_story_son_coop_member_ready" text="Let me explain my plan first; I will go when you agree." />
+    <string id="LWN_story_son_opt_accept_ask" text="What if he won't listen?" />
+    <string id="LWN_story_hint_son_opt_accept_ask" text="Ask what to do if the talk fails." />
+    <string id="LWN_story_son_accept_notes" text="Then come back and don't get yourself thrown in over this." />
+    <string id="LWN_coop_stage_lure" text="trying the cargo story on a guard" />
+    <string id="LWN_coop_stage_lead" text="leading the guards to the reported spot" />
+    <string id="LWN_coop_stage_follow" text="following the person who reported the cargo" />
+    <string id="LWN_coop_stage_report" text="returning to explain why this attempt stopped" />
+    <string id="LWN_coop_plan_lure_method" text="My part: I will make up a report of untaxed cargo outside the gate. They cannot simply abandon their post, so I will argue that one must check the goods while the other keeps the carrier from running. I will speak to each guard; only if both agree will I lead them down the lane. Once both arrive, I will check the gate before giving you our signal." />
+    <string id="LWN_coop_line_ask_lure" text="Someone has hidden untaxed cargo down the lane. Come with me: one of you can watch him while the other checks the goods." />
+    <string id="LWN_coop_line_accept_lure" text="Wait here until you have told the others. Then lead the way; we will see what is there." />
+    <string id="LWN_coop_line_refuse_lure" text="You want us all away from the gate? I do not trust this story. Move along." />
+    <string id="LWN_coop_line_look_cargo" text="This is the place? Point out the sacks. Stay here while we check, and do not touch anything." />
+    <string id="LWN_coop_line_failed" text="I could not make this work. Keep clear of the gate for now; we will need another way." />
+    <string id="LWN_coop_plan_waiting_signal" text="You saw my gesture. Watch the gate and cross while the opening lasts." />
+    <string id="LWN_story_outlaw_opt_who" text="What's in this granary?" />
+    <string id="LWN_story_hint_outlaw_opt_who" text="Ask a harmless question before anything else." />
+    <string id="LWN_story_outlaw_stranger" text="None of your business, so move along." />
+    <string id="LWN_coop_line_ask_lure_gate_sentry" text="There is a fellow carrying sacks behind the low wall outside. He hid when he saw the gate guards. Looks like he is dodging the toll." />
+    <string id="LWN_coop_line_challenge_gate_sentry" text="We have a gate to watch. You say it looks suspicious; what did you actually see?" />
+    <string id="LWN_coop_line_clarify_gate_sentry" text="Two sacks so heavy he could barely stand. I will show you myself. One of you checks the goods and the other keeps him there; he could run if you go alone." />
+    <string id="LWN_coop_line_accept_gate_sentry" text="Checking untaxed goods is part of the job too. Tell the others first. We will take a quick look outside, then return if there is no evidence. Stay where we can see you." />
+    <string id="LWN_coop_line_ask_lure_blocker" text="There is someone hiding untaxed cargo just outside, captain. A man checking the sacks cannot watch the carrier as well. We need you to keep him from running." />
+    <string id="LWN_coop_line_challenge_blocker" text="If someone goes to check the goods, I watch the gate. You want both of us away? What are you playing at?" />
+    <string id="LWN_coop_line_clarify_blocker" text="Just the lane outside, a few steps away. I will lead and stay with you. If there are no goods, you can bring me back and make me answer for it." />
+    <string id="LWN_coop_line_accept_blocker" text="Fine. Checking goods and keeping suspects here are our jobs as well. Tell everyone first, then walk ahead. We look and come straight back. Lie to us and you answer for it." />
+    <string id="LWN_coop_signal_received" text="{ACTOR} signals toward the gate: cross now while the opening lasts. Keep out of sight." />
+    <string id="LWN_coop_plan_talk_method" text="My part: I will get close and try to keep the guard talking. A conversation may draw his attention, but does not give us permission to enter. I will check the gate and signal only if there is a real opening." />
+    <string id="LWN_coop_plan_investigate_method" text="My part: I will ask the guard to investigate. He still has a post to cover and needs a real replacement before leaving. If that cannot be arranged, I will stop; only a confirmed opening earns our signal." />
 </strings>
 </base>

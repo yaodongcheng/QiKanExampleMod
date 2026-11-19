@@ -123,14 +123,14 @@ namespace LivingWorldNpcs
 
     /// <summary>
     /// 场景内常驻任务卡（Mission 层，纯显示）。
-    /// 🔴 只在序章 Active 时出现；对话/菜单打开时由原版 UI 覆盖，不需要额外处理。
+    /// 序章进行时和本场真实完成后显示；对话/菜单打开时由原版 UI 覆盖。
     /// 数据：目标文本仍走 <see cref="LWNScreenGoalText.Resolve"/>（单一出口），本类只负责"摆在哪、什么时候刷新"。
     /// </summary>
     public class StoryGoalHudMissionView : MissionView
     {
         private const int LayerOrder = 6;   // AgentHud=5 之上、InteractArea=10 之下
 
-        /// <summary>调试覆盖：null = 跟随序章 Active（正常）。`custom.story_probe hud on|off|auto` 改这里。</summary>
+        /// <summary>调试覆盖：null = 跟随本场进行／完成状态。`custom.story_probe hud on|off|auto` 改这里。</summary>
         public static bool? ForceVisible;
 
         /// <summary>调试覆盖：null = 用 JSON 配置。`custom.story_probe hud left|right` 改这里。</summary>
@@ -151,6 +151,7 @@ namespace LivingWorldNpcs
         private string _lastObjective;
         private bool _forceRefresh;
         private bool _lastFightPending, _lastDefeated;
+        private bool _lastGoalCompleted;
 
         public override void OnMissionScreenInitialize()
         {
@@ -195,7 +196,8 @@ namespace LivingWorldNpcs
             try
             {
                 var host = StoryProbeMissionBehavior.Current;
-                bool show = ForceVisible ?? (host != null && host.Active);
+                bool show = ForceVisible ?? (host != null && host.Mission == Mission
+                    && (host.Active || host.GoalCompleted));
                 if (ForcePosition != null) ApplyPosition(ForcePosition);
                 _vm.IsVisible = show;
                 LastVisible = show;
@@ -204,10 +206,12 @@ namespace LivingWorldNpcs
                 // 战斗准备、真实败退优先到下一帧刷新，不等常规文字轮询。
                 bool fight = host?.FirstGuardFightPending == true;
                 bool defeated = host?.FirstGuardDefeated == true;
-                if (fight != _lastFightPending || defeated != _lastDefeated)
+                bool completed = host?.GoalCompleted == true;
+                if (fight != _lastFightPending || defeated != _lastDefeated || completed != _lastGoalCompleted)
                 {
                     _lastFightPending = fight;
                     _lastDefeated = defeated;
+                    _lastGoalCompleted = completed;
                     _forceRefresh = true;
                 }
 
@@ -248,15 +252,52 @@ namespace LivingWorldNpcs
         private void RefreshGoal()
         {
             string objective = LWNScreenGoalText.Resolve();
-            if (objective == _lastObjective) return;
+            string progress = CoopProgressLine();
+            if (objective == _lastObjective && progress == _lastProgress) return;
 
+            bool hadProgress = !string.IsNullOrEmpty(_lastProgress);
             _lastObjective = objective;
-            _vm.Title = LWNTextHelper.ResolveText("LWN_story_hud_title", "Get inside");
+            _lastProgress = progress;
+            _vm.Title = _lastGoalCompleted
+                ? LWNTextHelper.ResolveText("LWN_story_hud_done_title", "Entered town")
+                : LWNTextHelper.ResolveText("LWN_story_hud_title", "Get inside");
             _vm.Objective = objective;
+            _vm.Progress = progress;
+            _vm.ShowProgress = !string.IsNullOrEmpty(progress);
+            if (!string.IsNullOrEmpty(progress))
+            {
+                Planner.Cooperation.CoopLog.Event("view.updated").Detail(progress).Write();
+            }
+            else if (hadProgress)
+            {
+                Planner.Cooperation.CoopLog.Event("view.discarded").Reason("no_active_activity").Write();
+            }
             LastObjective = objective;
             DebugLogger.Log($"[StoryGoalHud] objective changed: fight={_lastFightPending} defeated={_lastDefeated} text={objective}");
             StartFlash();
         }
+
+        /// <summary>
+        /// 协作进展一行：只显示玩家已知的当前阶段（不显示隐藏意图与未来结果）。
+        /// 没有活动时返回空，卡片恢复原样。
+        /// </summary>
+        private static string CoopProgressLine()
+        {
+            if (StoryProbeMissionBehavior.Current?.GoalCompleted == true) return string.Empty;
+            var director = Planner.Cooperation.CoopDirector.Current;
+            if (Planner.Cooperation.CoopHudBridge.Hidden) return string.Empty;
+            if (director == null || director.Content == null) return string.Empty;
+            foreach (var activity in director.Activities)
+            {
+                if (activity.IsActive && activity.PlayerInformed)
+                {
+                    return Planner.Cooperation.CoopView.KnownProgress(activity.Id);
+                }
+            }
+            return string.Empty;
+        }
+
+        private string _lastProgress = string.Empty;
 
         private void StartFlash()
         {

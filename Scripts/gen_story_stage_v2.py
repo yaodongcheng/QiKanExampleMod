@@ -205,6 +205,9 @@ def main():
                               initial["Facing"], action, 1, 0.6])
         work_by_actor[actor] = wid
 
+    for point in v1.get("AdditionalPoints", []):
+        work_csv_rows.append([point["Id"], scene, "market_square", point.get("Role", "spot"), point["Anchor"],
+                              point.get("Fwd", 0), point.get("Right", 0), point.get("Up", 0), -1, "", "", ""])
     standing = []
     for a in actors:
         # 空间信息只有一个来源 = Points：没工作点的演员也生成一个自己的点位，Standing 只写 Actor+Point。

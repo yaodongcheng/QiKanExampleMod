@@ -118,7 +118,8 @@
           "HintKey": "LWN_story_hint_thug_opt_ask",
           "HintKeyZh": "打听砸摊的事。",
           "Requires": [
-            "!asked:thug_ask"
+            "!asked:thug_ask",
+            "clue:dock_girl"
           ],
           "Effects": [
             {
@@ -210,7 +211,8 @@
           "Requires": [
             "!quest_done@butcher",
             "event_resolved:1",
-            "!quest_accepted@butcher"
+            "!quest_accepted@butcher",
+            "clue:dock_girl"
           ],
           "Effects": [],
           "Speaker": "player",
@@ -287,7 +289,8 @@
           "HintKey": "LWN_story_hint_thug_opt_ask",
           "HintKeyZh": "打听砸摊的事。",
           "Requires": [
-            "!asked:thug_ask"
+            "!asked:thug_ask",
+            "clue:dock_girl"
           ],
           "Effects": [
             {
@@ -379,7 +382,8 @@
           "Requires": [
             "!quest_done@butcher",
             "event_resolved:1",
-            "!quest_accepted@butcher"
+            "!quest_accepted@butcher",
+            "clue:dock_girl"
           ],
           "Effects": [],
           "Speaker": "player",
@@ -673,32 +677,7 @@
           "Receipt": "once"
         }
       ],
-      "Options": [
-        {
-          "Id": "back",
-          "PlayerKey": "LWN_story_pawnbroker_opt_back",
-          "PlayerKeyZh": "[收住] 说点别的。",
-          "HintKey": "LWN_story_hint_back_topics",
-          "HintKeyZh": "继续聊别的。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "thug_hub",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "thug_settle_refused",

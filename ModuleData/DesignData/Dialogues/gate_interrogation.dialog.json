@@ -492,20 +492,7 @@
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
-      "Options": [
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "questioner"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "blocker_threat_ok",
@@ -529,20 +516,7 @@
           "Receipt": "once"
         }
       ],
-      "Options": [
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "questioner"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "blocker_threat_fail",
@@ -611,20 +585,7 @@
           "Receipt": "once"
         }
       ],
-      "Options": [
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "questioner"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "blocker_disguise_fail",
@@ -681,20 +642,7 @@
       "LineActions": [
         "act_conversation_aggressive_negative"
       ],
-      "Options": [
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "questioner"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "blocker_disarmed_ok",
@@ -705,20 +653,7 @@
       "LineActions": [
         "act_conversation_aggressive_trivial"
       ],
-      "Options": [
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "questioner"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "blocker_first_blow_fight_response",

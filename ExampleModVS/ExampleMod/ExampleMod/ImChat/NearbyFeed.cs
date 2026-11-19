@@ -35,6 +35,15 @@ namespace LivingWorldNpcs
         private const long MergeIntervalMs = 200;         // 同 sender 合并（防刷屏）
 
         public static bool IsActive => Mission.Current != null;
+        public static void AppendCard(ImMessage message)
+        {
+            if (!IsActive || message == null) return;
+            message.ConvId = ChannelId;
+            _messages.Add(message);
+            if (_messages.Count > MaxMessages) _messages.RemoveAt(0);
+            ImChatStore.IncUnread(ChannelId);
+            ImChatManager.BroadcastMessageArrived(Conversation);
+        }
 
         /// <summary>附近频道会话对象（运行时构建；标题本地化）。</summary>
         public static ImConversation Conversation =>

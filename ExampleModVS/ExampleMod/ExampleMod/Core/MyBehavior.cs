@@ -101,6 +101,7 @@ namespace LivingWorldNpcs
             {
                 // 序章（lwn_story_probe）
                 StoryProbeState.ResetAll();
+                Planner.Cooperation.CoopState.ResetAll();
                 // 意图冷却 / 据点荣誉（SyncData: lwn_intent_cooldowns / lwn_settlement_honor）
                 IntentCooldownStore.ResetAll();
                 SettlementHonorStore.ResetAll();
@@ -433,6 +434,16 @@ namespace LivingWorldNpcs
                 // 老档（没有这条 key）→ 清成默认值；否则内存里上一局的阶段会漏进老档
                 if (string.IsNullOrEmpty(storyProbeJson)) StoryProbeState.ResetAll();
                 else StoryProbeState.Deserialize(storyProbeJson);
+            }
+
+            // 随从协助破局（2026-11-18）：只存业务记录（检定尝试／收据／协作关系／未了事项），
+            // 不存执行栈；读档后活动不自动续跑。
+            string coopLedgerJson = SaveStringGuard.GuardJson(Planner.Cooperation.CoopState.SaveKey, Planner.Cooperation.CoopState.Serialize());
+            dataStore.SyncData(Planner.Cooperation.CoopState.SaveKey, ref coopLedgerJson);
+            if (dataStore.IsLoading)
+            {
+                if (string.IsNullOrEmpty(coopLedgerJson)) Planner.Cooperation.CoopState.ResetAll();
+                else Planner.Cooperation.CoopState.Deserialize(coopLedgerJson);
             }
 
             string cooldownJson = SaveStringGuard.GuardJson("lwn_intent_cooldowns", IntentCooldownStore.Serialize());

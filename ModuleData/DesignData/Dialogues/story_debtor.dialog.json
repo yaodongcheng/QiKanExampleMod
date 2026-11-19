@@ -137,7 +137,11 @@
           "PlayerKeyZh": "既然嘴上讨不回来，那就打到你掏钱为止。",
           "HintKey": "LWN_story_hint_debtor_opt_fight",
           "HintKeyZh": "直接与收数人开战。",
-          "Requires": [],
+          "Requires": [
+            "quest_accepted@pawnbroker",
+            "!quest_done@pawnbroker",
+            "asked:attempt_LWN_story_debtor_opt_collect"
+          ],
           "Effects": [
             {
               "Id": "start_fight",
@@ -237,7 +241,11 @@
           "PlayerKeyZh": "既然嘴上讨不回来，那就打到你掏钱为止。",
           "HintKey": "LWN_story_hint_debtor_opt_fight",
           "HintKeyZh": "直接与收数人开战。",
-          "Requires": [],
+          "Requires": [
+            "quest_accepted@pawnbroker",
+            "!quest_done@pawnbroker",
+            "asked:attempt_LWN_story_debtor_opt_collect"
+          ],
           "Effects": [
             {
               "Id": "start_fight",
@@ -300,20 +308,7 @@
           "Receipt": "once"
         }
       ],
-      "Options": [
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_debtor_opt_collect_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_debtor_opt_collect_leave",
-          "HintKeyZh": "带着收回的债款离开，回老周处交差。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "NextNode": ""
     },
     {
       "Id": "debtor_refuse",
@@ -371,20 +366,7 @@
         "act_conversation_closed_very_negative"
       ],
       "OnEnter": [],
-      "Options": [
-        {
-          "Id": "leave",
-          "PlayerKey": "LWN_story_opt_leave",
-          "PlayerKeyZh": "[离开] 我先走了。",
-          "HintKey": "LWN_story_hint_leave",
-          "HintKeyZh": "结束交谈。",
-          "Requires": [],
-          "Effects": [],
-          "NextNode": "",
-          "Speaker": "player",
-          "Listener": "npc"
-        }
-      ]
+      "NextNode": ""
     }
   ],
   "_Speaker说明": "节点只能由NPC说话；npc/questioner绑定本次入口演员，其余为Actors中的实名ID。",

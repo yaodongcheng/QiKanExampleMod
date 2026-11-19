@@ -367,6 +367,7 @@ namespace LivingWorldNpcs
                     bool owns = _pending.TryGetValue(behavior.Id, out var pending) && pending == standing.Actor
                         || _runs.Any(r => r.BehaviorId == behavior.Id && r.ActorId == standing.Actor && !r.Flow.Done);
                     var agent = _host.GetAgent(standing.Actor);
+                    if (agent == null || !AgentControlHelper.SafeIsActive(agent)) continue;
                     var brain = AgentAIController.GetBrainForAgent(agent);
                     if (owns && brain?.IsStoryIntercepting == true && !InGroupZone(layout, behavior, standing.Point, 2f))
                     {

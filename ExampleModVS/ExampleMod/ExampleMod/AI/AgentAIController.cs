@@ -54,7 +54,10 @@ namespace LivingWorldNpcs
         public WorldEvent PendingWorldEvent { get; private set; }
         public static AgentBrain GetBrainForAgent(Agent agent)
         {
-            if (Instance != null && Instance._brains.TryGetValue(agent.Index, out var brain))
+            // 🔴 null agent 曾经直接读 agent.Index = NRE（实机 2026-11-19 TickLeash 崩）。
+            //    角色未生成／已移除时调用方一律当"没有脑"处理，不在这里抛。
+            if (agent == null || Instance == null) return null;
+            if (Instance._brains.TryGetValue(agent.Index, out var brain))
             {
                 return brain;
             }

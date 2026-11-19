@@ -1,0 +1,926 @@
+{
+  "_comment": "剧情标记登记表（手维护源）。规则见 Scripts/check_story_flags.py：未登记=拒收；非 Legacy 必须带命名空间。",
+  "Schema": 1,
+  "Flags": [
+    {
+      "Id": "ask_gang",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:pawnbroker_hub/gang",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/gang"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:pawnbroker_hub/chat",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/deal",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/errand",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/gang",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/money",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/redeem",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/reward",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/chat",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/deal",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/errand",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/gang",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/money",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/reward"
+      ],
+      "Note": "话题已问过：该问答不再重复出现"
+    },
+    {
+      "Id": "ask_meat",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:butcher_business_hub/meat"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:butcher_business_hub/meat",
+        "story_butcher.dialog.json:butcher_work_hub/money"
+      ],
+      "Note": "话题已问过：该问答不再重复出现"
+    },
+    {
+      "Id": "ask_past",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:butcher_business_hub/past"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:butcher_business_hub/past"
+      ],
+      "Note": "话题已问过：该问答不再重复出现"
+    },
+    {
+      "Id": "ask_rival",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_widow.dialog.json:widow_business_hub/rival"
+      ],
+      "Readers": [
+        "story_widow.dialog.json:widow_business_hub/rival"
+      ],
+      "Note": "话题已问过：该问答不再重复出现"
+    },
+    {
+      "Id": "ask_self",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:pawnbroker_hub/self",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/self"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:pawnbroker_hub/errand",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/money",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/redeem",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/reward",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/self",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/errand",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/money",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/reward",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/self"
+      ],
+      "Note": "话题已问过：该问答不再重复出现"
+    },
+    {
+      "Id": "ask_sister",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:butcher_hub/sister",
+        "story_butcher.dialog.json:butcher_intro/sister",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/sister",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/sister",
+        "story_son.dialog.json:son_hub/sister",
+        "story_son.dialog.json:son_intro/sister",
+        "story_widow.dialog.json:widow_hub/sister",
+        "story_widow.dialog.json:widow_intro/sister"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:butcher_hub/sister",
+        "story_butcher.dialog.json:butcher_intro/sister",
+        "story_butcher.dialog.json:butcher_work_hub/money",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/money",
+        "story_pawnbroker.dialog.json:pawnbroker_hub/sister",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/money",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/sister",
+        "story_son.dialog.json:son_hub/sister",
+        "story_son.dialog.json:son_intro/sister",
+        "story_widow.dialog.json:widow_hub/sister",
+        "story_widow.dialog.json:widow_intro/sister",
+        "story_widow.dialog.json:widow_work_hub/money"
+      ],
+      "Note": "话题已问过：该问答不再重复出现"
+    },
+    {
+      "Id": "ask_stage",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_widow.dialog.json:widow_business_hub/stage"
+      ],
+      "Readers": [
+        "story_widow.dialog.json:widow_business_hub/stage",
+        "story_widow.dialog.json:widow_work_hub/money"
+      ],
+      "Note": "话题已问过：该问答不再重复出现"
+    },
+    {
+      "Id": "ask_wall",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_son.dialog.json:son_business_hub/wall"
+      ],
+      "Readers": [
+        "story_son.dialog.json:son_business_hub/wall"
+      ],
+      "Note": "话题已问过：该问答不再重复出现"
+    },
+    {
+      "Id": "attempt_LWN_story_blocker_opt_disguise",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "gate_interrogation.dialog.json:blocker_open/disguise"
+      ],
+      "Readers": [
+        "gate_interrogation.dialog.json:blocker_open/disguise"
+      ],
+      "Note": "尝试账：该选项已被尝试过（防重复掷骰/重复领取）"
+    },
+    {
+      "Id": "attempt_LWN_story_blocker_opt_threat",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "gate_interrogation.dialog.json:blocker_open/threat"
+      ],
+      "Readers": [
+        "gate_interrogation.dialog.json:blocker_open/threat"
+      ],
+      "Note": "尝试账：该选项已被尝试过（防重复掷骰/重复领取）"
+    },
+    {
+      "Id": "attempt_LWN_story_debtor_opt_collect",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_debtor.dialog.json:debtor_hub/collect",
+        "story_debtor.dialog.json:debtor_intro/collect"
+      ],
+      "Readers": [
+        "story_debtor.dialog.json:debtor_hub/collect",
+        "story_debtor.dialog.json:debtor_intro/collect"
+      ],
+      "Note": "尝试账：该选项已被尝试过（防重复掷骰/重复领取）"
+    },
+    {
+      "Id": "attempt_LWN_story_event1_opt_stop",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:event_1_join/stop"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:event_1_join/stop"
+      ],
+      "Note": "尝试账：该选项已被尝试过（防重复掷骰/重复领取）"
+    },
+    {
+      "Id": "attempt_LWN_story_event2_opt_help",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:event_2_ask/help",
+        "story_butcher.dialog.json:event_2_join/help"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:event_2_ask/help",
+        "story_butcher.dialog.json:event_2_join/help"
+      ],
+      "Note": "尝试账：该选项已被尝试过（防重复掷骰/重复领取）"
+    },
+    {
+      "Id": "attempt_LWN_story_event3_opt_side_widow",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_widow.dialog.json:event_3_ask/widow",
+        "story_widow.dialog.json:event_3_join/widow"
+      ],
+      "Readers": [
+        "story_widow.dialog.json:event_3_ask/widow",
+        "story_widow.dialog.json:event_3_join/widow"
+      ],
+      "Note": "尝试账：该选项已被尝试过（防重复掷骰/重复领取）"
+    },
+    {
+      "Id": "attempt_LWN_story_event4_opt_defend",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_son.dialog.json:event_4_ask/defend",
+        "story_son.dialog.json:event_4_join/defend"
+      ],
+      "Readers": [
+        "story_son.dialog.json:event_4_ask/defend",
+        "story_son.dialog.json:event_4_join/defend"
+      ],
+      "Note": "尝试账：该选项已被尝试过（防重复掷骰/重复领取）"
+    },
+    {
+      "Id": "attempt_LWN_story_outlaw_opt_settle",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_outlaw.dialog.json:outlaw_hub/settle",
+        "story_outlaw.dialog.json:outlaw_intro/settle",
+        "story_outlaw.dialog.json:outlaw_talk/settle"
+      ],
+      "Readers": [],
+      "Note": "尝试账：该选项已被尝试过（防重复掷骰/重复领取）"
+    },
+    {
+      "Id": "attempt_LWN_story_rival_opt_settle",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_rival.dialog.json:rival_hub/settle",
+        "story_rival.dialog.json:rival_intro/settle",
+        "story_rival.dialog.json:rival_talk/settle"
+      ],
+      "Readers": [
+        "story_rival.dialog.json:rival_hub/settle",
+        "story_rival.dialog.json:rival_intro/settle",
+        "story_rival.dialog.json:rival_talk/settle"
+      ],
+      "Note": "尝试账：该选项已被尝试过（防重复掷骰/重复领取）"
+    },
+    {
+      "Id": "attempt_LWN_story_thug_opt_settle",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_thug.dialog.json:thug_hub/settle",
+        "story_thug.dialog.json:thug_intro/settle",
+        "story_thug.dialog.json:thug_talk/settle"
+      ],
+      "Readers": [
+        "story_thug.dialog.json:thug_hub/settle",
+        "story_thug.dialog.json:thug_intro/settle",
+        "story_thug.dialog.json:thug_talk/settle"
+      ],
+      "Note": "尝试账：该选项已被尝试过（防重复掷骰/重复领取）"
+    },
+    {
+      "Id": "butcher_chat_2",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:butcher_chat/work"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:butcher_chat/work"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "butcher_money",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:butcher_work_hub/money"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:butcher_work_hub/money"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "butcher_why",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:butcher_deal/why"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:butcher_deal/why"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "chat_docks",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:pawnbroker_chat/visit"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:pawnbroker_chat/visit"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "coop_recruit_charm",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_son.dialog.json:son_coop_formal/charm"
+      ],
+      "Readers": [
+        "story_son.dialog.json:son_coop_formal/charm"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "deal_why",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:pawnbroker_deal/why"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:pawnbroker_deal/why"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "debtor_ask",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_debtor.dialog.json:debtor_hub/ask",
+        "story_debtor.dialog.json:debtor_intro/ask"
+      ],
+      "Readers": [
+        "story_debtor.dialog.json:debtor_hub/ask",
+        "story_debtor.dialog.json:debtor_intro/ask"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "gang_how",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_gang/how"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_gang/how"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "gang_price",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_gang/price"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_gang/price"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "grapple_paid",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_son.dialog.json:son_money_open/pay"
+      ],
+      "Readers": [
+        "story_son.dialog.json:son_money_open/help",
+        "story_son.dialog.json:son_money_open/paid",
+        "story_son.dialog.json:son_money_open/pay"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "lesson_control",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:butcher_methods_hub/control"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:butcher_methods_hub/control"
+      ],
+      "Note": "教学进度：课程是否开始/结束/已回看"
+    },
+    {
+      "Id": "lesson_fight",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:butcher_methods_hub/fight"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:butcher_methods_hub/fight"
+      ],
+      "Note": "教学进度：课程是否开始/结束/已回看"
+    },
+    {
+      "Id": "lesson_grapple_done",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [],
+      "Readers": [
+        "story_son.dialog.json:son_grapple_offer/start",
+        "story_son.dialog.json:son_methods_routes/grapple_review",
+        "story_son.dialog.json:son_methods_routes/secret"
+      ],
+      "Note": "教学进度：课程是否开始/结束/已回看"
+    },
+    {
+      "Id": "lesson_identity",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_widow.dialog.json:widow_methods_hub/identity"
+      ],
+      "Readers": [
+        "story_widow.dialog.json:widow_methods_hub/identity"
+      ],
+      "Note": "教学进度：课程是否开始/结束/已回看"
+    },
+    {
+      "Id": "lesson_lock",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_son.dialog.json:son_tools_hub/locks"
+      ],
+      "Readers": [
+        "story_son.dialog.json:son_tools_hub/locks",
+        "story_son.dialog.json:son_tools_hub/try"
+      ],
+      "Note": "教学进度：课程是否开始/结束/已回看"
+    },
+    {
+      "Id": "lesson_lock_done",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [],
+      "Readers": [
+        "story_son.dialog.json:son_tools_hub/done",
+        "story_son.dialog.json:son_tools_hub/try"
+      ],
+      "Note": "教学进度：课程是否开始/结束/已回看"
+    },
+    {
+      "Id": "lesson_lock_reviewed",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_son.dialog.json:son_practice_done"
+      ],
+      "Readers": [
+        "story_son.dialog.json:son_tools_hub/done"
+      ],
+      "Note": "教学进度：课程是否开始/结束/已回看"
+    },
+    {
+      "Id": "lesson_stealth_done",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [],
+      "Readers": [
+        "story_son.dialog.json:son_learn_sneak_2/practice",
+        "story_son.dialog.json:son_learn_sneak_2/practice_review",
+        "story_son.dialog.json:son_learn_steal_2/practice",
+        "story_son.dialog.json:son_learn_steal_2/practice_review",
+        "story_son.dialog.json:son_stealth_offer/start"
+      ],
+      "Note": "教学进度：课程是否开始/结束/已回看"
+    },
+    {
+      "Id": "lesson_talk",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_widow.dialog.json:widow_methods_hub/talk"
+      ],
+      "Readers": [
+        "story_widow.dialog.json:widow_methods_hub/talk"
+      ],
+      "Note": "教学进度：课程是否开始/结束/已回看"
+    },
+    {
+      "Id": "lesson_threat",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:butcher_methods_hub/threat"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:butcher_methods_hub/threat"
+      ],
+      "Note": "教学进度：课程是否开始/结束/已回看"
+    },
+    {
+      "Id": "lock_permission",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_son.dialog.json:son_practice_start"
+      ],
+      "Readers": [],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "met",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "gate_interrogation.dialog.json:blocker_first",
+        "gate_interrogation.dialog.json:blocker_open",
+        "story_butcher.dialog.json:butcher_intro",
+        "story_debtor.dialog.json:debtor_intro",
+        "story_outlaw.dialog.json:outlaw_intro",
+        "story_pawnbroker.dialog.json:pawnbroker_intro",
+        "story_rival.dialog.json:rival_intro",
+        "story_son.dialog.json:son_intro",
+        "story_thug.dialog.json:thug_intro",
+        "story_widow.dialog.json:widow_intro"
+      ],
+      "Readers": [],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "offer_money",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:pawnbroker_hub/money",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/money"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:pawnbroker_hub/money",
+        "story_pawnbroker.dialog.json:pawnbroker_intro/money"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "outlaw_ask",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_outlaw.dialog.json:outlaw_hub/ask",
+        "story_outlaw.dialog.json:outlaw_intro/ask"
+      ],
+      "Readers": [],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "past_more",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:butcher_ask_past/more"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:butcher_ask_past/more"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "rival_sign",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_rival.dialog.json:rival_hub/sign",
+        "story_rival.dialog.json:rival_intro/sign"
+      ],
+      "Readers": [
+        "story_rival.dialog.json:rival_hub/sign",
+        "story_rival.dialog.json:rival_intro/sign"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "self_know",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_self/know"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_self/know"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "self_stay",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_self/stay"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_self/stay"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "sister_more",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_butcher.dialog.json:butcher_ask_sister/sister2",
+        "story_son.dialog.json:son_ask_sister/sister2",
+        "story_widow.dialog.json:widow_ask_sister/more"
+      ],
+      "Readers": [
+        "story_butcher.dialog.json:butcher_ask_sister/sister2",
+        "story_son.dialog.json:son_ask_sister/sister2",
+        "story_widow.dialog.json:widow_ask_sister/more"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "sister_where",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_sister/where"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_sister/where"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "sister_why",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_sister/why"
+      ],
+      "Readers": [
+        "story_pawnbroker.dialog.json:pawnbroker_ask_sister/why"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "son_chat_2",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_son.dialog.json:son_chat/work"
+      ],
+      "Readers": [
+        "story_son.dialog.json:son_chat/work"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "son_why",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_son.dialog.json:son_deal/why"
+      ],
+      "Readers": [
+        "story_son.dialog.json:son_deal/why"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "thug_ask",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_thug.dialog.json:thug_hub/ask",
+        "story_thug.dialog.json:thug_intro/ask"
+      ],
+      "Readers": [
+        "story_thug.dialog.json:thug_hub/ask",
+        "story_thug.dialog.json:thug_intro/ask"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "thug_night",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_thug.dialog.json:thug_hub/money",
+        "story_thug.dialog.json:thug_intro/money"
+      ],
+      "Readers": [
+        "story_thug.dialog.json:thug_hub/money",
+        "story_thug.dialog.json:thug_intro/money"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "widow_chat_2",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_widow.dialog.json:widow_chat/work"
+      ],
+      "Readers": [
+        "story_widow.dialog.json:widow_chat/work"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "widow_money",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_widow.dialog.json:widow_work_hub/money"
+      ],
+      "Readers": [
+        "story_widow.dialog.json:widow_work_hub/money"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    },
+    {
+      "Id": "widow_why",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_widow.dialog.json:widow_deal/why"
+      ],
+      "Readers": [
+        "story_widow.dialog.json:widow_deal/why"
+      ],
+      "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
+    }
+  ]
+}

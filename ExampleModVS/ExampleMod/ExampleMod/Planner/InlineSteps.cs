@@ -260,15 +260,16 @@ namespace LivingWorldNpcs
         /// 🔴 §5.6（2026-08-10）：说话广播收敛到 DialogueComponent.HandleDialogue（含旁观者 seen_speaking 插话广播）。</summary>
         private void BroadcastSpokenTo(string line, string outlineStep)
         {
-            // ask: follow → 广播 asked_to_follow(target)（ReactiveAgent"跟不跟"演算的触发词）
-            if (!string.IsNullOrEmpty(_step.Ask) && _step.Ask == "follow" && _target != null)
-                AgentAIController.Instance?.SendEventToAgent(_target, "asked_to_follow", _agent);
             // 通用 spoken_to 广播 + 旁观者 seen_speaking（统一入口；Args[2]=主题（对话模式用 topic，否则计划摘要））
             if (_target != null)
             {
                 string topic = !string.IsNullOrEmpty(_step.Topic) ? _step.Topic : _executor?.Summary;
                 DialogueComponent.HandleDialogue(_agent, _target, topic, line, outlineStep);
             }
+            // 🔴 ask: follow 必须**最后**发：通用 spoken_to 会让 ReactiveAgent 走 consider/listen，
+            //   先发 asked_to_follow 会被它覆盖（跟随请求丢失 = "答应跟走却没动"）。
+            if (!string.IsNullOrEmpty(_step.Ask) && _step.Ask == "follow" && _target != null)
+                AgentAIController.Instance?.SendEventToAgent(_target, "asked_to_follow", _agent);
         }
     }
 

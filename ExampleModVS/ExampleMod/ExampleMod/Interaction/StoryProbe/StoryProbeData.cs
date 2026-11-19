@@ -192,6 +192,8 @@ namespace LivingWorldNpcs
         /// <summary>离地多高算"翻墙"。</summary>
         public float ClimbHeightMeters = 2f;
         public float PushBackCooldownSec = 1.2f;
+        /// <summary>推回必须有真实可及条件：守卫与玩家的近身距离上限（米）。</summary>
+        public float PushBackReachMeters = 6f;
         public float GuardSpawnRadiusMeters = 60f;
         public float RecognizeDistanceMeters = 12f;
 

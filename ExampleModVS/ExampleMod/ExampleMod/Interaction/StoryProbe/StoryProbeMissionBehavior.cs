@@ -44,6 +44,8 @@ namespace LivingWorldNpcs
         private string _guardTagUsed;
         public bool Active { get; private set; }
         public StoryProbePhase Phase { get; private set; } = StoryProbePhase.FirstAttempt;
+        /// <summary>仅本场真实完成后保留结尾任务卡，不把其他场景或暂停当作完成。</summary>
+        public bool GoalCompleted => _goalReached && Phase == StoryProbePhase.Done;
 
         // ── 生成的人 ──
         private readonly Dictionary<string, Agent> _agents = new Dictionary<string, Agent>();
@@ -116,6 +118,7 @@ namespace LivingWorldNpcs
         public float Clock => _time;
         private readonly List<(float at, Action action)> _schedule = new List<(float, Action)>();
         private bool _gateOpen;
+        private bool _playerCrossedNotified;
         private bool _blockerWasDisarmed;
         private bool _recognized;
         private bool _climbSeen;
@@ -717,6 +720,7 @@ namespace LivingWorldNpcs
                 _crossingWall = lateral <= gt.ClimbHalfWidthMeters
                     && cross.z - _gateCenter.z > gt.ClimbHeightMeters;
                 if (_crossingDoor || _crossingWall) _crossedGate = true;
+                DebugLogger.Log($"[StoryGate] crossing: door={_crossingDoor} wall={_crossingWall} crouch={player.CrouchMode} lateral={lateral:F2} gateOpen={_gateOpen}");
             }
             _lastGatePosition = player.Position;
         }
@@ -1416,7 +1420,6 @@ namespace LivingWorldNpcs
             if (_prep?.Ready == true && _posts?.HasRules("second_meet") == true)
                 _posts.TryRequestQuestion("second_meet");
             _work?.Tick(dt);
-            TrackGateCrossing(player, dt);
             PumpStoryFights();
             var b = GetAgent("blocker");
             var brain = b != null ? AgentAIController.GetBrainForAgent(b) : null;
@@ -1443,15 +1446,7 @@ namespace LivingWorldNpcs
                     RequestStoryFight("blocker");
                 }
             }
-            if (!_gateOpen && player != null && brain?.IsPerforming != true) CheckHandsOnGate(player);
-            if (!_goalReached && player != null)
-            {
-                EnforceGateBarrier(player, dt);
-                if (_gateGeometryReady && _gateOpen && _crossedGate
-                    && GateAlong(player.Position) >= StoryProbeTuning.Current.Gate.PastMeters
-                    && player.Position.Distance(GoalPos) < StoryProbeTuning.Current.Gate.GoalRadiusMeters)
-                    CompletePrologue(); // 财物成功归还后由该方法提交 _goalReached。
-            }
+            TickPlayerGate(player, dt);
 
             // 随从 3 句（间隔 2.5 秒）
             if (_introLine >= 0 && _introLine < 3 && _nextIntroAt > 0f && _time >= _nextIntroAt)
@@ -1461,9 +1456,28 @@ namespace LivingWorldNpcs
                 _nextIntroAt = _introLine < 3 ? _time + 2.5f : -1f;
                 if (_introLine >= 3) StoryProbeState.Data.IntroPlayed = true;
             }
-
             _director?.Tick(dt);
             TickQuests();
+        }
+
+        /// <summary>玩家的实际过门检测不占守卫身体，守卫演出不能屏蔽它。</summary>
+        private void TickPlayerGate(Agent player, float dt)
+        {
+            TrackGateCrossing(player, dt);
+            if (!_gateOpen && player != null) CheckHandsOnGate(player);
+            if (!_goalReached && player != null)
+            {
+                EnforceGateBarrier(player, dt);
+                if (PlayerHasCrossed && !_playerCrossedNotified)
+                {
+                    _playerCrossedNotified = true;
+                    Planner.Cooperation.CoopMissionBehavior.Current?.NotifyPlayerCrossed();
+                }
+                if (_gateGeometryReady && _gateOpen && _crossedGate
+                    && GateAlong(player.Position) >= StoryProbeTuning.Current.Gate.PastMeters
+                    && player.Position.Distance(GoalPos) < StoryProbeTuning.Current.Gate.GoalRadiusMeters)
+                    CompletePrologue(); // 财物成功归还后由该方法提交 _goalReached。
+            }
         }
 
         /// <summary>伪装是取得资格且实际穿戴；存档旗标不能代替现场衣装。</summary>
@@ -1784,9 +1798,52 @@ namespace LivingWorldNpcs
         /// 否则会出现"蹲着背后算潜行、翻墙背后却算被看见"这种自相矛盾。
         /// </summary>
         private bool IsBlockerWatching(Agent player)
+            => IsGateObserved(player);
+
+        public bool PlayerHasCrossed => _gateGeometryReady && _gateOpen && _crossedGate
+            && StoryProbeState.Data.ApproachResolved && AgentControlHelper.SafeIsActive(Agent.Main)
+            && GateAlong(Agent.Main.Position) >= StoryProbeTuning.Current.Gate.PastMeters;
+
+        public bool HasGateOpportunity(Agent observer, Agent distracted)
         {
-            return NpcSightSystem.CanAgentSeeTarget(GetAgent("blocker"), player,
-                StoryProbeTuning.Current.Gate.RecognizeDistanceMeters);
+            if (!_gateGeometryReady || !AgentControlHelper.SafeIsActive(observer)
+                || !AgentControlHelper.SafeIsActive(distracted)
+                || !NpcSightSystem.CanAgentSeeTarget(observer, distracted, 20f)) return false;
+            foreach (var guard in GateWatchers())
+            {
+                // 随从必须亲眼看到每一位在岗者，才能确认没人继续盯门。
+                if (guard != observer && !NpcSightSystem.CanAgentSeeTarget(observer, guard, 20f)) return false;
+                if (NpcSightSystem.CanAgentSeeTarget(guard, Agent.Main, StoryProbeTuning.Current.Gate.RecognizeDistanceMeters)
+                    || NpcSightSystem.CanAgentSeePoint(guard, _gateCenter, StoryProbeTuning.Current.Gate.RecognizeDistanceMeters)) return false;
+            }
+            return true;
+        }
+
+        public IEnumerable<Agent> GateWatchers()
+        {
+            foreach (var def in StoryProbeDefs.Npcs)
+            {
+                if (def == null || !def.FirstMeetGuard) continue;
+                var guard = GetAgent(def.Id);
+                if (guard == null || !AgentControlHelper.SafeIsActive(guard) || guard.Health <= 0f) continue;
+                var brain = AgentAIController.GetBrainForAgent(guard);
+                if (brain == null || !brain.HasDutyPoint || brain.IsStunned || brain.IsStatusHeld || AgentBrain.IsRoped(guard)) continue;
+                yield return guard;
+            }
+        }
+
+        public bool IsGateObserved(Agent player, Agent except = null)
+        {
+            // 全员门禁：任一实际承担岗哨职责、真实看得见的守卫发现就不算未被发现。
+            // 只查 blocker 会让第二卫形同虚设（实施计划 §1.2 前置改造 D）。
+            foreach (var guard in GateWatchers())
+            {
+                if (guard == except) continue;
+                if (!NpcSightSystem.CanAgentSeeTarget(guard, player,
+                        StoryProbeTuning.Current.Gate.RecognizeDistanceMeters)) continue;
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -1799,6 +1856,29 @@ namespace LivingWorldNpcs
         ///
         /// 🔴 全用现成系统（GrappleLogic / 扒窃 / CrouchMode），不新建任何武器或姿态逻辑。
         /// </summary>
+        /// <summary>门禁判定留证：列出本次实际参与观察的岗哨与结果（不含隐藏意图）。</summary>
+        private void LogGateEvaluation(Agent player, string context)
+        {
+            try
+            {
+                var parts = new List<string>();
+                foreach (var def in StoryProbeDefs.Npcs)
+                {
+                    if (def == null || !def.FirstMeetGuard) continue;
+                    var guard = GetAgent(def.Id);
+                    if (guard == null || !AgentControlHelper.SafeIsActive(guard)) continue;
+                    bool sees = NpcSightSystem.CanAgentSeeTarget(guard, player,
+                        StoryProbeTuning.Current.Gate.RecognizeDistanceMeters);
+                    parts.Add(def.Id + (sees ? ":sees" : ":blind"));
+                }
+                Planner.Cooperation.CoopLog.Event("gate.evaluated")
+                    .Value("context", context)
+                    .Detail(string.Join(",", parts))
+                    .Write();
+            }
+            catch { }
+        }
+
         private void CheckHandsOnGate(Agent player)
         {
             var blocker = GetAgent("blocker");
@@ -1844,6 +1924,7 @@ namespace LivingWorldNpcs
                 // 潜行必须本帧从门外实际通过有限门区，且视线没有发现；蹲在背后不算通关。
                 if (!_crossingDoor || !player.CrouchMode || IsBlockerWatching(player)
                     || Math.Abs(player.Position.z - _gateCenter.z) > StoryProbeTuning.Current.Gate.GroundToleranceMeters) return;
+                LogGateEvaluation(player, "stealth");
                 var roll = StoryProbeDefs.RollCheck("blocker", StoryAbility.Guile);
                 InformationManager.DisplayMessage(new InformationMessage(roll.PlayerMessage()));
                 if (!roll.Success)
@@ -1894,6 +1975,7 @@ namespace LivingWorldNpcs
                 if (!_climbRolled && player.Position.z - _gateCenter.z > gt.ClimbHeightMeters)
                 {
                     _climbRolled = true;
+                    LogGateEvaluation(player, "climb");
                     var roll = StoryProbeDefs.RollCheck("blocker", StoryAbility.Guile);
                     _climbSucceeded = roll.Success; // 失败保持失败，本次尝试不能下一帧变成功。
                     InformationManager.DisplayMessage(new InformationMessage(roll.PlayerMessage()));
@@ -1921,7 +2003,21 @@ namespace LivingWorldNpcs
             // 谁离得近谁推（副卫也履职），并留下可查的日志 —— 以前这里一行日志都没有，
             // 出现"人就这么走过去了"时查不出是没推还是推了没拦住。
             Agent pusher = NearestGateGuard();
-            if (pusher != null && AgentAIController.GetBrainForAgent(pusher)?.IsInCombat == true) return;
+            if (pusher == null)
+            {
+                // 无人承担职责（或全都不在）：不得隔空推回玩家。
+                return;
+            }
+            if (AgentAIController.GetBrainForAgent(pusher)?.IsInCombat == true) return;
+            // 推回必须有真实可及条件：本人看得见 + 同层 + 近身，缺一不拦。
+            bool pusherSees = NpcSightSystem.CanAgentSeeTarget(pusher, player, gt.RecognizeDistanceMeters);
+            bool sameLevel = Math.Abs(pusher.Position.z - player.Position.z) <= gt.GroundToleranceMeters;
+            bool near = pusher.Position.Distance(player.Position) <= gt.PushBackReachMeters;
+            if (!pusherSees || !sameLevel || !near)
+            {
+                DebugLogger.Log($"[StoryProbe] barrier skip: sees={pusherSees} sameLevel={sameLevel} near={near} dist={pusher.Position.Distance(player.Position):F1}");
+                return;
+            }
             _nextBarrierAt = _time + gt.PushBackCooldownSec;
             float lateralAtPush = GateLateral(player.Position);
             Vec3 outside = _gateCenter - new Vec3(Forward.x, Forward.y, 0f) * gt.PushBackMeters;
@@ -2117,13 +2213,12 @@ namespace LivingWorldNpcs
                 StoryProbeState.Data.GoalReached = true;
                 StoryProbeState.Phase = StoryProbePhase.Done;
                 StoryProbeState.SetGoal("done");
+                PrologueJournalQuest.Tick(); // 同一完成回执写结尾并交原版归档，停止剧情不丢日记。
                 CancelRuntime("prologue completed");
 
                 InformationManager.DisplayMessage(new InformationMessage(
                     LWNTextHelper.ResolveText("LWN_story_narr_done",
-                        "You are inside. Whatever happens from here, the gate is behind you.")));
-                MBInformationManager.AddQuickInformation(new TextObject(
-                    LWNScreenGoalText.Resolve()));
+                        "You made it into town. Your sister is still missing; the next part of the search is not yet available.")));
             }
             catch (Exception ex)
             {
@@ -2149,6 +2244,24 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[StoryProbe] spawn '{npcId}' failed: no hero/template");
                 return null;
+            }
+            // 🔴 只把"真的不能来"（死亡／被拘／在别的队伍）当硬拒绝。
+            //    旧存档的剧情演员可能挂着上一座城的 CurrentSettlement（换城后永远判 elsewhere，
+            //    整场布景卡死，实机 2026-11-19）。这种"陈旧归属"不算失踪：本人不在任何队伍时按剧情演员放到当前场景。
+            // 单一判据：死亡／被拘／在别的队伍才拒绝；陈旧据点归属不算失踪（见 StoryCastAvailability）。
+            var availability = StoryCastAvailabilityHelper.Evaluate(hero, Settlement.CurrentSettlement);
+            if (StoryCastAvailabilityHelper.IsRefused(availability))
+            {
+                DebugLogger.Log($"[StoryProbe] spawn '{npcId}' refused: {StoryCastAvailabilityHelper.Describe(availability)}" +
+                    $" alive={hero.IsAlive} prisoner={hero.IsPrisoner}" +
+                    $" party={(hero.PartyBelongedTo != null ? hero.PartyBelongedTo.StringId : "-")}" +
+                    $" settlement={(hero.CurrentSettlement != null ? hero.CurrentSettlement.StringId : "-")}" +
+                    $" current={(Settlement.CurrentSettlement != null ? Settlement.CurrentSettlement.StringId : "-")}");
+                return null;
+            }
+            if (availability == StoryCastAvailability.OkStaleSettlement)
+            {
+                DebugLogger.Log($"[StoryProbe] spawn '{npcId}': stale settlement {hero.CurrentSettlement.StringId} ignored (cast actor, no party)");
             }
 
             // 已在场上 → 只挪位置，不重复生成
@@ -2211,7 +2324,7 @@ namespace LivingWorldNpcs
         public Hero EnsureStoryHero(StoryNpcDef def)
         {
             if (def == null) return null;
-            if (_heroes.TryGetValue(def.Id, out var cached) && cached != null && cached.IsAlive)
+            if (_heroes.TryGetValue(def.Id, out var cached) && cached != null)
             {
                 ApplyStoryPersona(def, cached);
                 return cached;
@@ -2219,13 +2332,17 @@ namespace LivingWorldNpcs
 
             if (StoryProbeState.Data.SpawnedHeroIds.TryGetValue(def.Id, out string savedId) && !string.IsNullOrEmpty(savedId))
             {
-                var found = Hero.AllAliveHeroes.FirstOrDefault(h => h != null && h.StringId == savedId);
+                var found = Hero.AllAliveHeroes.Concat(Hero.DeadOrDisabledHeroes)
+                    .FirstOrDefault(h => h != null && h.StringId == savedId);
                 if (found != null)
                 {
                     _heroes[def.Id] = found;
                     ApplyStoryPersona(def, found);
                     return found;
                 }
+                // 已有稳定身份失踪也不能凭空复制造一个新的人。
+                DebugLogger.Log($"[StoryProbe] saved hero '{savedId}' unavailable; no replacement created");
+                return null;
             }
 
             try
@@ -2317,10 +2434,16 @@ namespace LivingWorldNpcs
         }
 
         public Agent GetAgent(string npcId)
-            => _agents.TryGetValue(npcId, out var a) && a != null && AgentControlHelper.SafeIsActive(a) ? a : null;
+        {
+            if (string.IsNullOrEmpty(npcId)) return null;
+            if (_agents.TryGetValue(npcId, out var agent) && AgentControlHelper.SafeIsActive(agent)) return agent;
+            return Mission.Current?.Agents?.FirstOrDefault(a => AgentControlHelper.SafeIsActive(a)
+                && a.Character is CharacterObject character && character.HeroObject?.StringId == npcId);
+        }
 
         public Hero GetHero(string npcId)
-            => npcId != null && _heroes.TryGetValue(npcId, out var h) ? h : null;
+            => npcId != null && _heroes.TryGetValue(npcId, out var h) ? h
+                : (GetAgent(npcId)?.Character as CharacterObject)?.HeroObject;
 
         public IEnumerable<KeyValuePair<string, Agent>> AllAgents => _agents;
 
@@ -2634,6 +2757,9 @@ namespace LivingWorldNpcs
                 string saved = StoryProbeState.Data.CompanionHeroId;
                 if (!string.IsNullOrEmpty(saved))
                     comp = Hero.AllAliveHeroes.FirstOrDefault(h => h != null && h.StringId == saved);
+                if (comp != null && (!comp.IsAlive || comp.IsPrisoner || !comp.IsPlayerCompanion
+                    || comp.PartyBelongedTo != MobileParty.MainParty
+                    || !MobileParty.MainParty.MemberRoster.Contains(comp.CharacterObject))) comp = null;
 
                 if (comp == null)
                 {
@@ -2641,7 +2767,8 @@ namespace LivingWorldNpcs
                     // 不把流浪者拉进队、结束时也不移队。没有就走旁白分支。
                     comp = Hero.AllAliveHeroes.FirstOrDefault(h =>
                         h != null && h.IsAlive && !h.IsHumanPlayerCharacter
-                        && h.IsPlayerCompanion && h.PartyBelongedTo == MobileParty.MainParty);
+                        && !h.IsPrisoner && h.IsPlayerCompanion && h.PartyBelongedTo == MobileParty.MainParty
+                        && MobileParty.MainParty.MemberRoster.Contains(h.CharacterObject));
                 }
 
                 if (comp == null)
@@ -2656,6 +2783,13 @@ namespace LivingWorldNpcs
 
                 // 借用 ≠ 招募：不再调用 AddCompanionAction，离开场景也不移队。
                 StoryProbeState.Data.CompanionHeroId = comp.StringId;
+                var existingBody = Mission.Current?.Agents?.FirstOrDefault(a => AgentControlHelper.SafeIsActive(a)
+                    && a.Character == comp.CharacterObject);
+                if (existingBody != null)
+                {
+                    _companionAgent = existingBody;
+                    return;
+                }
 
                 // 站到玩家左后 1.5 m
                 Vec3 pos = PlayerAnchor + new Vec3(-Forward.x, -Forward.y, 0) * 1.2f
@@ -3028,7 +3162,7 @@ namespace LivingWorldNpcs
                     return LWNTextHelper.ResolveText("LWN_story_goal_tool", "Get through that gate.");
                 case "done":
                     return LWNTextHelper.ResolveText("LWN_story_goal_done",
-                        "The prologue is over. The road inside is yours.");
+                        "You are inside. Your sister is still missing. The next part of the search is not yet available.");
                 default:
                     return LWNTextHelper.ResolveText("LWN_story_goal_enter",
                         "Get into the town. Someone at the gate is in the way.");

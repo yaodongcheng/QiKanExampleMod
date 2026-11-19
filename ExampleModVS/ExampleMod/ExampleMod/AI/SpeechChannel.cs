@@ -108,6 +108,9 @@ namespace LivingWorldNpcs
         // 🔴 2026-08-15（私聊不进附近频道，UI 层过滤）：false = 冒泡照播但不转发附近频道消息流
         //（IM 密信送达冒泡）；NPC 记忆/对话历史链路不受影响（转发是纯 UI 层）。
         public bool ForwardToNearby;     // 默认 true（场景说话 = 玩家亲耳可闻）
+        public Func<bool> CanPublish;
+        public Func<bool> CanForwardToNearby;
+        public Action Shown;
     }
 
     /// <summary>说话并联通道（每 agent 一个；静态注册表按 agent.Index）。</summary>
@@ -140,6 +143,9 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>取（无 → 创建）agent 的说话通道。</summary>
+        /// <summary>真实冒泡上屏回调（协作诊断用；排队不触发）。</summary>
+        public static event Action<Agent, string> Spoken;
+
         public static SpeechChannel Get(Agent agent)
         {
             if (agent == null) return null;
@@ -175,14 +181,16 @@ namespace LivingWorldNpcs
         /// 🔴 2026-08-15（私聊不进附近频道）：forwardToNearby=false = 冒泡照播但不进附近频道消息流
         ///（IM 密信送达冒泡专用；其余调用点默认 true 行为不变）。</summary>
         public static void Say(Agent agent, string text, SpeechPriority priority = SpeechPriority.Chat,
-            SpeechContext context = default, float duration = 0f, bool forwardToNearby = true)
+            SpeechContext context = default, float duration = 0f, bool forwardToNearby = true,
+            Action onShown = null, Func<bool> canPublish = null, Func<bool> canForwardToNearby = null)
         {
             if (agent == null || string.IsNullOrWhiteSpace(text)) return;
             var ch = Get(agent);
             if (ch == null) return;
             lock (_syncLock)
             {
-                ch.Enqueue(new SpeechRequest { Text = text, Priority = priority, Context = context, Duration = duration, ForwardToNearby = forwardToNearby });
+                ch.Enqueue(new SpeechRequest { Text = text, Priority = priority, Context = context, Duration = duration,
+                    ForwardToNearby = forwardToNearby, Shown = onShown, CanPublish = canPublish, CanForwardToNearby = canForwardToNearby });
             }
         }
 
@@ -565,7 +573,8 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (_owner == null || !AgentControlHelper.SafeIsActive(_owner)) return;
+                if (_owner == null || !AgentControlHelper.SafeIsActive(_owner) || Mission.Current == null || AgentHudMissionView.Instance == null) return;
+                if (req.CanPublish != null && !req.CanPublish()) return;
                 // 前因序列化：只收非空字段（context 未传 = 调用点没给前因，仅打优先级兜底）
                 var c = req.Context;
                 // 晚到的旧演出台词不进入新动作；记录目标只改托管状态，不能在 LLM 线程写身体。
@@ -582,13 +591,19 @@ namespace LivingWorldNpcs
                 if (!string.IsNullOrEmpty(c.Topic)) reason += $" 话题={c.Topic}";
                 if (c.Round > 0) reason += $" 轮次={c.Round}";
                 if (c.Agree > 0f) reason += $" 倾向={c.Agree:F2}";
-                AgentHudMissionView.AgentSay(_owner, req.Text, reason, req.ForwardToNearby);
+                // 真实上屏出口：协作日志用它证明“说出来了”，排队不算。
+                AgentHudMissionView.AgentSay(_owner, req.Text, reason, req.ForwardToNearby
+                    && (req.CanForwardToNearby == null || req.CanForwardToNearby()));
+                try { Spoken?.Invoke(_owner, req.Text); }
+                catch (Exception ex) { DebugLogger.Log("[SpeechChannel] observer failed: " + ex.GetType().Name); }
+                try { req.Shown?.Invoke(); }
+                catch (Exception ex) { DebugLogger.Log("[SpeechChannel] receipt failed: " + ex.GetType().Name); }
             }
             catch { }
         }
 
         /// <summary>冒泡时长估算（与 SayInlineState 单句模式同款：2s + 字长×0.12，clamp 2~6s）。</summary>
-        private static float EstimateDuration(string text)
+        public static float EstimateDuration(string text)
         {
             float len = string.IsNullOrEmpty(text) ? 0 : text.Length;
             return MathF.Min(MathF.Max(2f + len * 0.12f, 2f), 6f);

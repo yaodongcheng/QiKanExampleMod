@@ -795,6 +795,13 @@ namespace LivingWorldNpcs
                 if (term == "quest_accepted") return StoryProbeState.IsQuestAccepted(npcId);
                 if (term == "quest_done") return StoryProbeState.IsQuestDone(npcId);
                 if (term == "quest_turned") return StoryProbeState.IsQuestTurnedIn(npcId);
+                if (term == "coop_recruitable") return Planner.Cooperation.CoopRecruitment.Evaluate(npcId).Ok;
+                if (term == "coop_available") return Planner.Cooperation.CoopRecruitment.CanCooperate(npcId, null, out var coopReason);
+                if (term == "coop_favor_available")
+                {
+                    var eligibility = Planner.Cooperation.CoopRecruitment.Evaluate(npcId);
+                    return eligibility.Ok && Planner.Cooperation.CoopRecruitment.HasFavor(eligibility.Hero);
+                }
                 if (term == "gate_open") return StoryProbeMissionBehavior.Current?.GateOpen == true;
 
                 if (term.StartsWith("gold>="))
