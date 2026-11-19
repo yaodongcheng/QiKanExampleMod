@@ -81,11 +81,11 @@ namespace LivingWorldNpcs
         private int _token, _serial;
         private Vec3 _home, _point, _aim;
         private Vec2 _homeFacing;
-        private float _until, _nextRetry;
+        private float _until, _nextRetry, _nextFollowLog;
         private string _phase;
         private bool _arrived, _moveFailed, _approached;
         private PerformanceAction _lease;
-        private StoryMoveAction _move, _returnMove;
+        private MoveToPositionAction _move, _returnMove;
         private bool _returnInProgress;
         private GrappleLogic _demo, _playerGrapple;
         private int _demoReceipt, _playerReceipt;
@@ -162,7 +162,48 @@ namespace LivingWorldNpcs
             { _home = _teacher.Position; _homeFacing = _teacher.Frame.rotation.f.AsVec2; }
             _returnMove?.RequestInterrupt(); _returnMove = null;
             _returnInProgress = _returnPending = false;
-            _point = V(_def.Position); _aim = _def.Mode == "grapple" ? V(_def.Aim) : Vec3.Zero;
+            _point = V(_def.Position);
+            // 1.3+ 的 V.NavMeshSnap 是 in 查询、改不了点（只查询不吸附）⇒ 直接问 WorldPosition 要导航面高度。
+            // 高度差 0.5 米就足以让「到达」永远不成立（老师停在格子边上、练习卡在 follow）。
+            var scene = _mission?.Scene;
+            if (scene != null)
+            {
+                var wp = new TaleWorlds.Engine.WorldPosition(scene, UIntPtr.Zero, _point, false);
+                if (wp.GetNavMesh() != UIntPtr.Zero)
+                {
+                    var onMesh = wp.GetNavMeshVec3();
+                    if (Math.Abs(onMesh.z - _point.z) > 0.05f)
+                        DebugLogger.Log("[StoryPractice] " + _def.Id + " point z " + _point.z.ToString("F2") + " -> navmesh " + onMesh.z.ToString("F2"));
+                    _point = onMesh;
+                }
+                else
+                    DebugLogger.Log("[StoryPractice] " + _def.Id + " point NOT on navmesh (" + _point.x.ToString("F1") + "," + _point.y.ToString("F1") + "," + _point.z.ToString("F2") + ")");
+                // 还有点落在「有导航面、但走不过去」的高台/ ledge 上的情况：先验连通性，不通就在 1~4 米内
+                // 找最近的、确实走得到的点；找不到就照样开课（会在 follow 阶段超时失败），但日志写清楚。
+                if (AgentControlHelper.SafeIsActive(_teacher))
+                {
+                    var teacherWp = new TaleWorlds.Engine.WorldPosition(scene, UIntPtr.Zero, _teacher.Position, false);
+                    if (!LivingWorldNpcs.V.PathExists(teacherWp, new TaleWorlds.Engine.WorldPosition(scene, UIntPtr.Zero, _point, false)))
+                    {
+                        bool repaired = false;
+                        for (float radius = 1f; radius <= 4f && !repaired; radius += 1f)
+                            for (int i = 0; i < 8 && !repaired; i++)
+                            {
+                                float angle = i * (float)Math.PI / 4f;
+                                var candidate = new Vec3(_point.x + (float)Math.Cos(angle) * radius, _point.y + (float)Math.Sin(angle) * radius, _point.z);
+                                var wpC = new TaleWorlds.Engine.WorldPosition(scene, UIntPtr.Zero, candidate, false);
+                                if (wpC.GetNavMesh() == UIntPtr.Zero) continue;
+                                candidate = wpC.GetNavMeshVec3();
+                                if (!LivingWorldNpcs.V.PathExists(teacherWp, new TaleWorlds.Engine.WorldPosition(scene, UIntPtr.Zero, candidate, false))) continue;
+                                DebugLogger.Log("[StoryPractice] " + _def.Id + " point unreachable; repaired to (" + candidate.x.ToString("F1") + "," + candidate.y.ToString("F1") + "," + candidate.z.ToString("F2") + ")");
+                                _point = candidate; repaired = true;
+                            }
+                        if (!repaired)
+                            DebugLogger.Log("[StoryPractice] " + _def.Id + " point unreachable from teacher and no walkable spot within 4m");
+                    }
+                }
+            }
+            _aim = _def.Mode == "grapple" ? V(_def.Aim) : Vec3.Zero;
             _until = _host.Clock + _def.TimeoutSec; _phase = "pending";
             // Old saved in-scene exercises resume by accepting again, never with a stale Agent/permission.
             StoryPracticeQuest.CancelAll();
@@ -182,13 +223,13 @@ namespace LivingWorldNpcs
                         && AgentControlHelper.SafeIsActive(teacher))
                         {
                         _returnInProgress = true;
-                        AgentAIController.Instance?.SendEventToAgent(teacher, "event_story_move", _home, 0.5f,
+                        AgentControlHelper.ForceMoveTo(teacher, _home, 0.5f, 90f,
                             new Action<bool>(ok => {
                                 if (serial != _serial) return;
                                 _returnInProgress = false; _returnMove = null;
                                 if (ok && !Active && mission == Mission.Current && token == StoryProbeState.RuntimeToken)
                                     AgentControlHelper.SetBodyDirection(teacher, _homeFacing);
-                            }), new Action<StoryMoveAction>(move => { if (serial == _serial) _returnMove = move; }), 90f);
+                            }), new Action<MoveToPositionAction>(move => { if (serial == _serial) _returnMove = move; }));
                         }
                 }
                 return;
@@ -222,17 +263,30 @@ namespace LivingWorldNpcs
                 }
                 _teacher.UpdateSpawnEquipmentAndRefreshVisuals(eq);
                 _teacher.UpdateAgentStats();
-                _phase = "follow"; Say(_def.FollowKey);
+                // 这句是系统说明（跟到哪、怎么重试），更新任务与屏幕提示即可，不能借老师的嘴说。
+                _phase = "follow"; Notify(_def.FollowKey);
+                _nextFollowLog = _host.Clock + 1.5f;
                 var def = _def; int serial = _serial;
-                AgentAIController.Instance?.SendEventToAgent(_teacher, "event_story_move", _point, 0.5f,
-                    new Action<bool>(ok => { if (_def == def && serial == _serial) { _arrived = ok; _moveFailed = !ok; } }),
-                    new Action<StoryMoveAction>(move => { if (_def == def && serial == _serial) _move = move; }), 90f);
+                DebugLogger.Log("[StoryPractice] " + def.Id + " move issued: teacher=(" + _teacher.Position.x.ToString("F1") + "," + _teacher.Position.y.ToString("F1") + "," + _teacher.Position.z.ToString("F1") + ") target=(" + _point.x.ToString("F1") + "," + _point.y.ToString("F1") + "," + _point.z.ToString("F1") + ") dist=" + _teacher.Position.Distance(_point).ToString("F1") + " pose=" + AgentControlHelper.GetPose(_teacher) + " crouch=" + _teacher.CrouchMode + " using=" + _teacher.IsUsingGameObject);
+                AgentControlHelper.ForceMoveTo(_teacher, _point, 0.5f, 90f,
+                    new Action<bool>(ok => { if (_def == def && serial == _serial) { _arrived = ok; _moveFailed = !ok;
+                        DebugLogger.Log("[StoryPractice] " + def.Id + " move done ok=" + ok + " teacher=(" + _teacher.Position.x.ToString("F1") + "," + _teacher.Position.y.ToString("F1") + "," + _teacher.Position.z.ToString("F1") + ") dist=" + _teacher.Position.Distance(_point).ToString("F1")); } }),
+                    new Action<MoveToPositionAction>(move => { if (_def == def && serial == _serial) _move = move; }));
                 return;
             }
             if (_moveFailed) { Stop("move failed"); return; }
             if (_phase == "follow")
             {
-                if (!_arrived) return;
+                if (!_arrived)
+                {
+                    // 老师没到位时每 1.5 秒打一次位置：能一眼分清「没走」「走了没到」「到了没认」。
+                    if (_host.Clock >= _nextFollowLog)
+                    {
+                        _nextFollowLog = _host.Clock + 1.5f;
+                        DebugLogger.Log("[StoryPractice] " + _def.Id + " following: teacher=(" + _teacher.Position.x.ToString("F1") + "," + _teacher.Position.y.ToString("F1") + "," + _teacher.Position.z.ToString("F1") + ") target=(" + _point.x.ToString("F1") + "," + _point.y.ToString("F1") + "," + _point.z.ToString("F1") + ") dist=" + _teacher.Position.Distance(_point).ToString("F1"));
+                    }
+                    return;
+                }
                 if (_player.Position.Distance(_point) > 6f)
                 {
                     if (_lease == null) _lease = PerformanceAction.TryAcquire(_teacher, "practice:" + _def.Id);
@@ -271,7 +325,7 @@ namespace LivingWorldNpcs
                 AgentControlHelper.StopLooking(_teacher);
                 AgentControlHelper.SetBodyDirection(_teacher, new Vec2((float)Math.Cos(yaw), (float)Math.Sin(yaw)));
                 _phase = "practice"; _nextRetry = _host.Clock + 2f;
-                _quest.Note(_def.ReadyKey); Say(_def.ReadyKey); StoryGoalHudMissionView.RequestFlash = true;
+                _quest.Note(_def.ReadyKey); Notify(_def.ReadyKey); StoryGoalHudMissionView.RequestFlash = true;
                 if (_def.Mode == "grapple")
                 { _playerGrapple = GrappleLogic.Ensure(); _playerReceipt = _playerGrapple.PullFinishedReceipt; }
                 return;
@@ -301,6 +355,11 @@ namespace LivingWorldNpcs
         {
             _approached = false; _nextRetry = _host.Clock + 3f; Say(_def.RetryKey);
             StoryGoalHudMissionView.RequestFlash = true;
+        }
+        /// <summary>系统说明（去哪、按什么键、怎么重试）只更新任务与屏幕提示——不借 NPC 的嘴说，人物只说自己会说的话。</summary>
+        private void Notify(string key)
+        {
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText(key, "Practice")));
         }
         private void Say(string key)
         {

@@ -1944,8 +1944,8 @@
     "Practice with Xiaoliu"
   ],
   "LWN_story_practice_stealth_dagger_follow": [
-    "跟上小六，去西边矮墙旁练习；跟他交谈可重试或结束。",
-    "Follow Xiaoliu to the low wall to the west. Talk to him to retry or stop."
+    "跟上小六，去西南边墙根下练习；跟他交谈可重试或结束。",
+    "Follow Xiaoliu to the foot of the wall to the southwest. Talk to him to retry or stop."
   ],
   "LWN_story_practice_stealth_dagger_ready": [
     "我背朝你了。先退到几步外，按下蹲键，绕到我背后两步内，从交互栏选偷窃；浮标进可偷区再按出手键。只拿腰上的小刀。",
@@ -2036,8 +2036,8 @@
     "There is one other trick I earn my living with."
   ],
   "LWN_story_son_stealth_offer_part1": [
-    "跟我去西边矮墙旁，那里人少。",
-    "Come to the low wall to the west; It is quieter there; I will wear the little knife and turn my back."
+    "跟我去西南边墙根下，那里人少。",
+    "Come to the foot of the wall to the southwest; it is quieter there; I will wear the little knife and turn my back."
   ],
   "LWN_story_son_stealth_offer_part2": [
     "我把小刀放腰上，背朝你站着；你先退开几步，再蹲着绕到我背后拿。",
@@ -2100,8 +2100,8 @@
     "You did take the knife earlier; bring the same patience when you face Luo Tie."
   ],
   "LWN_story_practice_stealth_dagger_FollowObjectiveKey": [
-    "跟随小六到西边矮墙旁；交谈可结束练习。",
-    "Follow Xiaoliu to the low wall to the west; talk to stop."
+    "跟随小六到西南边墙根下；交谈可结束练习。",
+    "Follow Xiaoliu to the foot of the wall to the southwest; talk to stop."
   ],
   "LWN_story_practice_stealth_dagger_PracticeObjectiveKey": [
     "蹲着绕到小六背后，使用偷窃取走练习匕首。",

@@ -527,6 +527,18 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        // DoesPathExistBetweenPositions 只在 1.3+ 存在（1.2.12 没有这个 API）——旧版直接放行：
+        // 它只服务「点位连通性自检/自愈」，不能因为缺 API 就让玩法不可用。
+        public static bool PathExists(WorldPosition from, WorldPosition to)
+        {
+#if MB2_V1212
+            return true;
+#else
+            var scene = Mission.Current?.Scene;
+            return scene == null || scene.DoesPathExistBetweenPositions(from, to);
+#endif
+        }
+
         public static bool SaveNavMesh(Scene scene, Vec3 position)
         {
             if (scene == null) return false;

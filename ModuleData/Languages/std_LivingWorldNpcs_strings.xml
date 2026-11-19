@@ -5685,7 +5685,7 @@
     <string id="LWN_story_son_practice_interrupt" text="Shall we try again, or stop here for today?" />
     <string id="LWN_story_son_practice_cancelled" text="All right, I will go back to my box; find me when you want to practise again, and I will not charge you twice." />
     <string id="LWN_story_practice_stealth_dagger_title" text="Practice with Xiaoliu" />
-    <string id="LWN_story_practice_stealth_dagger_follow" text="Follow Xiaoliu to the low wall to the west. Talk to him to retry or stop." />
+    <string id="LWN_story_practice_stealth_dagger_follow" text="Follow Xiaoliu to the foot of the wall to the southwest. Talk to him to retry or stop." />
     <string id="LWN_story_practice_stealth_dagger_ready" text="My back is turned. Step away, crouch, and approach behind me within two paces. Choose Pickpocket in the interaction list, then use the attempt button when the cursor enters the effective zone. Take only the little knife." />
     <string id="LWN_story_practice_stealth_dagger_retry" text="Stop. I saw you or heard heavy feet. Step back, wait until I look away, then crouch and circle behind me. Take your time before reaching." />
     <string id="LWN_story_practice_stealth_dagger_done" text="You really took it. Good! Keep it. The same idea works on Luo Tie, but he never agreed to practise; if he catches you, there will be consequences." />
@@ -5708,7 +5708,7 @@
     <string id="LWN_story_son_learn_disarm_part2" text="Another blade or a shield can still give him the edge, and even bare fists hurt." />
     <string id="LWN_story_son_methods_routes_part1" text="He has to watch the road and talk to people; His back will be open sometimes; If you want a fight, take his blade first; fewer cuts are always welcome, though check what else he carries." />
     <string id="LWN_story_son_methods_routes_part2" text="There is one other trick I earn my living with." />
-    <string id="LWN_story_son_stealth_offer_part1" text="Come to the low wall to the west; It is quieter there; I will wear the little knife and turn my back." />
+    <string id="LWN_story_son_stealth_offer_part1" text="Come to the foot of the wall to the southwest; it is quieter there; I will wear the little knife and turn my back." />
     <string id="LWN_story_son_stealth_offer_part2" text="Step away, then crouch and slip behind me to take it." />
     <string id="LWN_story_son_stealth_offer_part3" text="If I see you or hear heavy feet, try again." />
     <string id="LWN_story_son_grapple_offer_part1" text="We will practise on the low wall to the west; A fall there should spare your legs; Watch where my hook catches, then throw and climb yourself." />
@@ -5724,7 +5724,7 @@
     <string id="LWN_story_son_stealth_retry" text="All right, another try, with lighter feet this time." />
     <string id="LWN_story_son_learn_sneak_2_review_reply" text="You did take the knife earlier; bring the same patience when you face Luo Tie." />
     <string id="LWN_story_son_learn_steal_2_review_reply" text="You did take the knife earlier; bring the same patience when you face Luo Tie." />
-    <string id="LWN_story_practice_stealth_dagger_FollowObjectiveKey" text="Follow Xiaoliu to the low wall to the west; talk to stop." />
+    <string id="LWN_story_practice_stealth_dagger_FollowObjectiveKey" text="Follow Xiaoliu to the foot of the wall to the southwest; talk to stop." />
     <string id="LWN_story_practice_stealth_dagger_PracticeObjectiveKey" text="Crouch behind Xiaoliu and pickpocket the practice dagger." />
     <string id="LWN_story_practice_grapple_wall_FollowObjectiveKey" text="Follow Xiaoliu to the low wall to the west; talk to stop." />
     <string id="LWN_story_practice_grapple_wall_PracticeObjectiveKey" text="Equip rope and hook, aim at the demonstrated wall top, and finish a pull and landing." />

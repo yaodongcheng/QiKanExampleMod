@@ -2681,6 +2681,199 @@ namespace LivingWorldNpcs
         /// 预览实体不入存档，离开场景重进即消失。
         /// 用法: custom.spawn_prefab bd_chest_a [dist=2]
         /// </summary>
+        /// <summary>
+        /// 只读：列出当前场景所有在场 agent（编号 / 角色 StringId / 剧情演员 id / 有没有脑 / 队伍 / 坐标 / 血量）。
+        /// 控制台只输出 ASCII；中文名写进日志标签 [Agents]（可加过滤器：id、StringId、名字片段、brain）。
+        /// 用法: custom.agents [filter]
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("agents", "custom")]
+        public static string ExecuteListAgents(List<string> args)
+        {
+            if (Mission.Current == null) return "Error: not in mission.";
+            string filter = args.Count > 0 ? (args[0] ?? "").Trim().ToLowerInvariant() : "";
+            var host = StoryProbeMissionBehavior.Current;
+            var report = new System.Text.StringBuilder();
+            int count = 0, shown = 0;
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (!AgentControlHelper.SafeIsActive(a)) continue;
+                string sid = a.Character?.StringId ?? "?";
+                string name = a.Name ?? "";
+                string actor = null;
+                if (host != null && host.Active)
+                {
+                    foreach (var def in StoryProbeDefs.Npcs)
+                    {
+                        if (host.GetAgent(def.Id) == a) { actor = def.Id; break; }
+                    }
+                }
+                var brain = AgentAIController.GetBrainForAgent(a);
+                if (filter.Length > 0)
+                {
+                    bool match = (actor != null && actor.ToLowerInvariant().Contains(filter))
+                              || sid.ToLowerInvariant().Contains(filter)
+                              || name.ToLowerInvariant().Contains(filter)
+                              || (filter == "brain" && brain != null);
+                    if (!match) continue;
+                }
+                count++;
+                DebugLogger.Log(FormattableString.Invariant(
+                    $"[Agents] idx={a.Index} actor={actor ?? "-"} sid={sid} name={name} team={(a.Team != null ? a.Team.TeamIndex.ToString() : "-")} brain={(brain != null ? "y" : "n")} hp={a.Health:F0} pos=({a.Position.x:F1},{a.Position.y:F1},{a.Position.z:F1})"));
+                if (shown >= 40) continue;
+                shown++;
+                report.Append(FormattableString.Invariant(
+                    $"\n[{a.Index}] {sid} actor={actor ?? "-"} brain={(brain != null ? "y" : "n")} team={(a.Team != null ? a.Team.TeamIndex.ToString() : "-")} pos=({a.Position.x:F1},{a.Position.y:F1},{a.Position.z:F1})"));
+            }
+            return $"OK: agents={count}{(filter.Length > 0 ? " filter=" + filter : "")}{(count > shown ? " (console shows first " + shown + ", all in log)" : "")}; names in log tag [Agents]."
+                + report.ToString();
+        }
+
+        /// <summary>
+        /// 只读：打印玩家当前坐标、导航面高度和朝向（抄点位用）。
+        /// 用法: custom.pos（任意占位参数忽略）
+        /// 朝向口径与 StoryLessons.json 的 FacingDegrees 一致：0=东(+x) 90=北(+y) 180=西 270=南。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("pos", "custom")]
+        public static string ExecuteReportPosition(List<string> args)
+        {
+            if (Mission.Current?.Scene == null || !AgentControlHelper.SafeIsActive(Agent.Main))
+                return "Error: not in mission.";
+            Vec3 p = Agent.Main.Position;
+            Vec2 flat = Agent.Main.LookDirection.AsVec2;
+            if (flat.LengthSquared > 1e-6f) flat = flat.Normalized();
+            float yaw = (float)(Math.Atan2(flat.y, flat.x) * 180.0 / Math.PI);
+            if (yaw < 0f) yaw += 360f;
+            string nav = "off";
+            var wp = new TaleWorlds.Engine.WorldPosition(Mission.Current.Scene, UIntPtr.Zero, p, false);
+            if (wp.GetNavMesh() != UIntPtr.Zero)
+                nav = wp.GetNavMeshVec3().z.ToString("F2", CultureInfo.InvariantCulture);
+            return FormattableString.Invariant(
+                $"OK: pos=({p.x:F2},{p.y:F2},{p.z:F2}) navmeshZ={nav} yaw={yaw:F1} dir=({flat.x:F3},{flat.y:F3}) crouch={Agent.Main.CrouchMode}");
+        }
+
+        /// <summary>
+        /// 调试：开关「移动追踪」。开 = 每个被走位动作驱动的 NPC 每秒往屏幕 + 日志打一行状态。
+        /// 用法: custom.move_trace on|off
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("move_trace", "custom")]
+        public static string ExecuteMoveTrace(List<string> args)
+        {
+            string mode = args.Count > 0 ? (args[0] ?? "").Trim().ToLowerInvariant() : "";
+            if (mode == "on")
+            {
+                MoveTrace.Enabled = true; MoveTrace.Reset();
+                return "OK: move trace on (1 line/sec per moving agent: pos/tgt/v/ctrl/spd/flags/in/pose/brain).";
+            }
+            if (mode == "off")
+            {
+                MoveTrace.Enabled = false; MoveTrace.Reset();
+                return "OK: move trace off.";
+            }
+            return "Usage: custom.move_trace on|off (current=" + (MoveTrace.Enabled ? "on" : "off") + ")";
+        }
+
+        /// <summary>
+        /// 调试：让指定 NPC 立刻执行一次 MoveToPositionAction（真实寻路，不瞬移；会先清掉它当前的动作）。
+        /// 用法: custom.move_npc &lt;npc&gt; &lt;x&gt; &lt;y&gt; [z] [stopDistance]
+        ///   npc = 剧情演员 id（son/blocker/gate_sentry…）、Agent 编号或名字片段
+        ///   z 省略 = 取该点的导航面高度（没有导航面则用 NPC 当前高度）
+        /// 返回英文摘要；发出/到达/失败都写日志标签 [MoveNpc]。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("move_npc", "custom")]
+        public static string ExecuteForceMoveNpc(List<string> args)
+        {
+            if (Mission.Current?.Scene == null) return "Error: not in mission.";
+            if (args.Count < 3)
+                return "Usage: custom.move_npc <npc> <x> <y> [z] [stop] | <npc> rel <forward> <side> [stop] | <npc> front|back|left|right <meters> [stop]";
+            Agent agent = ResolveMoveNpc(args[0]);
+            if (agent == null) return "Error: npc not found (use story actor id, agent index or name).";
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            if (brain == null) return "Error: npc has no brain (not a managed NPC).";
+
+            string mode = (args[1] ?? "").Trim().ToLowerInvariant();
+            bool relative = mode == "rel" || mode == "front" || mode == "back" || mode == "left" || mode == "right";
+            float x, y, z, stop = 0.5f;
+            string relNote = null;
+            if (relative)
+            {
+                // 相对玩家的坐标：在"当下"按玩家位置与朝向算成世界坐标，之后不再跟随玩家。
+                var player = Agent.Main;
+                if (!AgentControlHelper.SafeIsActive(player)) return "Error: player not available for a relative move.";
+                float forward = 0f, side = 0f;
+                int stopIndex;
+                if (mode == "rel")
+                {
+                    if (args.Count < 4
+                        || !float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out forward)
+                        || !float.TryParse(args[3], NumberStyles.Float, CultureInfo.InvariantCulture, out side))
+                        return "Usage: custom.move_npc <npc> rel <forward> <side> [stop]";
+                    stopIndex = 4;
+                }
+                else
+                {
+                    if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float m))
+                        return "Usage: custom.move_npc <npc> front|back|left|right <meters> [stop]";
+                    if (mode == "front") forward = m;
+                    else if (mode == "back") forward = -m;
+                    else if (mode == "left") side = -m;
+                    else side = m;
+                    stopIndex = 3;
+                }
+                if (args.Count > stopIndex) float.TryParse(args[stopIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out stop);
+                Vec2 fwd = player.LookDirection.AsVec2;
+                if (fwd.LengthSquared < 1e-4f) fwd = new Vec2(1f, 0f);
+                fwd = fwd.Normalized();
+                var rightDir = new Vec2(fwd.y, -fwd.x);
+                x = player.Position.x + fwd.x * forward + rightDir.x * side;
+                y = player.Position.y + fwd.y * forward + rightDir.y * side;
+                z = player.Position.z;
+                var relProbe = new TaleWorlds.Engine.WorldPosition(Mission.Current.Scene, UIntPtr.Zero, new Vec3(x, y, z), false);
+                if (relProbe.GetNavMesh() != UIntPtr.Zero) z = relProbe.GetNavMeshVec3().z;
+                relNote = FormattableString.Invariant($" relative fwd={forward:F2} side={side:F2} fromPlayer=({player.Position.x:F1},{player.Position.y:F1})");
+            }
+            else
+            {
+                if (!float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out x)
+                    || !float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out y))
+                    return "Usage: custom.move_npc <npc> <x> <y> [z] [stop]";
+                z = agent.Position.z;
+                if (args.Count >= 4 && float.TryParse(args[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float zArg)) z = zArg;
+                else
+                {
+                    var probe = new TaleWorlds.Engine.WorldPosition(Mission.Current.Scene, UIntPtr.Zero, new Vec3(x, y, z), false);
+                    if (probe.GetNavMesh() != UIntPtr.Zero) z = probe.GetNavMeshVec3().z;
+                }
+                if (args.Count >= 5) float.TryParse(args[4], NumberStyles.Float, CultureInfo.InvariantCulture, out stop);
+            }
+            var target = new Vec3(x, y, z);
+            string name = agent.Name;
+            int index = agent.Index;
+            var from = agent.Position;
+            float dist = from.Distance(target);
+            DebugLogger.Log($"[MoveNpc] {name}(Idx={index}) forced move from ({from.x:F1},{from.y:F1},{from.z:F1}) to ({target.x:F1},{target.y:F1},{target.z:F1}) dist={dist:F1} stop={stop:F1} bound={brain.IsBound} held={brain.IsStatusHeld} performing={brain.IsPerforming}{relNote}");
+            AgentControlHelper.ForceMoveTo(agent, target, stop, 90f, ok =>
+                DebugLogger.Log(AgentControlHelper.SafeIsActive(agent)
+                    ? $"[MoveNpc] {name}(Idx={index}) done ok={ok} pos=({agent.Position.x:F1},{agent.Position.y:F1},{agent.Position.z:F1}) dist={agent.Position.Distance(target):F1}"
+                    : $"[MoveNpc] {name}(Idx={index}) done ok={ok} (agent no longer active)"));
+            return FormattableString.Invariant($"OK: {name}(Idx={index}) -> ({target.x:F1},{target.y:F1},{target.z:F1}) dist={dist:F1} queued{relNote}; watch log tag [MoveNpc].");
+        }
+
+        /// <summary>按剧情演员 id / Agent 编号 / 名字片段找一个在场 Agent（custom.move_npc 用）。</summary>
+        private static Agent ResolveMoveNpc(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return null;
+            var byActor = StoryProbeMissionBehavior.Current?.GetAgent(id.Trim());
+            if (byActor != null && AgentControlHelper.SafeIsActive(byActor)) return byActor;
+            if (int.TryParse(id, out int index))
+            {
+                var byIndex = Mission.Current.Agents.FirstOrDefault(a => a.Index == index && AgentControlHelper.SafeIsActive(a));
+                if (byIndex != null) return byIndex;
+            }
+            string needle = id.Trim().ToLowerInvariant();
+            return Mission.Current.Agents.FirstOrDefault(a => AgentControlHelper.SafeIsActive(a)
+                && !string.IsNullOrEmpty(a.Name) && a.Name.ToLowerInvariant().Contains(needle));
+        }
+
         [CommandLineFunctionality.CommandLineArgumentFunction("spawn_prefab", "custom")]
         public static string ExecuteSpawnPrefab(List<string> args)
         {

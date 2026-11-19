@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using SandBox.Conversation.MissionLogics;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -467,7 +468,18 @@ namespace LivingWorldNpcs
         private float _lastProgressTime;  // 最近一次"有进展"时刻
         private bool _teleportOnEnd;      // 仅卡死兜底才瞬移（正常到达不瞬移）
         private bool _interrupted;
-        public void RequestInterrupt() { _interrupted = true; }
+        private readonly Action<bool> _onDone;   // 完成回执（true=真实到达；false=超时/中断/被清）；null=不需要
+        private bool _doneFired;
+        public void RequestInterrupt() { _interrupted = true; FireDone(null, false); }
+
+        /// <summary>完成回执只发一次：到达/超时/中断/被清 都会走到这里（回调里禁止抛异常）。</summary>
+        private void FireDone(Agent agent, bool arrived)
+        {
+            if (_doneFired) return;
+            _doneFired = true;
+            try { _onDone?.Invoke(arrived); }
+            catch (Exception ex) { DebugLogger.Log("[MoveTo] callback failed: " + ex.Message); }
+        }
 
         /// <param name="pos">目标点</param>
         /// <param name="dir">到位朝向（逃跑可传 Vec2.Zero）</param>
@@ -481,7 +493,7 @@ namespace LivingWorldNpcs
         public MoveToPositionAction(Vec3 pos, Vec2 dir, bool run = false, float stopDistance = 1.0f,
             float maxTime = 0f, bool skipGetupDelay = false,
             EndBehavior endBehavior = EndBehavior.InteractPrepare, string narration = null,
-            Agent lookTarget = null, bool allowTeleport = true)
+            Agent lookTarget = null, bool allowTeleport = true, Action<bool> onDone = null)
         {
             _targetPos = pos;
             _targetDir = dir;
@@ -493,6 +505,7 @@ namespace LivingWorldNpcs
             _narration = narration;
             _lookTarget = lookTarget;
             _allowTeleport = allowTeleport;
+            _onDone = onDone;
 
             _timer = 0f;
         }
@@ -529,6 +542,8 @@ namespace LivingWorldNpcs
 
         public void OnTick(Agent agent, float dt)
         {
+            // 移动追踪（custom.move_trace on）：每秒一行，起身延迟阶段也打，能看到"根本没动"时的引擎状态。
+            MoveTrace.Tick(agent, _targetPos);
             // 引擎会自动寻路，无需每帧 SetScriptedTargetFrame
             // 除非你想每隔几秒重新修正 NavMesh
             _timer += dt;
@@ -591,7 +606,21 @@ namespace LivingWorldNpcs
                 AgentControlHelper.MoveEndAndInteractPrepare(agent);
             else
                 AgentControlHelper.ForceUnlockAgent(agent);
+
+            // 完成回执（唯一的「到没到」信号）：正常到达 = true；超时/中断/被清 = false。
+            bool arrived = agent != null && AgentControlHelper.SafeIsActive(agent)
+                && agent.Position.Distance(_targetPos) <= _stopDistance + 0.5f;
+            FireDone(agent, arrived);
         }
+
+        /// <summary>
+        /// **剧情/工作走位唯一配方**：固定超时、不瞬移、到位交还原版 AI、回执真实到达。
+        /// 控制台 `custom.move_npc`、剧情练习、工作点走位都用它——不要再包一层包装类。
+        /// </summary>
+        public static MoveToPositionAction StoryWalk(Vec3 target, float stopDistance, Action<bool> done, float maxTime = 20f)
+            => new MoveToPositionAction(target, Vec2.Zero, run: false, stopDistance: Math.Max(0.2f, stopDistance),
+                maxTime: Math.Max(1f, maxTime), skipGetupDelay: false,
+                endBehavior: EndBehavior.Unlock, narration: null, lookTarget: null, allowTeleport: false, onDone: done);
 
         /// <summary>逃跑工厂（原 FleeFromAction，2026-08-11 并入）：远离威胁 ±45° 抖动 8~14m，
         /// 取第一个 navmesh 有效点；找不到 → 直线方向 8m 兜底（引擎自动修正 navmesh）。
@@ -622,6 +651,117 @@ namespace LivingWorldNpcs
             return new MoveToPositionAction(fleePos, Vec2.Zero, isRun, stopDistance: 1f,
                 maxTime: maxTime, skipGetupDelay: true, endBehavior: EndBehavior.Unlock,
                 narration: "吓得逃走了");
+        }
+    }
+
+    /// <summary>
+    /// **移动卡死排查**（2026-11-19 用户要求）：`custom.move_trace on` 后，MoveToPositionAction 每秒给它
+    /// 正在驱动的 NPC 打一行屏幕消息 + 日志：坐标/目标/速度/控制器/限速/脚本旗标/移动输入/姿态。
+    /// 🔴 判断口径：`spd=0` → 被限速钉死；`flags` 缺 `GoToPosition` → 脚本移动没写进去；
+    ///    `ctrl!=AI` → 控制权不在 AI；`v=0 && in=(0,0)` → 引擎根本没收到移动输入。
+    /// </summary>
+    public static class MoveTrace
+    {
+        public static bool Enabled;
+        private static readonly Dictionary<Agent, float> _last = new Dictionary<Agent, float>();
+        private static readonly HashSet<Agent> _pending = new HashSet<Agent>();
+        public static void Reset() { _last.Clear(); _pending.Clear(); }
+
+        public static void Tick(Agent agent, Vec3 target)
+        {
+            if (!Enabled || agent == null) return;
+            float now = TaleWorlds.Engine.Time.ApplicationTime;
+            if (_last.TryGetValue(agent, out float at) && now - at < 1f) return;
+            _last[agent] = now;
+            try
+            {
+                Vec2 input = agent.MovementInputVector;
+                var mission = Mission.Current;
+                string gate = mission == null ? "n/a"
+                    : "aiTick=" + mission.AllowAiTicking + " pauseAi=" + mission.PauseAITick + " mode=" + (int)mission.Mode;
+                // 脚下有没有导航面：对话/演出可能把人挪到格点外，寻路就永远给不出输入。
+                string navHere = "n/a";
+                string direct = "n/a";
+                string path = "n/a";
+                if (mission?.Scene != null)
+                {
+                    var here = new TaleWorlds.Engine.WorldPosition(mission.Scene, UIntPtr.Zero, agent.Position, false);
+                    navHere = here.GetNavMesh() == UIntPtr.Zero ? "off" : (here.GetNavMeshVec3().z - agent.Position.z).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                    try { direct = agent.CanMoveDirectlyToPosition(target.AsVec2) ? "y" : "n"; } catch { direct = "err"; }
+                    try
+                    {
+                        var there = new TaleWorlds.Engine.WorldPosition(mission.Scene, UIntPtr.Zero, target, false);
+                        path = LivingWorldNpcs.V.PathExists(here, there) ? "y" : "n";
+                    }
+                    catch { path = "err"; }
+                }
+                string line = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "[MOVE] {0}({1}) pos=({2:F1},{3:F1},{4:F1}) tgt=({5:F1},{6:F1},{7:F1}) d={8:F1} v={9:F2} ctrl={10} spd={11:F2} flags={12} flagsVal=0x{13:X} ai={14} paused={15} {16} navHere={17} direct={18} path={19} mv={20} evt={21} afl={22} form={23} det={24} in=({25:F2},{26:F2}) pose={27} using={28} crouch={29}",
+                    agent.Name, agent.Index,
+                    agent.Position.x, agent.Position.y, agent.Position.z,
+                    target.x, target.y, target.z,
+                    agent.Position.Distance(target),
+                    agent.Velocity.Length,
+                    agent.Controller,
+                    agent.GetMaximumSpeedLimit(),
+                    agent.GetScriptedFlags(),
+                    (int)agent.GetScriptedFlags(),
+                    agent.AIStateFlags,
+                    agent.IsPaused,
+                    gate,
+                    navHere, direct, path,
+                    agent.MovementFlags,
+                    agent.EventControlFlags,
+                    agent.GetAgentFlags(),
+                    agent.Formation != null,
+                    agent.IsDetachedFromFormation,
+                    input.x, input.y,
+                    AgentControlHelper.GetPose(agent),
+                    agent.IsUsingGameObject,
+                    agent.CrouchMode);
+                InformationManager.DisplayMessage(new InformationMessage(line));
+                DebugLogger.Log(line);
+            }
+            catch (Exception ex) { DebugLogger.Log("[MOVE] trace failed: " + ex.Message); }
+        }
+
+        /// <summary>下达脚本移动的前一刻：目标是否在导航面上、要写的旗标、以及身体是否被引擎按停。</summary>
+        public static void Issue(Agent agent, Vec3 target, AIScriptedFrameFlags flags)
+        {
+            if (!Enabled || agent == null) return;
+            float now = TaleWorlds.Engine.Time.ApplicationTime;
+            if (_last.TryGetValue(agent, out float at) && now - at < 1f) return;
+            _last[agent] = now; _pending.Add(agent);
+            try
+            {
+                bool nav = true;
+                if (agent.Mission?.Scene != null)
+                    nav = new TaleWorlds.Engine.WorldPosition(agent.Mission.Scene, UIntPtr.Zero, target, false).GetNavMesh() != UIntPtr.Zero;
+                Vec2 input = agent.MovementInputVector;
+                string line = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "[MOVE-ISSUE] {0}({1}) tgt=({2:F1},{3:F1},{4:F1}) nav={5} setFlags={6} preFlags={7} ai={8} paused={9} spd={10:F2} ctrl={11} in=({12:F2},{13:F2})",
+                    agent.Name, agent.Index, target.x, target.y, target.z,
+                    nav, flags, agent.GetScriptedFlags(), agent.AIStateFlags, agent.IsPaused,
+                    agent.GetMaximumSpeedLimit(), agent.Controller, input.x, input.y);
+                InformationManager.DisplayMessage(new InformationMessage(line));
+                DebugLogger.Log(line);
+            }
+            catch (Exception ex) { DebugLogger.Log("[MOVE-ISSUE] failed: " + ex.Message); }
+        }
+
+        /// <summary>SetScriptedPosition 之后立刻回读：旗标是否真写进去、引擎有没有产出移动输入。</summary>
+        public static void Issued(Agent agent)
+        {
+            if (!Enabled || agent == null || !_pending.Remove(agent)) return;
+            try
+            {
+                Vec2 input = agent.MovementInputVector;
+                string line = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "[MOVE-ISSUED] {0}({1}) postFlags={2} ai={3} paused={4} in=({5:F2},{6:F2})",
+                    agent.Name, agent.Index, agent.GetScriptedFlags(), agent.AIStateFlags, agent.IsPaused, input.x, input.y);
+                DebugLogger.Log(line);
+            }
+            catch (Exception ex) { DebugLogger.Log("[MOVE-ISSUED] failed: " + ex.Message); }
         }
     }
 
@@ -1595,7 +1735,7 @@ namespace LivingWorldNpcs
             _presentation?.Stop();
             _brain.Owner.SetActionChannel(0, ActionIndexCache.act_none, ignorePriority: true, blendInPeriod: 0.2f);
             WalkResult = null;
-            _walking = new StoryMoveAction(point, stopDistance, ok => WalkResult = ok, maxTime);
+            _walking = MoveToPositionAction.StoryWalk(point, stopDistance, ok => WalkResult = ok, maxTime);
             _walking.OnStart(_brain.Owner);
             _bodyHeld = false;
             return true;
@@ -2308,50 +2448,5 @@ namespace LivingWorldNpcs
         public void RequestInterrupt() => _inline.Interrupt();
     }
 
-    /// <summary>
-    /// P4 工作走位（2026-11-15）：把 MoveToPositionAction 包成“有真实结果”的一次移动。
-    /// · 固定超时（不瞬移）；成功 = 到位距离 ≤ stop+0.5m，超时/中断 = false。
-    /// · 只由 AgentBrain 的 `event_story_move` 入队，外部不直接碰队列。
-    /// </summary>
-    public class StoryMoveAction : IAtomicAction
-    {
-        private readonly MoveToPositionAction _inner;
-        private readonly Vec3 _target;
-        private readonly float _stop;
-        private readonly Action<bool> _done;
-        private bool _fired, _started;
-
-        public StoryMoveAction(Vec3 target, float stopDistance, Action<bool> done, float maxTime = 20f)
-        {
-            _target = target;
-            _stop = Math.Max(0.2f, stopDistance);
-            _done = done;
-            _inner = new MoveToPositionAction(target, Vec2.Zero, run: false, stopDistance: _stop,
-                maxTime: Math.Max(1f, maxTime), skipGetupDelay: false,
-                endBehavior: MoveToPositionAction.EndBehavior.Unlock, narration: null, allowTeleport: false);
-        }
-
-        public string GetNarration(Agent owner) => null;
-        public void OnStart(Agent agent) { if (!_fired) { _started = true; _inner.OnStart(agent); } }
-        public void OnTick(Agent agent, float dt) { if (_started && !_fired) _inner.OnTick(agent, dt); }
-
-        public bool IsFinished(Agent agent)
-        {
-            if (_fired) return true;
-            if (!_inner.IsFinished(agent)) return false;
-            Fire(agent != null && agent.Position.Distance(_target) <= _stop + 0.5f);
-            return true;
-        }
-
-        public void OnEnd(Agent agent) { if (_started) _inner.OnEnd(agent); Fire(false); }
-        public void RequestInterrupt() { _inner.RequestInterrupt(); Fire(false); }
-
-        private void Fire(bool ok)
-        {
-            if (_fired) return;
-            _fired = true;
-            try { _done?.Invoke(ok); }
-            catch (Exception ex) { DebugLogger.Log("[StoryMove] callback failed: " + ex.Message); }
-        }
-    }
+    // 剧情/工作走位不再单独包装：统一走 MoveToPositionAction.StoryWalk（固定超时、不瞬移、真实到达回执）。
 }

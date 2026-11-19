@@ -376,6 +376,56 @@ namespace LivingWorldNpcs
             AgentBrain.ConfrontingBrain = null;
             DebugLogger.Log($"[ConvLock] Release by {(releasingBrain?.Owner?.Name ?? "null")}(Idx={releasingBrain?.Owner?.Index.ToString() ?? "?"}) | reason=EndConversation");
 
+            // 🔴 实测「NPC 进过一次对话就再也不动」：对话流程会动引擎的全局 AI 闸门（Mission.AllowAiTicking /
+            //    PauseAITick），漏还回来时所有 AI 都不产出移动输入（脚本旗标/限速全正常，in=(0,0)）。
+            //    兜底：只要当前任务不在对话/过场类模式，就把这两个闸门恢复成可跑的默认值。
+            try
+            {
+                var mission = Mission.Current;
+                if (mission != null && mission.Mode != MissionMode.Conversation && mission.Mode != MissionMode.Barter
+                    && mission.Mode != MissionMode.Deployment && mission.Mode != MissionMode.Replay
+                    && mission.Mode != MissionMode.CutScene)
+                {
+                    if (!mission.AllowAiTicking) { mission.AllowAiTicking = true; DebugLogger.Log("[ConvEnd] restored Mission.AllowAiTicking=true"); }
+                    if (mission.PauseAITick) { mission.PauseAITick = false; DebugLogger.Log("[ConvEnd] restored Mission.PauseAITick=false"); }
+                }
+            }
+            catch (Exception ex) { DebugLogger.Log("[ConvEnd] AI gate restore failed: " + ex.Message); }
+
+            // 🔴 对话开始时引擎会对参与者 ForceAiBehaviorSelection()（重新激活村镇导航器）——
+            //    之后它每帧用 SetScriptedPositionAndDirection 盖掉我们写的移动旗标，实机表现 =
+            //    「对话结束怎么都走不动」（脚本旗标/限速/控制权看着全正常，in=(0,0)）。
+            //    脑接管的 NPC 要重新掐断导航器，并清掉引擎的"对话代理"标记。
+            try
+            {
+                var partner = MissionConversationLogic.Current?.ConversationAgent ?? releasingBrain?.Owner;
+                if (partner != null && AgentControlHelper.SafeIsActive(partner))
+                {
+                    var partnerBrain = AgentAIController.GetBrainForAgent(partner);
+                    if (partnerBrain != null && !partnerBrain.IsBound && !partnerBrain.IsStatusHeld && !partnerBrain.IsStunned
+                        && !partnerBrain.IsInCombat)
+                    {
+                        var beforeFlags = partner.GetScriptedFlags();
+                        AgentControlHelper.SuspendNavigator(partner);
+                        // 引擎 EndConversation 自己也会 SetAsConversationAgent(false)，这里再显式做一遍并
+                        // 明确清掉 InConversation 位（幂等）——同时把清前/清后打出来，便于核对标记到底在不在。
+                        partner.SetAsConversationAgent(false);
+                        partner.SetScriptedFlags(partner.GetScriptedFlags() & ~Agent.AIScriptedFrameFlags.InConversation);
+                        var afterFlags = partner.GetScriptedFlags();
+                        // 解冻配方（抄 GrappleBind 放人路径）：清 Paused + 刷敌人缓存/行为参数 ——
+                        // 只解暂停不清缓存，AI 恢复后仍攥着"对话期间"的过期参数，照样不给移动输入。
+                        partner.SetIsAIPaused(false);
+                        try { partner.ResetEnemyCaches(); } catch (Exception) { }
+                        try { partner.HumanAIComponent?.SyncBehaviorParamsIfNecessary(); } catch (Exception) { }
+                        // 引擎在 StartConversation 会对参与者调一次 ForceAiBehaviorSelection()，结束时不再调。
+                        // 这里补回同一次调用，让原生 AI 重新做一遍行为选择（等价于"重新入场"）。
+                        try { partner.ForceAiBehaviorSelection(); } catch (Exception) { }
+                        DebugLogger.Log($"[ConvEnd] navigator re-suspended for {partner.Name}(Idx={partner.Index}); scriptedFlags before={beforeFlags} (0x{(int)beforeFlags:X}) after={afterFlags} (0x{(int)afterFlags:X})");
+                    }
+                }
+            }
+            catch (Exception ex) { DebugLogger.Log("[ConvEnd] navigator re-suspend failed: " + ex.Message); }
+
             // 序章注入的台词同样按"对话结束就清"处理（否则会残留到下一次对话抢 hero_main_options）
             StoryProbeDialogue.OnConversationEnded();
 

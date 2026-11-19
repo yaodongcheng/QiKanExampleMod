@@ -186,7 +186,7 @@ namespace LivingWorldNpcs
         /// 这两种动作每帧都在写移动方向，外面再写一次就是两边打架。
         /// </summary>
         public bool IsMovingOrTurning
-            => EffectiveAction is StoryMoveAction || EffectiveAction is MoveToPositionAction
+            => EffectiveAction is MoveToPositionAction
                || EffectiveAction is TurnToDirectionAction;
 
         // ═══════════════════════════════════════════════════════════════
@@ -489,7 +489,7 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// P4（2026-11-15）：剧情工作走位。参数 = (Vec3 目标, float 停止距离, Action&lt;bool&gt; 回执)。
-        /// 只入队一次 StoryMoveAction；真实到达才回 true，超时/中断/被控回 false，不做“下一个瞬移”。
+        /// 只入队一次 MoveToPositionAction.StoryWalk（固定超时、不瞬移）；真实到达才回 true，超时/中断/被控回 false，不做“下一个瞬移”。
         /// </summary>
         private void StartStoryMove(AIEvent ev)
         {
@@ -506,8 +506,8 @@ namespace LivingWorldNpcs
                 done?.Invoke(false);
                 return;
             }
-            var move = new StoryMoveAction(pos, stop, done, args.Length > 4 && args[4] is float seconds ? seconds : 20f);
-            (args.Length > 3 ? args[3] as Action<StoryMoveAction> : null)?.Invoke(move);
+            var move = MoveToPositionAction.StoryWalk(pos, stop, done, args.Length > 4 && args[4] is float seconds ? seconds : 20f);
+            (args.Length > 3 ? args[3] as Action<MoveToPositionAction> : null)?.Invoke(move);
             EnqueueAction(move);
         }
 
@@ -1844,7 +1844,7 @@ namespace LivingWorldNpcs
                     //    落不到停步半径内），而结束那一刻人**并没有真的到位** ⇒ 下一拍又发一次，无限循环
                     //    （实测郑大山/顾长生每 5 秒一次，一分钟 12 次）。这里给失败加退避：失败一次 60 秒内不再试，
                     //    连续 3 次就彻底放弃（直到 SetDutyPoint 重设）——宁可站在附近待机，也不要刷队列。
-                    EnqueueAction(new StoryMoveAction(_dutyPoint, 1.2f, ok =>
+                    EnqueueAction(MoveToPositionAction.StoryWalk(_dutyPoint, 1.2f, ok =>
                     {
                         if (ok) { _dutyMoveFailures = 0; return; }
                         _dutyMoveFailures++;

@@ -603,7 +603,6 @@ namespace LivingWorldNpcs
                         : LWNTextHelper.ResolveCompound("LWN_hud_act_pose_note", "Doing: {ACT} ({NOTE})",
                             ("ACT", pose), ("NOTE", note));
                 }
-                case StoryMoveAction _:
                 case MoveToPositionAction _:
                     return LWNTextHelper.ResolveText("LWN_hud_act_walk", "Walking");
                 case TurnToDirectionAction _:

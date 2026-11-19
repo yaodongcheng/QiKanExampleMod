@@ -29,19 +29,21 @@ def main():
     stop = atomic.index('\n    /// <summary>', start)
     move_start = atomic.index('public class MoveToPositionAction : IAtomicAction')
     move_stop = atomic.index('\n    // 2.5', move_start)
-    story_move = atomic[atomic.index('public class StoryMoveAction : IAtomicAction'):atomic.rindex('\n}')]
-    performance = 'using System;using TaleWorlds.MountAndBlade;using TaleWorlds.Library;\nnamespace LivingWorldNpcs {\n' + atomic[start:stop] + '\n' + atomic[move_start:move_stop] + '\n' + story_move + '\n}'
+    performance = 'using System;using System.Collections.Generic;using TaleWorlds.MountAndBlade;using TaleWorlds.Library;using TaleWorlds.Core;\nnamespace LivingWorldNpcs {\n' + atomic[start:stop] + '\n' + atomic[move_start:move_stop] + '\n}'
     stub = r'''
 using System;using System.Collections.Generic;using System.Linq;
 using LivingWorldNpcs;using TaleWorlds.MountAndBlade;using TaleWorlds.Engine;using TaleWorlds.Library;using SandBox;using SandBox.Objects;
 namespace TaleWorlds.Library {
- public struct Vec3 {public float x,y,z;public Vec3(float v){x=v;y=z=0;}public Vec3(float a,float b,float c){x=a;y=b;z=c;}public static Vec3 Zero=>new();public float LengthSquared=>x*x+y*y+z*z;public Vec3 NormalizedCopy()=>this*(1f/(float)Math.Sqrt(LengthSquared));public Vec2 AsVec2=>new(){x=x,y=y};public float Distance(Vec3 b)=>(float)Math.Sqrt((this-b).LengthSquared);public static Vec3 operator -(Vec3 a,Vec3 b)=>new(a.x-b.x,a.y-b.y,a.z-b.z);public static Vec3 operator +(Vec3 a,Vec3 b)=>new(a.x+b.x,a.y+b.y,a.z+b.z);public static Vec3 operator *(Vec3 a,float f)=>new(a.x*f,a.y*f,a.z*f);}
+ public struct Vec3 {public float x,y,z;public Vec3(float v){x=v;y=z=0;}public Vec3(float a,float b,float c){x=a;y=b;z=c;}public static Vec3 Zero=>new();public float LengthSquared=>x*x+y*y+z*z;public float Length=>(float)Math.Sqrt(LengthSquared);public Vec3 NormalizedCopy()=>this*(1f/(float)Math.Sqrt(LengthSquared));public Vec2 AsVec2=>new(){x=x,y=y};public float Distance(Vec3 b)=>(float)Math.Sqrt((this-b).LengthSquared);public static Vec3 operator -(Vec3 a,Vec3 b)=>new(a.x-b.x,a.y-b.y,a.z-b.z);public static Vec3 operator +(Vec3 a,Vec3 b)=>new(a.x+b.x,a.y+b.y,a.z+b.z);public static Vec3 operator *(Vec3 a,float f)=>new(a.x*f,a.y*f,a.z*f);}
  public struct Vec2 {public float x,y;public Vec2(float a,float b){x=a;y=b;}public static Vec2 Zero=>new();public float LengthSquared=>x*x+y*y;public void Normalize(){} }
  public struct Frame {public Rotation rotation;public Vec3 origin;}public struct Rotation {public Vec3 f;}
  public class InformationMessage {public InformationMessage(string s){} }public static class InformationManager {public static void DisplayMessage(InformationMessage m){} }
 }
+namespace TaleWorlds.Core {public enum AgentControllerType {None,AI,Player}}
 namespace TaleWorlds.Engine {
  public class Scene {}
+ public static class Time {public static float ApplicationTime;}
+ public struct WorldPosition {public WorldPosition(Scene s,UIntPtr n,TaleWorlds.Library.Vec3 p,bool v){} public UIntPtr GetNavMesh()=>UIntPtr.Zero; public TaleWorlds.Library.Vec3 GetNavMeshVec3()=>new(0,0,0);}
  public class Skeleton {public float Speed=1;public void SetAnimationSpeedAtChannel(int c,float s){Speed=s;} }
  public static class GameEntity {public static HashSet<string> Prefabs=new(){"native_harp"};public static bool PrefabExists(string n)=>Prefabs.Contains(n);}
  public class SoundEvent {
@@ -57,9 +59,14 @@ namespace TaleWorlds.Engine {
 }
 namespace TaleWorlds.MountAndBlade {
  public abstract class AgentComponent {protected readonly Agent Agent;protected AgentComponent(Agent a){Agent=a;}public virtual void OnAgentRemoved(){}public virtual void OnComponentRemoved(){} }
- public class Mission {public static Mission Current;public Scene Scene=new();public Frame GetCameraFrame()=>new();}
+ public class Mission {public static Mission Current;public Scene Scene=new();public Frame GetCameraFrame()=>new();public bool AllowAiTicking=true;public bool PauseAITick;public int Mode;}
  public class MBAgentVisuals {public bool Valid=true;public Skeleton Skeleton=new();public Skeleton GetSkeleton()=>Skeleton;public sbyte GetRealBoneIndex(int bone)=>(sbyte)bone;public bool IsValid()=>Valid;}
- public class Agent {public string Name="actor",Action="";public bool Active=true,IsUsingGameObject,CrouchMode;public int Teleports;public float Health=100;public Vec3 Position;public Frame Frame;public void TeleportToPosition(Vec3 p){Teleports++;Position=p;}
+ public enum AIScriptedFrameFlags {None=0,GoToPosition=1,NoAttack=2,DoNotRun=4,NeverSlowDown=8,InConversation=16,Crouch=32}
+ public enum AIStateFlag {None=0,Paused=1,Cautious=2,Alarmed=4,PatrollingCautious=8}
+ public enum MovementControlFlag {None=0}
+ public enum EventControlFlag {None=0}
+ public enum AgentFlag {None=0}
+ public class Agent {public string Name="actor",Action="";public bool Active=true,IsUsingGameObject,CrouchMode;public int Teleports;public float Health=100;public Vec3 Position;public Frame Frame;public int Index;public Vec3 Velocity;public Vec2 MovementInputVector;public TaleWorlds.Core.AgentControllerType Controller=TaleWorlds.Core.AgentControllerType.AI;public float GetMaximumSpeedLimit()=>-1f;public AIScriptedFrameFlags GetScriptedFlags()=>AIScriptedFrameFlags.None;public AIStateFlag AIStateFlags=AIStateFlag.None;public bool IsPaused=>false;public void SetIsAIPaused(bool p){}public MovementControlFlag MovementFlags;public EventControlFlag EventControlFlags;public AgentFlag GetAgentFlags()=>AgentFlag.None;public object Formation;public bool IsDetachedFromFormation;public bool CanMoveDirectlyToPosition(TaleWorlds.Library.Vec2 p)=>true;public void TeleportToPosition(Vec3 p){Teleports++;Position=p;}
   public Mission Mission=Mission.Current;public MBAgentVisuals AgentVisuals=new();public CampaignAgentComponent Component=new();private List<AgentComponent> Extras=new();public T GetComponent<T>() where T:AgentComponent=>Component is T c?c:Extras.OfType<T>().FirstOrDefault();public void AddComponent(AgentComponent c){Extras.Add(c);}
   public List<(sbyte Bone,string Prefab,bool Visible)> RawPrefabs=new();public int NativePrefabTouches;public int FailVisibilityIndex=-1;
   public int AddSynchedPrefabComponentToBone(string prefab,sbyte bone){NativePrefabTouches++;RawPrefabs.Add((bone,prefab,true));return RawPrefabs.Count-1;}
@@ -98,7 +105,7 @@ namespace LivingWorldNpcs {
    : base(target.Position,Vec2.Zero,run,stopDistance,endBehavior:endBehavior,allowTeleport:allowTeleport){}
  }
  public static class CompanionDetentionBehavior {public static bool IsDetained(Agent a)=>false;}
- public static class V {public static bool NavMesh(Scene s,Vec3 p,out int face){face=0;return true;}}
+ public static class V {public static bool NavMesh(Scene s,Vec3 p,out int face){face=0;return true;}public static bool PathExists(TaleWorlds.Engine.WorldPosition a,TaleWorlds.Engine.WorldPosition b)=>true;}
  public static class MBRandom {public static float RandomFloat=>.5f;}
  public static class StoryProbeTuning {public static Tuning Current=new();public class Tuning {public Events Events=new();}public class Events {public float ActorSpacingMeters=3,ActorApproachMeters=2;}}
  public class StoryEventDef {public string Placement="gather",ActionA="act_talk",ActionB="act_talk";public int Index=1;public string[] Members={"host","guest"};}

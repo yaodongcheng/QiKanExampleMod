@@ -5790,7 +5790,7 @@
     <string id="LWN_story_son_practice_interrupt" text="先停一下，你想再练，还是今天到这儿？" />
     <string id="LWN_story_son_practice_cancelled" text="行，我回箱子那边，想练再来找我，收过的钱不收第二遍。" />
     <string id="LWN_story_practice_stealth_dagger_title" text="跟小六练手" />
-    <string id="LWN_story_practice_stealth_dagger_follow" text="跟上小六，去西边矮墙旁练习；跟他交谈可重试或结束。" />
+    <string id="LWN_story_practice_stealth_dagger_follow" text="跟上小六，去西南边墙根下练习；跟他交谈可重试或结束。" />
     <string id="LWN_story_practice_stealth_dagger_ready" text="我背朝你了。先退到几步外，按下蹲键，绕到我背后两步内，从交互栏选偷窃；浮标进可偷区再按出手键。只拿腰上的小刀。" />
     <string id="LWN_story_practice_stealth_dagger_retry" text="停，你露面了，或者脚步太重。再退几步，等我不看你了，蹲着绕回来；出手别着急。" />
     <string id="LWN_story_practice_stealth_dagger_done" text="小刀真拿走了，行！留着吧。对付罗铁也得这么来，但他可没答应让你练，被抓住是要算账的。" />
@@ -5813,7 +5813,7 @@
     <string id="LWN_story_son_learn_disarm_part2" text="他要还藏着刀、带着盾，你照样吃亏；就算两手空了，人家的拳头也不是摆设。" />
     <string id="LWN_story_son_methods_routes_part1" text="他也得看路、跟人说话，背后总有空当。" />
     <string id="LWN_story_son_methods_routes_part2" text="你要硬闯，就先摸走他的刀，少挨几下总是好的；不过得看他有没有别的家伙。" />
-    <string id="LWN_story_son_stealth_offer_part1" text="跟我去西边矮墙旁，那里人少。" />
+    <string id="LWN_story_son_stealth_offer_part1" text="跟我去西南边墙根下，那里人少。" />
     <string id="LWN_story_son_stealth_offer_part2" text="我把小刀放腰上，背朝你站着；你先退开几步，再蹲着绕到我背后拿。" />
     <string id="LWN_story_son_stealth_offer_part3" text="被我瞧见或者脚步太重，就重来。" />
     <string id="LWN_story_son_grapple_offer_part1" text="去西边的矮墙先练，摔下来也不至于断腿。" />
@@ -5829,7 +5829,7 @@
     <string id="LWN_story_son_stealth_retry" text="行，再来一遍，先把脚步收轻一点。" />
     <string id="LWN_story_son_learn_sneak_2_review_reply" text="刚才你确实把刀拿走了，对着罗铁也得有这份耐心。" />
     <string id="LWN_story_son_learn_steal_2_review_reply" text="刚才你确实把刀拿走了，对着罗铁也得有这份耐心。" />
-    <string id="LWN_story_practice_stealth_dagger_FollowObjectiveKey" text="跟随小六到西边矮墙旁；交谈可结束练习。" />
+    <string id="LWN_story_practice_stealth_dagger_FollowObjectiveKey" text="跟随小六到西南边墙根下；交谈可结束练习。" />
     <string id="LWN_story_practice_stealth_dagger_PracticeObjectiveKey" text="蹲着绕到小六背后，使用偷窃取走练习匕首。" />
     <string id="LWN_story_practice_grapple_wall_FollowObjectiveKey" text="跟随小六到西边矮墙旁；交谈可结束练习。" />
     <string id="LWN_story_practice_grapple_wall_PracticeObjectiveKey" text="装备绳子与钩索，在示范的矮墙上沿投钩并攀拉落地。" />

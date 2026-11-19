@@ -354,6 +354,35 @@ namespace LivingWorldNpcs
             return GetPose(agent) == actionId;
         }
 
+        /// <summary>
+        /// **强行走位唯一入口**：清掉目标当前的动作/演出租约，再入队一次真实寻路的 MoveToPositionAction（不瞬移）。
+        /// 🔴 为什么必须"先清"：只 Enqueue（`event_story_move` 那条路）不会撤销残留的演出租约/占位，
+        ///    身体被按住时同一个移动动作走满 14 秒一米不动（2026-11-19 实机：小六实操课）。
+        ///    控制台 `custom.move_npc` 与剧情练习共用本入口，禁止各自再造一套。
+        /// </summary>
+        /// <returns>true = 已入队；false = 无脑/不可用（done 已回 false）。</returns>
+        public static bool ForceMoveTo(Agent agent, Vec3 target, float stopDistance, float maxSeconds,
+            Action<bool> done, Action<MoveToPositionAction> accepted = null)
+        {
+            if (!SafeIsActive(agent)) { done?.Invoke(false); return false; }
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            if (brain == null) { done?.Invoke(false); return false; }
+            // 强行走位 = 明确要身体：引擎若还按着 Paused（对话/警戒等遗留），先松手。
+            if (agent.IsPaused)
+            {
+                DebugLogger.Log("[Move] " + agent.Name + " AI was paused -> cleared for forced move");
+                agent.SetIsAIPaused(false);
+            }
+            // 照 GrappleBind 放人那套解冻配方：只解 Paused 不够——被按住期间攥着的敌人/行为参数也要刷掉，
+            // 否则 AI 恢复了却拿着过期参数，照样不给移动输入。
+            try { agent.ResetEnemyCaches(); } catch (Exception) { }
+            try { agent.HumanAIComponent?.SyncBehaviorParamsIfNecessary(); } catch (Exception) { }
+            var move = MoveToPositionAction.StoryWalk(target, stopDistance, done, maxSeconds);
+            accepted?.Invoke(move);
+            brain.RunReactiveAction(move);
+            return true;
+        }
+
         // 【修改后】只负责发号施令，不负责等待
 
        
@@ -393,8 +422,10 @@ namespace LivingWorldNpcs
 
             if (!isRun)
                 moveFlags |= Agent.AIScriptedFrameFlags.DoNotRun;
-            // 4. 下达指令 (只执行一次)
+            // 4. 下达指令 (只执行一次)；移动追踪在下达前后各打一行（custom.move_trace on）
+            MoveTrace.Issue(agent, targetVec, moveFlags);
             agent.SetScriptedPosition(ref targetPos, false, moveFlags);
+            MoveTrace.Issued(agent);
         }
 
         // ── 移动避障：SmartMoveToPoint（2026-08-21，plans/movement-avoidance.md）──────────────

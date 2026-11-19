@@ -5,11 +5,11 @@
     "Actor": "son",
     "TitleKey": "LWN_story_practice_stealth_dagger_title",
     "Position": [
-      414,
-      418,
-      73.02
+      433.58,
+      399.35,
+      74.09
     ],
-    "FacingDegrees": 180,
+    "FacingDegrees": 94.7,
     "SightMeters": 5,
     "TimeoutSec": 300,
     "AimTolerance": 2,

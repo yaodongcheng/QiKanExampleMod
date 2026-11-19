@@ -1401,9 +1401,18 @@ namespace LivingWorldNpcs
                         return false;
                     var session = StoryDialogueRuntime.Current;
                     var node = session?.Definition?.FindNode(parts[0]);
-                    var option = node?.Options.FirstOrDefault(o => o.Id == parts[1]);
-                    // 显示可用不代替提交时复核；被绑/死亡/战斗等变化必须阻止当前付款和回答。
-                    if (session == null || node == null || option == null) return false;
+                    // 🔴 选项可能挂在别的节点上（OptionsFrom）：必须与显示侧同一口径展开，
+                    //    否则叙述节点（Options: [] + OptionsFrom）点任何选项都查不到 → 判失败关窗。
+                    var option = session == null || node == null
+                        ? null
+                        : session.Definition.OptionsFor(node).FirstOrDefault(o => o.Id == parts[1]);
+                    if (session == null || node == null || option == null)
+                    {
+                        DebugLogger.Log($"[StoryDialogue] option not found {parts[0]}/{parts[1]}"
+                            + (node == null ? " (node missing)"
+                                : $" (own={node.Options.Count} OptionsFrom={node.OptionsFrom ?? "-"})"));
+                        return false;
+                    }
                     if (!IsTurnValid(session, node) || !CanUseTurnAgent(ResolveTurnAgent(session, option.Listener)))
                         return RejectTurn(session, parts[0]);
                     if (!StoryDialogueRuntime.NotifyOptionSelected(parts[0], parts[1], out string reason))

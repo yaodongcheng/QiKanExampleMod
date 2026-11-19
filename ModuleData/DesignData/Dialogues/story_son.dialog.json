@@ -2148,7 +2148,7 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_stealth_offer_part1",
-      "TextKeyZh": "跟我去西边矮墙旁，那里人少。",
+      "TextKeyZh": "跟我去西南边墙根下，那里人少。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
