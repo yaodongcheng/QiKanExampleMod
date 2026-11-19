@@ -434,7 +434,7 @@ namespace LivingWorldNpcs
         // 动作执行
         // ═══════════════════════════════════════════════════════════════
 
-        private static void ExecuteAction(DialogueTransition transition)
+        public static void ExecuteAction(DialogueTransition transition)
         {
             if (string.IsNullOrEmpty(transition.Action) || transition.Action == "NONE")
                 return;
@@ -836,6 +836,134 @@ namespace LivingWorldNpcs
             return 1; // 仅 PlayerLine
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // 自建对话 UI 的共用原语（2026-11-19）
+        //   511 剧情对话可以在「原版对话流」与「自建 UI」两种呈现之间切换，
+        //   但**可见性、可选性、选中执行、检定、跳转必须走同一份实现** ——
+        //   禁止新 UI 复制一份自己的对话逻辑（两侧各抄一份必然分叉）。
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>选项此刻是否应当显示（与原版注册时传给引擎的条件是同一个实现）。</summary>
+        public static bool IsTransitionVisible(DialogueTransition transition)
+        {
+            if (transition == null) return false;
+            try
+            {
+                var condition = BuildTransitionCondition(transition);
+                return condition == null || condition();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[DialogueInjector] IsTransitionVisible failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>选项此刻是否可选（可见但暂不可选的资格闸门）。</summary>
+        public static bool IsTransitionSelectable(DialogueTransition transition)
+        {
+            if (transition == null) return false;
+            try { return transition.RuntimeCanSelect == null || transition.RuntimeCanSelect(); }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[DialogueInjector] IsTransitionSelectable failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>节点台词（惰性求值；纯读，不触发效果、不播动作）。</summary>
+        public static string GetNodeLine(DialogueNode node)
+        {
+            if (node == null) return "";
+            try
+            {
+                if (node.LazyNpcLine != null) return node.LazyNpcLine() ?? "";
+                if (!string.IsNullOrEmpty(node.NpcKey))
+                    return LWNTextHelper.ResolveText(node.NpcKey, node.NpcFallback ?? node.NpcLine) ?? "";
+                return node.NpcLine ?? "";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[DialogueInjector] GetNodeLine failed: {ex.Message}");
+                return "";
+            }
+        }
+
+        /// <summary>选项正文（惰性求值；显示一次求值一次，不产生副作用）。</summary>
+        public static string GetTransitionText(DialogueTransition transition)
+            => transition == null ? "" : (ResolveTransitionText(transition) ?? "");
+
+        /// <summary>选项悬停说明（铁律 43：检定行 + 后果行）。</summary>
+        public static string GetTransitionHint(DialogueTransition transition)
+        {
+            if (transition?.RuntimeHint == null) return "";
+            try { return transition.RuntimeHint()?.ToString() ?? ""; }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[DialogueInjector] GetTransitionHint failed: {ex.Message}");
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// 玩家真实选中一个选项时的**唯一执行链**：
+        ///   提交选项后果（CustomAction → StoryDialogueRuntime.NotifyOptionSelected）
+        ///   → 检定（CustomCheck，与原版同一次掷骰）
+        ///   → 目标节点裁决。
+        /// 返回值 = 下一个节点 Id；null / 空 = 本次对话结束（关窗）。
+        /// 原版对话流的 consequence 与自建 UI 都调这一个方法。
+        /// </summary>
+        public static string ExecutePlayerChoice(DialogueNode node, DialogueTransition transition,
+            HashSet<string> nodeIds, out bool checkFailed)
+        {
+            checkFailed = false;
+            if (transition == null) return null;
+
+            ExecuteAction(transition);
+
+            string dest;
+            if (transition.CheckType == TransitionCheckType.SkillCheck)
+            {
+                // 检定：与原版完全同一条钩子（StoryProbeDialogue.RunCheck 掷一次骰）。
+                if (!string.IsNullOrEmpty(transition.CheckTag) && CustomCheck != null)
+                {
+                    bool? custom = null;
+                    try { custom = CustomCheck(transition); }
+                    catch (Exception ex) { DebugLogger.Log($"[DialogueInjector] CustomCheck({transition.CheckTag}) failed: {ex.Message}"); }
+
+                    if (custom.HasValue)
+                    {
+                        checkFailed = !custom.Value;
+                        dest = custom.Value
+                            ? transition.NextNodeOnSuccess
+                            : (transition.CloseOnFailedCheck ? transition.NextNodeOnFail
+                                : (!string.IsNullOrEmpty(transition.NextNodeOnFail)
+                                    ? transition.NextNodeOnFail : transition.NextNodeOnSuccess));
+                        return ResolveDestinationNode(dest, nodeIds, node, transition);
+                    }
+                }
+
+                if (transition.ResultKey != null && _intentResults.TryGetValue(transition.ResultKey, out bool passed))
+                {
+                    checkFailed = !passed;
+                    dest = passed
+                        ? transition.NextNodeOnSuccess
+                        : (transition.CloseOnFailedCheck ? transition.NextNodeOnFail
+                            : (!string.IsNullOrEmpty(transition.NextNodeOnFail)
+                                ? transition.NextNodeOnFail : transition.NextNodeOnSuccess));
+                }
+                else
+                {
+                    // 安全网：Intent 被禁用 / 没有检定结果 → 结束本次对话，不猜分支。
+                    DebugLogger.Log($"[DialogueInjector] skill-check transition without result, closing (node='{node?.Id}')");
+                    return null;
+                }
+                return ResolveDestinationNode(dest, nodeIds, node, transition);
+            }
+
+            return ResolveDestinationNode(transition.NextNodeOnSuccess, nodeIds, node, transition);
+        }
+
         /// <summary>
         /// 收集脚本中所有已注册的节点 Id（含 null 过滤）。
         /// </summary>
@@ -852,7 +980,7 @@ namespace LivingWorldNpcs
         /// 校验 Transition 的目标节点引用。空/null = 关窗（合法）；引用存在 = 原样返回；
         /// 悬空（不在脚本 Nodes 中）= 记日志并返回 null（调用方改走 close_window）。
         /// </summary>
-        private static string ResolveDestinationNode(string nodeRef, HashSet<string> nodeIds,
+        public static string ResolveDestinationNode(string nodeRef, HashSet<string> nodeIds,
             DialogueNode node, DialogueTransition transition)
         {
             if (string.IsNullOrEmpty(nodeRef)) return null;
@@ -992,7 +1120,7 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 解析选项显示文本：Intent.GetDialoguePrefix() 自动拼接 + PlayerLine 文本。
         /// </summary>
-        private static string ResolveTransitionText(DialogueTransition transition)
+        public static string ResolveTransitionText(DialogueTransition transition)
         {
             string text = null;
 
@@ -1177,6 +1305,11 @@ namespace LivingWorldNpcs
             public Func<string> LazyNpcLine;
             /// <summary>玩家可选的回应。空列表 [] = terminal（NPC 说完直接关窗）。null = 未初始化（非法）。</summary>
             public List<DialogueTransition> Transitions;
+            /// <summary>这一句的说话人身份（StoryProbe 节点字段；原版注入脚本留空）。
+            /// 自建对话面板据此显示名字并决定玩家该面向谁。</summary>
+            [JsonIgnore] public string Speaker;
+            /// <summary>这一句的听话人身份（同上）。</summary>
+            [JsonIgnore] public string Listener;
             /// <summary>进入本节点时执行一次的动作（StoryProbe 用；"PROBE:xxx"）。</summary>
             public string EnterAction;
             /// <summary>EnterAction 的参数（复合动作按 ';' 分段）。</summary>

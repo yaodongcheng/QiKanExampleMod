@@ -349,6 +349,7 @@ namespace LivingWorldNpcs
         {
             try
             {
+                if (StoryDialogueUiRunner.IsParticipant(agent)) return true;
                 var cm = Campaign.Current?.ConversationManager;
                 return agent != null && cm != null && cm.IsConversationInProgress && cm.IsConversationAgent(agent);
             }

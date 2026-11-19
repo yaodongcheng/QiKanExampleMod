@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <base type="string">
   <tags>
     <tag language="English" />
@@ -2522,6 +2522,8 @@
     
     
     <string id="LWN_dialogue_not_now" text="Not now." />
+    <string id="LWN_dialogue_continue" text="Continue" />
+    <string id="LWN_dialogue_leave" text="Leave" />
     
     <string id="LWN_dialogue_skill_success" text="{SKILL} check succeeded" />
     

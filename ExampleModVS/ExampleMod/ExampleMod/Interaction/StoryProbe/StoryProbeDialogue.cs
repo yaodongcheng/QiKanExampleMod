@@ -36,6 +36,38 @@ namespace LivingWorldNpcs
 
         /// <summary>本次入口和业务归属演员；每句真实说话者由节点Speaker决定。</summary>
         public static string CurrentNpcId;
+
+        /// <summary>
+        /// 511 剧情对话的呈现形态（2026-11-19 用户裁定：只作用于 511 玩法对话）。
+        ///   "vanilla" = 原版对话流（默认，行为不变）；
+        ///   "custom"  = 自建面板（StoryDialogueUiRunner），**不启动引擎对话流**。
+        /// 犯罪对话 / 原版对话 / IM 恒走原版，与本开关无关。
+        /// </summary>
+        internal static bool UsesCustomUi => Settings.Instance != null
+            && string.Equals(Settings.Instance.StoryDialogueUi ?? "", "custom", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// 本次 StartConversation 已被自建面板接管 —— 入口 Prefix 读它并跳过原版对话流。
+        /// 一次性：Prefix 消费后清零。
+        /// </summary>
+        internal static bool CustomUiTakeover;
+
+        /// <summary>
+        /// 此刻是否处在「一段剧情对话」里 —— 原版对话流与自建面板都算。
+        /// 别处（门禁推人 / 首战触发 / 扣押推进 / 道具交互 / 工作让位）一律用这一个判据，
+        /// 否则自建面板模式下它们会以为"没在对话"，在玩家说话时把人推走或直接开打。
+        /// </summary>
+        internal static bool IsDialogueActiveNow
+            => StoryDialogueUiRunner.IsRunning
+               || Campaign.Current?.ConversationManager?.IsConversationInProgress == true;
+
+        /// <summary>入口 Prefix 消费接管标志（读完即清，避免影响下一次对话）。</summary>
+        internal static bool ConsumeCustomUiTakeover()
+        {
+            bool takeover = CustomUiTakeover;
+            CustomUiTakeover = false;
+            return takeover;
+        }
         private static Agent _entryAgent;
         private static StoryDialogueSession _entrySession;
 
@@ -148,6 +180,23 @@ namespace LivingWorldNpcs
                 DialogueInjector.CustomAction = HandleAction;
 
                 CurrentNpcId = npcId;
+
+                // ── 511 自建对话面板（2026-11-19）──
+                // 同一份对话图、同一套后果；区别只是不进 ConversationManager。
+                if (UsesCustomUi && StoryDialogueUiRunner.Start(built, agent, npcId, session))
+                {
+                    _lastTag = null;
+                    // 会话效果落账靠这两个钩子（选项提交 / 检定掷骰），与原版路径共用同一实现。
+                    DialogueInjector.CustomNodeEnter = null;
+                    CustomUiTakeover = true;
+                    DebugLogger.Log($"[StoryProbe] custom-ui takeover npc={npcId} entry={entry} nodes={built.Nodes.Count}");
+                    PendingEntryNode = null;
+                    return;
+                }
+                // 自建面板启动失败（面板打不开/入口节点缺失）→ 继续走原版注入，玩家不会两手空空。
+                if (UsesCustomUi)
+                    DebugLogger.Log($"[StoryProbe] custom-ui unavailable for npc={npcId}; falling back to vanilla flow");
+
                 _lastTag = "story_probe_" + npcId;
                 string result = DialogueInjector.InjectScript(built, _lastTag);
                 DebugLogger.Log($"[StoryProbe] inject npc={npcId} entry={entry} nodes={built.Nodes.Count} -> {result}");
@@ -263,8 +312,11 @@ namespace LivingWorldNpcs
 
         private static bool OwnsConversation(StoryDialogueSession session, ConversationManager cm)
         {
-            if (session == null || cm == null || StoryDialogueRuntime.Current != session || session.Ended
+            if (session == null || StoryDialogueRuntime.Current != session || session.Ended
                 || session.Request.RuntimeToken != StoryProbeState.RuntimeToken) return false;
+            // 🔴 自建面板模式下引擎会话根本没启动（cm.ConversationAgents 恒空），归属判据改问运行器。
+            if (StoryDialogueUiRunner.Owns(session)) return true;
+            if (cm == null) return false;
             var primary = ResolveTurnAgent(session, session.Request.ActorId);
             return primary != null && (cm.ConversationAgents.Contains(primary)
                 || (_entrySession == session && _entryAgent != null && cm.ConversationAgents.Contains(_entryAgent)));
@@ -303,7 +355,8 @@ namespace LivingWorldNpcs
             }
             if (!IsTurnValid(session, node) || required.Any(a => !CanUseTurnAgent(a)))
                 return RejectTurn(session, node.Id);
-            cm.AddConversationAgents(required.Where(a => a != Agent.Main).Distinct(), false);
+            if (!StoryDialogueUiRunner.Owns(session))
+                cm.AddConversationAgents(required.Where(a => a != Agent.Main).Distinct(), false);
             DebugLogger.Log($"[StoryDialogue] prepared session={session.Id} node={node.Id} entry={ResolveNpcId(_entryAgent)} host={session.Request.ActorId} speaker={node.Speaker} listener={node.Listener} participants={string.Join("+", required.Distinct().Select(a => ResolveNpcId(a) ?? "player"))}");
             return true;
         }
@@ -335,15 +388,18 @@ namespace LivingWorldNpcs
         {
             TickDialogueCamera(dt);
             if (_facingSession == null) return;
+            // 自建面板模式：引擎会话没启动，归属判据问运行器（否则每个 Tick 都会把朝向释放掉）。
+            bool customUi = StoryDialogueUiRunner.Owns(_facingSession);
             var cm = Campaign.Current?.ConversationManager;
             if (Mission.Current != _facingMission || StoryDialogueRuntime.Current != _facingSession
-                || _facingSession.Ended || _facingSession.Failed || cm?.IsConversationInProgress != true)
+                || _facingSession.Ended || _facingSession.Failed
+                || (!customUi && cm?.IsConversationInProgress != true))
             { ReleaseDialogueFacing(); return; }
             var speaker = ResolveTurnAgent(_facingSession, _facingNode.Speaker);
             var listener = ResolveTurnAgent(_facingSession, _facingNode.Listener);
             if (speaker == listener || !CanUseTurnAgent(speaker) || !CanUseTurnAgent(listener)
-                || (speaker != Agent.Main && !cm.IsConversationAgent(speaker))
-                || (listener != Agent.Main && !cm.IsConversationAgent(listener)))
+                || (!customUi && speaker != Agent.Main && cm?.IsConversationAgent(speaker) != true)
+                || (!customUi && listener != Agent.Main && cm?.IsConversationAgent(listener) != true))
             {
                 var session = _facingSession;
                 string nodeId = _facingNode.Id;
@@ -401,10 +457,14 @@ namespace LivingWorldNpcs
 
         private static void ReleaseFacingActor(Agent actor)
         {
-            _facingActors.Remove(actor);
+            // 🔴 必须「谁摆的谁收」：只要本层真的给他写过站位，就一定把 scripted frame 清掉。
+            //    旧写法在 `!CanUseTurnAgent(actor)` 时直接 return —— 那一帧身体状态一变
+            //    （战斗中/被打断/正在执行别的表演）就留着一个"钉在原地"的 frame，
+            //    实机表现就是「谈完话再也不走」。清帧只针对我们自己写过的那个合同。
+            bool weHeld = _facingActors.Remove(actor);
             _facingTrackers.Remove(actor);
-            if (Mission.Current != _facingMission || !CanUseTurnAgent(actor)) return;
-            // 只清本层的站位/注视，不归还或抢占刚由战斗、击晕、绑缚接管的身体。
+            if (!weHeld || actor == null) return;
+            if (Mission.Current != _facingMission || !AgentControlHelper.SafeIsActive(actor)) return;
             actor.ClearTargetFrame();
             AgentControlHelper.StopLooking(actor);
         }
@@ -620,6 +680,8 @@ namespace LivingWorldNpcs
                 {
                     Id = node.Id,
                     NextNode = node.NextNode,
+                    Speaker = node.Speaker,
+                    Listener = node.Listener,
                     NpcKey = node.TextKey,
                     NpcFallback = null,
                     NpcActions = node.LineActions != null && node.LineActions.Count > 0 ? node.LineActions.ToArray() : null,
@@ -679,7 +741,11 @@ namespace LivingWorldNpcs
                         RuntimeListener = agent => agent == ResolveTurnAgent(session, opt.Listener),
                         CloseOnFailedCheck = true,
                     };
-                    t.RuntimeHint = () => new TextObject(DescribeOptionHint(opt, npcId));
+                    t.RuntimeHint = () =>
+                    {
+                        string hint = DescribeOptionHint(opt, npcId);
+                        return string.IsNullOrEmpty(hint) ? null : new TextObject(hint);
+                    };
                     // 2026-11-19 用户裁定：随机检定不设门槛，选项永远可选；成功率可以是 0%。
                     t.RuntimeCanSelect = () => true;
                     if (opt.Check != null)
@@ -867,9 +933,14 @@ namespace LivingWorldNpcs
 
         public static string DescribeOptionHint(StoryDialogueOption option, string actorId)
         {
-            string note = !string.IsNullOrEmpty(option.HintKey) ? LWNTextHelper.ResolveText(option.HintKey, null)
-                : option.Check != null ? LWNTextHelper.ResolveText("LWN_story_hint_check_branches", "The NPC responds to the result. No payment is taken for this check.")
-                : LWNTextHelper.ResolveText("LWN_story_hint_talk", "Conversation response. No skill roll.");
+            // 🔴 2026-11-19 用户裁定：**没写 HintKey 的选项不弹浮框**。
+            //    兜底文案不含任何实际信息，弹出来只是噪声。
+            //    唯一例外：带检定的选项 —— 检定行是代码按真实数值生成的，有信息量，铁律 43 要求必须给。
+            if (string.IsNullOrEmpty(option.HintKey) && option.Check == null) return null;
+
+            string note = !string.IsNullOrEmpty(option.HintKey)
+                ? LWNTextHelper.ResolveText(option.HintKey, null)
+                : "";
             if (option.Check == null) return note;
             if (!StoryProbeDefs.TryParseDialogueTactic(option.Check.Tactic, out var tactic)) return note;
             string target = string.IsNullOrEmpty(option.Check.Target) || option.Check.Target == "npc"
@@ -892,7 +963,7 @@ namespace LivingWorldNpcs
                 ("PLAYER", playerText),
                 ("NPC", preview.NpcAttr.ToString("F0")),
                 ("CHANCE", (preview.Chance * 100f).ToString("F0")));
-            return head + "\n" + note;
+            return string.IsNullOrEmpty(note) ? head : head + "\n" + note;
         }
 
         /// <summary>CheckTag = npcId|NegotiationTactic；概率与掷点均复用已有对话轮子。</summary>
@@ -967,22 +1038,31 @@ namespace LivingWorldNpcs
             string npcId = CurrentNpcId;
             string ownerTag = _lastTag;
             int round = _conversationRound;
-            Func<bool> stillOwnsConversation = () => cm != null && host != null && host.Active
-                && StoryProbeMissionBehavior.Current == host && round == _conversationRound
-                && _actionFailed && CurrentNpcId == npcId && !string.IsNullOrEmpty(npcId)
-                && _lastTag == ownerTag && ownerTag == "story_probe_" + npcId
-                && Campaign.Current?.ConversationManager == cm
-                && OwnsConversation(StoryDialogueRuntime.Current, cm);
+            // 自建面板模式下没有注入 tag、也没有引擎会话：归属判据改问运行器，收场改由它关面板。
+            bool customUi = StoryDialogueUiRunner.Owns(StoryDialogueRuntime.Current);
+            Func<bool> stillOwnsConversation = () => customUi
+                ? host != null && host.Active && StoryProbeMissionBehavior.Current == host
+                    && round == _conversationRound && _actionFailed
+                    && CurrentNpcId == npcId && !string.IsNullOrEmpty(npcId)
+                    && StoryDialogueUiRunner.Owns(StoryDialogueRuntime.Current)
+                : cm != null && host != null && host.Active
+                    && StoryProbeMissionBehavior.Current == host && round == _conversationRound
+                    && _actionFailed && CurrentNpcId == npcId && !string.IsNullOrEmpty(npcId)
+                    && _lastTag == ownerTag && ownerTag == "story_probe_" + npcId
+                    && Campaign.Current?.ConversationManager == cm
+                    && OwnsConversation(StoryDialogueRuntime.Current, cm);
             try
             {
                 if (!stillOwnsConversation()) return false;
                 host.SchedulePublic(0f, () =>
                 {
-                    if (stillOwnsConversation() && cm.IsConversationInProgress) cm.EndConversation();
+                    if (!stillOwnsConversation()) return;
+                    if (customUi) { StoryDialogueUiRunner.End("action failed - closed"); return; }
+                    if (cm.IsConversationInProgress) cm.EndConversation();
                 });
                 // 复用 Injector 的 SkillCheck 路由写法，只改输出 token，不在 consequence 栈结束对话。
                 // 普通付款的成功应答尚未选择时，这样阻止其显示；已显示的台词无法事后撤回。
-                cm.ActiveToken = cm.GetStateIndex("close_window");
+                if (!customUi) cm.ActiveToken = cm.GetStateIndex("close_window");
             }
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] failed payment conversation cleanup deferred: {ex.Message}"); }
             return false;

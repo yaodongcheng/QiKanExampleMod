@@ -1,0 +1,151 @@
+﻿<Prefab>
+  <!-- 511 剧情对话自建面板（2026-11-19，第三轮）
+       位置与尺寸照抄 Native/GUI/Prefabs/Conversation/SPConversation.xml（1.2.12）；
+       外观资源用 Native/GUI/Brushes/ConversationBrush.xml 里的原版 brush。 -->
+  <Window Id="StoryDialogue">
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+            DoNotAcceptEvents="false" Brush="Conversation.Screen">
+      <Children>
+
+        <!-- Click To Continue
+             🔴 原版：ContinueButton 是 IsDisabled+DoNotAcceptEvents 的纯视觉件，
+                真正的「点击任意处继续」由根控件 ConversationScreenButtonWidget 统一处理。
+             这里复刻为：全屏 ButtonWidget 接点击 + 内部 454x80 视觉件。
+             全屏层放在 Children 最前面（最底层）—— 即使显隐绑定失效，选项也永远先命中。 -->
+        <ButtonWidget Id="ContinueButton" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                      IsVisible="@IsContinueVisible"
+                      Command.Click="ExecuteContinue">
+          <Children>
+            <BrushWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                         SuggestedWidth="454" SuggestedHeight="80"
+                         HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                         MarginRight="250" MarginBottom="22"
+                         Brush="LWN_Dlg_Continue"
+                         DoNotAcceptEvents="true">
+              <Children>
+                <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                VerticalAlignment="Bottom" Brush="Conversation.HeaderText" Brush.FontSize="45"
+                                Text="@ContinueText" />
+              </Children>
+            </BrushWidget>
+          </Children>
+        </ButtonWidget>
+
+        <!-- Vertical Persuasion and Bottom panels Container（原版：VerticalTopToBottom） -->
+        <ListPanel Id="VerticalContainer" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                   StackLayout.LayoutMethod="VerticalTopToBottom"
+                   HorizontalAlignment="Center" VerticalAlignment="Bottom" DoNotAcceptEvents="true">
+          <Children>
+
+            <ListPanel Id="BottomPanelsContainer" DoNotAcceptEvents="true"
+                       WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="20">
+              <Children>
+
+                <!-- Dialogue Container -->
+                <Widget Id="DialogueContainer" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" MarginRight="10">
+                  <Children>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="720" HorizontalAlignment="Right">
+                      <Children>
+                        <!-- 对话框背景：本地 brush（Native 的 npc_dialogue_panel_9 贴图取不到） -->
+                        <BrushWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                     VerticalAlignment="Center" HorizontalAlignment="Center"
+                                     Brush="LWN_Dlg_Panel" MinHeight="192"
+                                     DoNotAcceptEvents="true">
+                          <Children>
+                            <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                            VerticalAlignment="Center" MarginLeft="80" MarginRight="25" MarginTop="25" MarginBottom="25"
+                                            Brush="Conversation.ConversedPartyLine.Text" Text="@LineText"
+                                            DoNotAcceptEvents="true" />
+                          </Children>
+                        </BrushWidget>
+                      </Children>
+                    </Widget>
+                  </Children>
+                </Widget>
+
+                <!-- Answers Container -->
+                <Widget Id="AnswerListContainer" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                        SuggestedWidth="750" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="10">
+                  <Children>
+                    <!-- 原版：VerticalBottomToTop（第一个选项出现在屏幕最上面） -->
+                    <NavigatableListPanel Id="AnswerList" DataSource="{Options}"
+                                          WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                          HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                                          StackLayout.LayoutMethod="VerticalBottomToTop">
+                      <ItemTemplate>
+                        <Widget Id="OptionButtonParent" WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
+                                SuggestedWidth="750" UpdateChildrenStates="true">
+                          <Children>
+                            <!-- 按钮本体不带底：底色在内层 BrushWidget 上，上下各 2.5 —— 与原版
+                                 ConversationItemImageWidget 的 MarginTop/MarginBottom="2.5" 一致，
+                                 这就是相邻选项之间那几像素缝隙的来源。 -->
+                            <ButtonWidget Id="OptionButton" DoNotPassEventsToChildren="true"
+                                          WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                          Command.Click="ExecuteClick"
+                                          Command.HoverBegin="ExecuteHoverBegin"
+                                          Command.HoverEnd="ExecuteHoverEnd"
+                                          IsEnabled="@IsEnabled"
+                                          UpdateChildrenStates="true">
+                              <Children>
+                                <BrushWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                             MarginTop="2.5" MarginBottom="2.5"
+                                             Brush="LWN_Dlg_Option" DoNotAcceptEvents="true">
+                                  <Children>
+                                    <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                    MarginTop="5" MarginBottom="5" MarginLeft="30"
+                                                    Brush="ConversationItem.Text" IsEnabled="@IsEnabled" Text="@Text" />
+
+                                    <!-- 原版悬浮指示条（左侧小三角），靠按钮状态显示/隐藏 -->
+                                    <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                                 SuggestedWidth="39" SuggestedHeight="20"
+                                                 HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                 PositionXOffset="-15" Brush="ConversationItem.HoverIndicator" />
+                                  </Children>
+                                </BrushWidget>
+
+                                <!-- 原版悬停提示：鼠标旁浮窗 -->
+                                <HintWidget DataSource="{OptionHint}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                            MinWidth="120" Command.HoverBegin="ExecuteBeginHint" Command.HoverEnd="ExecuteEndHint"
+                                            DoNotAcceptEvents="true"/>
+                              </Children>
+                            </ButtonWidget>
+                          </Children>
+                        </Widget>
+                      </ItemTemplate>
+                    </NavigatableListPanel>
+                  </Children>
+                </Widget>
+
+              </Children>
+            </ListPanel>
+          </Children>
+        </ListPanel>
+
+        <!-- Speaker Info（原版：DimensionSyncWidget 跟着对话框高度走） -->
+        <DimensionSyncWidget DoNotAcceptEvents="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                             SuggestedWidth="680" VerticalAlignment="Bottom" MarginLeft="270" HorizontalAlignment="Left"
+                             WidgetToCopyHeightFrom="..\VerticalContainer\BottomPanelsContainer\DialogueContainer"
+                             DimensionToSync="Vertical" PaddingAmount="55">
+          <Children>
+            <ListPanel DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                       StackLayout.LayoutMethod="HorizontalRightToLeft">
+              <Children>
+                <Widget Id="CharacterNameContainer" DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent"
+                        HeightSizePolicy="CoverChildren" VerticalAlignment="Center" Brush="LWN_Dlg_NameShadow">
+                  <Children>
+                    <TextWidget WidthSizePolicy="CoverChildren" DoNotAcceptEvents="true" HeightSizePolicy="Fixed"
+                                SuggestedHeight="70" MarginLeft="25" MarginRight="10"
+                                Brush="Conversation.HeaderText" Brush.TextHorizontalAlignment="Left"
+                                Text="@SpeakerName" />
+                  </Children>
+                </Widget>
+              </Children>
+            </ListPanel>
+          </Children>
+        </DimensionSyncWidget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

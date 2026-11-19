@@ -301,6 +301,9 @@
     <Compile Include="Interaction\StoryProbe\StoryDialogueFacts.cs" />
     <Compile Include="Interaction\StoryProbe\StoryDialogueDefs.cs" />
     <Compile Include="Interaction\StoryProbe\StoryDialogueRuntime.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryDialogueUiRunner.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryDialogueUiView.cs" />
+    <Compile Include="Interaction\StoryProbe\StoryDialogueUiVM.cs" />
     <Compile Include="Interaction\StoryProbe\StoryPostDirector.cs" />
     <Compile Include="Interaction\StoryProbe\StoryPrepRunner.cs" />
     <Compile Include="Interaction\StoryProbe\StoryWorkDirector.cs" />

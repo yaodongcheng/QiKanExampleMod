@@ -823,3 +823,42 @@ public static string InjectScript(DialogueInjectScript script, string debugLabel
 - 挑名字：`Knowledge/骑砍2表情系统_引擎能力与实现.md` 第六节「按情绪挑」；裸名（`rage`/`cry`）幅度大、
   `convo_*` 是对话用的细腻档（日常台词优先）；`idle_*` 是常驻底色。
 - 现成样板：`Dialogues/story_butcher.dialog.json`（9 句）。
+
+## 🔴 自建剧情对话面板 —— 整段替换引擎对话流，但对话逻辑不分叉（2026-11-19）
+
+**解决什么**：原版 `MissionConversationLogic.StartConversation` 会对参与者调
+`CampaignMission.OnConversationStart` / `ForceAiBehaviorSelection`，结束再还身体。
+AgentBrain 托管的 NPC 一旦漏还，实机就是「谈完话钉在原地再也不走」。
+自建面板**根本不启动引擎对话流**，这条链不产生。
+
+**入口 / 出口**
+- 入口：`ConversationEntryPatch.MissionConversationStartPatch.Prefix` 改成 `bool`；
+  `StoryProbeDialogue.TryInjectEarly` 在 `Settings.StoryDialogueUi == "custom"` 时调
+  `StoryDialogueUiRunner.Start(built, agent, npcId, session)`，成功后 Prefix `return false`（跳过引擎 `StartConversation`）。
+- 出口：`StoryDialogueUiRunner.End` → `StoryProbeDialogue.OnConversationEnded()`（会话收尾效果 + 释放朝向/机位/钩子）
+  → 释放玩家站位 → **手动释放 `AgentBrain.ConfrontingBrain`**（引擎那条释放链不会跑了）。
+
+**🔴 纪律：对话逻辑只有一份**
+
+| 动作 | 唯一实现 |
+|---|---|
+| 选项可见性（出现条件） | `DialogueInjector.IsTransitionVisible` |
+| 选项可选性（置灰） | `DialogueInjector.IsTransitionSelectable` |
+| 选项文本 | `DialogueInjector.GetTransitionText` |
+| 悬停说明 | `DialogueInjector.GetTransitionHint` |
+| 选中执行（后果 + 检定 + 跳转） | `DialogueInjector.ExecutePlayerChoice` |
+| 节点进入（效果/动作/表情/朝向/机位） | 节点自己的 `PrepareTurn` / `OnShown` |
+
+**🔴 必须同时改的判据**：引擎会话没启动 ⇒ 所有「对话中」判断都要认自建面板：
+`StoryProbeDialogue.IsDialogueActiveNow`（门禁推人 / 首战触发 / 扣押推进 / 道具交互 / 工作让位）、
+`StoryDialogueUiRunner.IsParticipant(agent)`（AgentBrain 事件接收、StoryWorkDirector 让位）。
+漏一处 = 玩家正在说话时被守卫推开、或首战直接开打。
+
+**开关**：`Settings.StoryDialogueUi`（config.json）+ `custom.story_probe ui vanilla|custom`；
+面板打不开或入口节点缺失 → 自动回退原版注入，玩家不会两手空空。
+
+**文件**：`Interaction/StoryProbe/StoryDialogueUi{Runner,View,VM}.cs` + `GUI/Prefabs/StoryDialogueUi.xml`
+
+**顺带修掉的真 bug**：`StoryProbeDialogue.ReleaseFacingActor` 原来在 `!CanUseTurnAgent(actor)` 时直接 return，
+不清自己设的 `SetScriptedPositionAndDirection` —— 那一帧 NPC 状态一变（战斗中/被打断）就永久钉住。
+现在「谁摆的谁收：只要本层写过站位就一定清」。

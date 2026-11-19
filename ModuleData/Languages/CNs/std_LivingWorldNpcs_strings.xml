@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="string">
   <tags>
     <tag language="简体中文" />
@@ -2608,6 +2608,8 @@
     <!-- ══════════════════════════════════════════════════════ -->
     <!-- 意图不可用提示兜底：没有具体原因时的通用拒绝 -->
     <string id="LWN_dialogue_not_now" text="现在不行。" />
+    <string id="LWN_dialogue_continue" text="继续" />
+    <string id="LWN_dialogue_leave" text="离开" />
     <!-- 检定成功提示：XX 检定成功 -->
     <string id="LWN_dialogue_skill_success" text="{SKILL}检定成功" />
 

@@ -96,9 +96,16 @@
   //                           只在 center 场景触发，酒馆/领主大厅/别的城都不加载。
   //   运行时切换：custom.story_probe enable|disable（本次游戏有效）；
   //               验收：custom.story_probe status / where / dialogue。
+  //   StoryDialogueUi        剧情对话面板形态（默认 "custom"）：
+  //                            "vanilla" = 原版对话流（引擎 StartConversation）；
+  //                            "custom"  = 自建对话面板（同一份 dialog.json 与后果，
+  //                                        不启动引擎对话流 ⇒ 不会出现"谈完话 NPC 定身"）。
+  //                            只作用于 511 玩法对话；犯罪对话/原版对话/IM 恒走原版。
+  //                            运行时切换：custom.story_probe ui vanilla|custom
   // ══════════════════════════════════════════════════════════════
   "StoryProbeEnabled": true,
   "StoryProbeSettlementId": "town_ES4",
+  "StoryDialogueUi": "custom",
   // ══════════════════════════════════════════════════════════════
   // 顶部罗盘（MCM「显示罗盘」总开关在游戏内 Mod 选项里改，这里只配置任务图标）：
   //   ShowCompassIcons  罗盘任务图标开关（默认 true）：false = 只留刻度带与方向字母，

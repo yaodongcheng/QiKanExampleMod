@@ -84,7 +84,7 @@ namespace LivingWorldNpcs
                 || !AgentControlHelper.SafeIsActive(player) || player.Health <= 0
                 || GrappleLogic.IsPlayerBoundByOtherRope() || AgentStatus.Current?.IsInStatus(player) == true
                 || CombatManager.IsPlayerInCombat || PairActionLogic.Current?.IsBusy(player) == true
-                || TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.IsConversationInProgress == true)
+                || StoryProbeDialogue.IsDialogueActiveNow)
                 return false;
             float best = 2f;
             foreach (var prop in _layout.Props)

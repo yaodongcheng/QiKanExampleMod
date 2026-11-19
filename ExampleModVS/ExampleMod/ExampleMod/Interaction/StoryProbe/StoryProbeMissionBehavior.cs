@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using LivingWorldNpcs.Animation;
 using SandBox.Conversation.MissionLogics;
@@ -329,6 +329,9 @@ namespace LivingWorldNpcs
 
             try
             {
+                // 511 自建对话面板（2026-11-19）：先驱动面板输入/生命周期，再跑既有的朝向与机位。
+                StoryDialogueUiRunner.Tick(dt);
+                StoryDialogueUiView.Tick(dt);
                 StoryProbeDialogue.TickDialogueFacing(dt);
                 _practice?.Tick(dt);
                 _practice?.TickCompletion();
@@ -356,6 +359,9 @@ namespace LivingWorldNpcs
         {
             _practice?.Stop(reason);
             Active = false;
+            // 自建面板必须先收尾：它自己持有玩家站位与面板层。
+            try { StoryDialogueUiRunner.End("mission runtime cancelled: " + (reason ?? "-")); }
+            catch (Exception ex) { DebugLogger.Log($"[StoryDialogueUI] cancel failed: {ex.Message}"); }
             StoryProbeDialogue.ReleaseDialogueFacing();
             _schedule.Clear();
             _playerDetentionMode = null;
@@ -963,12 +969,12 @@ namespace LivingWorldNpcs
                     DebugLogger.Log("[StoryProbe] first fight was not accepted; retry only, no defeat");
                 }
                 // 对话彻底结束后才交给战斗脑，不能在对话/伤害回调里改队或播倒地。
-                if (!_firstFightStarted && Campaign.Current?.ConversationManager?.IsConversationInProgress != true)
+                if (!_firstFightStarted && !StoryProbeDialogue.IsDialogueActiveNow)
                     StartFirstGuardFight();
                 return;
             }
 
-            if (Campaign.Current?.ConversationManager?.IsConversationInProgress == true) return;
+            if (StoryProbeDialogue.IsDialogueActiveNow) return;
             // 🔴 门禁在**第一次进城**也要生效（2026-11-16 实机：此前只有第二阶段调它）。
             //    症状：玩家选「离开」后可以直接穿过城门走进去；一旦越过 PastMeters，
             //    `IsPlayerInPostZone` 就永久返回 false（它自己那条 "人已经过去了" 短路），
@@ -1620,7 +1626,7 @@ namespace LivingWorldNpcs
         private bool PumpPlayerDetention()
         {
             if (_playerDetentionMode == null) return false;
-            if (Campaign.Current?.ConversationManager?.IsConversationInProgress == true) return true;
+            if (StoryProbeDialogue.IsDialogueActiveNow) return true;
             if (!CanRequestPlayerDetention(_playerDetentionActor, _playerDetentionMode))
             {
                 DebugLogger.Log($"[StoryProbe] surrender handoff cancelled: actor={_playerDetentionActor} mode={_playerDetentionMode}; context unavailable");
@@ -1699,7 +1705,7 @@ namespace LivingWorldNpcs
 
         private void PumpStoryFights()
         {
-            if (Campaign.Current?.ConversationManager?.IsConversationInProgress == true || _stage?.Active == true) return;
+            if (StoryProbeDialogue.IsDialogueActiveNow || _stage?.Active == true) return;
             var player = Agent.Main;
             if (player == null || AttackTriggerMissionLogic.Instance == null || AgentAIController.Instance == null) return;
             if (!AgentControlHelper.SafeIsActive(player) || player.Health <= 0f || AgentBrain.IsKnockedOut(player)
@@ -1995,7 +2001,7 @@ namespace LivingWorldNpcs
         {
             if (_gateOpen || player == null || !_gateGeometryReady) return;
             // 对话进行中不抢玩家身体（推回会把对话框里的人瞬移）。
-            if (Campaign.Current?.ConversationManager?.IsConversationInProgress == true) return;
+            if (StoryProbeDialogue.IsDialogueActiveNow) return;
             var gt = StoryProbeTuning.Current.Gate;
             float along = GateAlong(player.Position);
             bool pulling = GrappleLogic.GetSession(player)?.IsPullingSelf == true;

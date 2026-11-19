@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using SandBox.Conversation.MissionLogics;
 using System;
 using System.Collections.Generic;
@@ -752,8 +752,16 @@ namespace LivingWorldNpcs
         /// Postfix 注入来不及——那时原版开场白已经播放完毕。
         /// </summary>
         [HarmonyPrefix]
-        public static void Prefix(MissionConversationLogic __instance, Agent __0)
+        public static bool Prefix(MissionConversationLogic __instance, Agent __0)
         {
+            // 自建对话面板已经开着：重复的 StartConversation 一律忽略（否则会把正在说的这段重开/拆掉）。
+            if (StoryDialogueUiRunner.IsRunning)
+            {
+                DebugLogger.Log("[ConvEntry] custom dialogue UI already open; duplicate StartConversation ignored");
+                return false;
+            }
+            // 接管标志是一次性的：每次进入都从"未接管"开始，异常路径不会把它漏到下一次对话。
+            StoryProbeDialogue.CustomUiTakeover = false;
             try
             {
                 // ── 全局质问锁：对话开始即占领，覆盖投降/认输/质问/闲聊等所有路径 ──
@@ -786,6 +794,15 @@ namespace LivingWorldNpcs
                 // 非剧情对话内部直接返回，不影响原版对话。
                 StoryProbeDialogue.ReserveDialogueCameraEarly(effectiveAgent);
 
+                // 🔴 511 自建对话面板（2026-11-19）：本次对话已经交给 StoryDialogueUiRunner，
+                //    **不启动引擎对话流**——引擎那套 OnConversationStart / ForceAiBehaviorSelection
+                //    正是"谈完一次就钉在原地"的来源。跳过它，问题从根上不产生。
+                if (StoryProbeDialogue.ConsumeCustomUiTakeover())
+                {
+                    DebugLogger.Log($"[ConvEntry] custom dialogue UI takeover: engine StartConversation skipped. agent={effectiveAgent?.Name} idx={effectiveAgent?.Index}");
+                    return false;
+                }
+
                 if (trigger != DialogueTrigger.PlayerSurrender
                     && trigger != DialogueTrigger.NpcSurrender
                     && trigger != DialogueTrigger.Alert)
@@ -807,7 +824,7 @@ namespace LivingWorldNpcs
                             ConversationEntryPatch.TryInjectCrimeDialogue(normalHero, effectiveAgent);
                         }
                     }
-                    return;
+                    return true;
                 }
 
                 var character = effectiveAgent?.Character as CharacterObject;
@@ -818,6 +835,7 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[ConvEntry] Mission start Prefix error: {ex.Message}");
             }
+            return true;
         }
 
         [HarmonyPostfix]

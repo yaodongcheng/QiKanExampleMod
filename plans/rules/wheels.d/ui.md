@@ -721,3 +721,46 @@ V.LoadMov(_layer, "HeroDetail", _detailVm);          // 同层换片
 
 **加新选项时的默认动作**：什么都不做（它自动在战斗等模式里不出现）。要放行 = 往 `IsOptionAllowedNow`
 白名单加一条并**写清理由**。另：**一行选项都没有就不显示面板**（`hasRows` 判据），别留"只剩名字"的空壳。
+
+## 🔴 复刻原版对话 UI —— 正本在哪、什么能复用什么不能（2026-11-19）
+
+**🔴 原版 prefab 的正本就在文件系统里，别反编译猜**：
+`<游戏根>/Modules/Native/GUI/Prefabs/Conversation/SPConversation.xml` + 同目录 `ConversationItem.xml`。
+**必须按目标客户端版本读** —— 1.2.12 与 1.5.x 结构不同，读错版本 = 布局与顺序全错：
+
+| 项 | 1.2.12 | 1.5.x |
+|---|---|---|
+| 底部容器 `VerticalContainer` | `VerticalTopToBottom` | `VerticalBottomToTop` |
+| 选项列表 `AnswerList` | `VerticalBottomToTop` | `VerticalTopToBottom` |
+| 对话框 | `ConversationAnswersContainerWidget` + `AnswerContainerWidget` | 普通 Widget + `DimensionSyncWidget` |
+| 名字块 | `DimensionSyncWidget MarginLeft=270` | `MarginRight=700` + Center |
+
+（两个 LayoutMethod 在两个版本里正好相反 —— 不要拿一个版本的结论套另一个。）
+
+**brush 正本**：`Modules/Native/GUI/Brushes/ConversationBrush.xml`
+- `ConversationItemBrush` = `Sprite dialog_option_canvas_9`，四态 α0.65 / 0.8 / 1.0 / 0.4 + Hue/Sat 变化
+- `ConversationTextContainer.Frame` = `Sprite npc_dialogue_panel_9` + α0.65
+- 文本 brush：`ConversationItem.Text` / `Conversation.HeaderText` / `Conversation.ConversedPartyLine.Text`
+
+**🔴 实测限制：Native 的 `Conversation\*` 贴图在本模块 UIContext 里取不到**
+- 判据：文本 brush 正常着色（brush 文件确实加载了）、`HintWidget` 的 tooltip 有底（引擎自己的 prefab 正常），
+  但凡是**带 sprite 的 brush**（对话框、选项条、名字底）全部透明。
+- 结论：跨模块只拿到 brush 定义，拿不到它引用的贴图。
+- 替代资源（本模块已实机验证可用）：`StdAssets\Popup\canvas_dark`（填充）+ `StdAssets\Popuprame_9`
+  （边框，必须给 `Extend` 18 才走九宫格）；纯色块用 `BlankWhiteSquare_9`。
+
+**🔴 「继续」不是按钮在接点击**
+原版 `ContinueButton` 是 `IsDisabled="true"` + `DoNotAcceptEvents="true"` 的**纯视觉件**；
+点击由根 `ConversationScreenButtonWidget` 统一处理（`ContinueButton=` + `Command.OnFinalSelection`）。
+复刻方式：全屏 `ButtonWidget`（按 `IsContinueVisible` 显隐）+ 内部 454×80 视觉件，
+**全屏层放在 Children 的第一个**（最底层）—— 即使显隐绑定失效，选项也永远先命中。
+
+**选项之间的缝隙**：来自 `ConversationItemImageWidget` 的 `MarginTop/MarginBottom="2.5"`；
+底色必须放在内层 BrushWidget 上（按钮本体带底色会让相邻选项连成一片）。
+
+**🔴 `HintWidget` 的 tooltip 会残留**：它靠 `Command.HoverEnd` 关闭；hover 中销毁 widget（关面板 / 列表重建）
+收不到 HoverEnd ⇒ 浮框留在屏幕上。必须在 `Close()` 与每次 `Refresh()` 之前调
+`InformationManager.HideTooltip()`。
+
+**选项浮框的显隐口径**：原版每个选项都挂 `HintWidget`，`HintText` 为 null 时传 `TextObject.GetEmpty()`（= 不弹）。
+本模块口径（2026-11-19 用户裁定）：**只有写了 `HintKey`（或带检定）的选项才弹**。

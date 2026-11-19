@@ -507,4 +507,131 @@
             <Style Name="Disabled"><BrushLayer Name="Default" Color="#2A2A3A66"/></Style>
         </Styles>
     </Brush>
+
+	<!-- ══ 511 剧情对话自建面板（2026-11-19）══
+	     观感对齐原版对话流：金色名字 / 白字黑底台词 / 黑底选项（悬停转金）。
+	     选项文字用 Changeable 的 Hovered 样式：ButtonWidget 会把状态传给子 TextWidget，
+	     所以不需要在 C# 里逐帧改颜色。 -->
+	<Brush Name="LWN_Dialogue_Name"
+	       Font="FiraSansExtraCondensed-Regular"
+	       TextHorizontalAlignment="Left"
+	       TextVerticalAlignment="Center">
+		<Layers />
+		<Styles>
+			<Style Name="Default"
+			       FontColor="#C8A24AFF"
+			       TextOutlineAmount="0.25"
+			       TextOutlineColor="#000000FF"
+			       TextGlowRadius="0"
+			       TextShadowOffset="1"
+			       TextShadowAngle="60"
+			       FontSize="28" />
+		</Styles>
+	</Brush>
+
+	<Brush Name="LWN_Dialogue_Line"
+	       Font="FiraSansExtraCondensed-Regular"
+	       TextHorizontalAlignment="Left"
+	       TextVerticalAlignment="Center">
+		<Layers />
+		<Styles>
+			<Style Name="Default"
+			       FontColor="#FFFFFFFF"
+			       TextOutlineAmount="0.06"
+			       TextOutlineColor="#000000FF"
+			       TextGlowRadius="0"
+			       TextShadowOffset="0"
+			       FontSize="24" />
+		</Styles>
+	</Brush>
+
+	<Brush Name="LWN_Dialogue_Option"
+	       Font="FiraSansExtraCondensed-Regular"
+	       TextHorizontalAlignment="Left"
+	       TextVerticalAlignment="Center">
+		<Layers />
+		<Styles>
+			<Style Name="Default"
+			       FontColor="#FFFFFFFF"
+			       TextOutlineAmount="0.15"
+			       TextOutlineColor="#000000FF"
+			       FontSize="22" />
+			<Style Name="Hovered"
+			       FontColor="#E8C55AFF"
+			       FontSize="22" />
+			<Style Name="Pressed"
+			       FontColor="#B08A3EFF"
+			       FontSize="22" />
+			<Style Name="Disabled"
+			       FontColor="#FFFFFF66"
+			       FontSize="22" />
+		</Styles>
+	</Brush>
+
+	<Brush Name="LWN_Dialogue_Hint"
+	       Font="FiraSansExtraCondensed-Regular"
+	       TextHorizontalAlignment="Left"
+	       TextVerticalAlignment="Center">
+		<Layers />
+		<Styles>
+			<Style Name="Default"
+			       FontColor="#D8D2C0FF"
+			       TextOutlineAmount="0.2"
+			       TextOutlineColor="#000000FF"
+			       FontSize="18" />
+		</Styles>
+	</Brush>
+
+
+	<!-- ══ 511 剧情对话面板背景（2026-11-19）══
+	     Native 的 Conversation\* 贴图（npc_dialogue_panel_9 / dialog_option_canvas_9 / name_shadow_9）
+	     在本模块的 UIContext 里取不到（文字 brush 正常、带 sprite 的 brush 全透明），
+	     所以背景改用引擎内置 BlankWhiteSquare_9 染色：颜色与透明度按原版
+	     （ConversationItemBrush 的 Default α0.65 / Hovered α0.8 / Pressed α1.0）折算。
+	     四态齐全 ⇒ 鼠标移上去能看到状态变化。 -->
+	<Brush Name="LWN_Dlg_Panel">
+		<Layers>
+			<BrushLayer Name="Fill" Sprite="StdAssets\Popup\canvas_dark" />
+			<BrushLayer Name="Frame" Sprite="StdAssets\Popup\frame_9" ExtendLeft="18" ExtendRight="18" ExtendTop="18" ExtendBottom="18" />
+		</Layers>
+		<Styles>
+			<Style Name="Default">
+				<BrushLayer Name="Fill" />
+				<BrushLayer Name="Frame" Color="#C8A24AE6" />
+			</Style>
+		</Styles>
+	</Brush>
+
+	<Brush Name="LWN_Dlg_Option">
+		<Layers>
+			<BrushLayer Name="Default" Sprite="StdAssets\Popup\canvas_dark" />
+		</Layers>
+		<Styles>
+			<Style Name="Default"><BrushLayer Name="Default" Color="#FFFFFFFF" /></Style>
+			<Style Name="Hovered"><BrushLayer Name="Default" Color="#D8C08AFF" /></Style>
+			<Style Name="Pressed"><BrushLayer Name="Default" Color="#F0DCA8FF" /></Style>
+			<Style Name="Disabled"><BrushLayer Name="Default" Color="#8A8A8AFF" /></Style>
+		</Styles>
+	</Brush>
+
+	<Brush Name="LWN_Dlg_Continue">
+		<Layers>
+			<BrushLayer Name="Default" Sprite="StdAssets\Popup\canvas_dark" />
+		</Layers>
+		<Styles>
+			<Style Name="Default"><BrushLayer Name="Default" Color="#FFFFFFFF" /></Style>
+			<Style Name="Hovered"><BrushLayer Name="Default" Color="#D8C08AFF" /></Style>
+			<Style Name="Pressed"><BrushLayer Name="Default" Color="#F0DCA8FF" /></Style>
+		</Styles>
+	</Brush>
+
+	<Brush Name="LWN_Dlg_NameShadow">
+		<Layers>
+			<BrushLayer Name="Default" Sprite="BlankWhiteSquare_9" />
+		</Layers>
+		<Styles>
+			<Style Name="Default"><BrushLayer Name="Default" Color="#00000099" /></Style>
+		</Styles>
+	</Brush>
+
 </Brushes>

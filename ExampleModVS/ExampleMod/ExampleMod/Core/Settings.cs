@@ -108,6 +108,16 @@ namespace LivingWorldNpcs
         // 只在 **center** 地点触发；tavern / lordshall / keep 与别的城一律不加载。
         public string StoryProbeSettlementId { get; set; } = "town_ES4";
 
+        // ── 511 剧情对话 UI 形态（2026-11-19 用户裁定：只作用于 511 玩法对话，别处一律不用）──
+        //   "vanilla"         = 原版对话流：引擎 MissionConversationLogic.StartConversation + 原版面板。
+        //   "custom"         = 自建对话 UI：同一份 dialog.json、同一套后果与检定，
+        //                      但不启动引擎对话流，因此不会触发"对话结束后 NPC 定身"那条链。
+        // 犯罪对话 / 原版对话 / IM 一律不受本开关影响（它们始终走原版）。
+        // 运行时切换：`custom.story_probe ui vanilla|custom`（只在本次游戏内有效，长期生效改这里）。
+        // 默认 custom（2026-11-19 用户裁定：511 玩法对话改用自建面板，解决"谈完话 NPC 定身"）。
+        // 面板打不开/入口缺失时自动回退原版路径，不会让玩家卡在无对话状态。
+        public string StoryDialogueUi { get; set; } = "custom";
+
         // ── 口吻参数（config.json 侧；世界观 flavor 已退场，2026-08-17：WorldDescription/EraDescription
         // 删除——世界观改由 LLM 自动生成（WorldBackgroundBehavior），见 plans/world-background-auto-summary.md）──
         // 说话风格默认值：口语化、贴合中世纪背景，禁用现代网络用语

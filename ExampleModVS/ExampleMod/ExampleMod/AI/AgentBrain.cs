@@ -2687,6 +2687,8 @@ var streetDef = StoryProbeDefs.GetStreetLife(StoryProbeDialogue.ResolveNpcId(Own
 
             // 原版会话拥有当前参与者的身体；保留行为队列，散场后再继续。
             // 也覆盖中途加入的真实第三人，防止台词说话者同时被日常走位驱动。
+            // 自建对话面板（511 剧情）：引擎会话没启动，参与者由运行器持有。
+            if (StoryDialogueUiRunner.IsParticipant(Owner)) return;
             var conversation = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager;
             if (conversation != null && conversation.IsConversationInProgress && conversation.IsConversationAgent(Owner))
                 return;

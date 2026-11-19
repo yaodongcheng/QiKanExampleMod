@@ -682,6 +682,16 @@ namespace LivingWorldNpcs
 
             // 🔴 2026-10-19（面板全场景通用）：**一行选项都没有就不显示面板** ——
             //    战场等被禁模式里选项被逐个门控掉之后，面板不该以"只剩一个名字"的空壳出现。
+            // 🔴 511 自建对话面板打开期间：交互面板一律不显示（对话独占输入）。
+            if (StoryDialogueUiRunner.IsRunning)
+            {
+                if (_interactVM.IsVisible)
+                {
+                    _interactVM.IsVisible = false;
+                    IsHandlingInteraction = false;
+                }
+                return;
+            }
             bool hasRows = _uiItems.Count > 0;
             if (hasRows && (targetChanged || lifeStateChanged || behindStateChanged || crouchStateChanged || animalStateChanged || intentChanged || _availableChanged || !_interactVM.IsVisible))
             {
@@ -1684,8 +1694,18 @@ namespace LivingWorldNpcs
             UpdateHoldSlowmo();
 
             // ----------------- 4. 高频逻辑：available 列表驱动输入响应（每帧必须执行） -----------------
+            // 🔴 511 自建对话面板打开期间：交互面板收起 + 交互键一律不响应。
+            //    原来是靠"引擎对话中 Raycast 无目标"自然收起的；自建面板不启动引擎会话，
+            //    那条隐式收起不成立，会一直挂在右下角并和对话抢键。
+            bool storyUiOpen = StoryDialogueUiRunner.IsRunning;
+            if (storyUiOpen && _interactVM != null && _interactVM.IsVisible)
+            {
+                _interactVM.IsVisible = false;
+                IsHandlingInteraction = false;
+            }
+
             // 门控 = available 非空（IsVisible 只管 UI 显示）：无目标场景 available=[Inspect] 且 UI 隐藏时，探查键依然响应
-            if (_availableIds.Count > 0)
+            if (_availableIds.Count > 0 && !storyUiOpen)
             {
                 long p5 = PerfProfiler.Now();      // perf: IMV_Raycast
                 HandleInput();

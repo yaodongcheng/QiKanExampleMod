@@ -87,6 +87,28 @@ namespace LivingWorldNpcs
                         return $"{(settled ? "OK" : "Pending escrow restoration")}: target city = {StoryProbeSettings.SettlementId}";
                     }
 
+                    case "ui":
+                    {
+                        // 511 剧情对话面板形态（2026-11-19）：只影响 511 玩法对话，别处恒走原版。
+                        //   custom.story_probe ui            -> 查看当前形态与运行器状态
+                        //   custom.story_probe ui vanilla    -> 切回原版对话流
+                        //   custom.story_probe ui custom     -> 切到自建面板（默认）
+                        string mode = (Arg(args, used, 0) ?? "status").ToLowerInvariant();
+                        if (mode == "vanilla" || mode == "custom")
+                        {
+                            Settings.Instance.StoryDialogueUi = mode;
+                            DebugLogger.Log($"[StoryProbe] dialogue ui mode -> {mode}");
+                            return "OK: 511 dialogue ui = " + mode
+                                 + " (runtime only; set StoryDialogueUi in config.json to persist). "
+                                 + "Applies to the next 511 story dialogue; other conversations are unaffected.";
+                        }
+                        if (mode != "status" && mode != "")
+                            return "Usage: custom.story_probe ui [vanilla|custom|status]";
+                        return "OK: 511 dialogue ui = " + (Settings.Instance.StoryDialogueUi ?? "vanilla")
+                             + " || " + StoryDialogueUiRunner.Describe()
+                             + " || panel=" + (StoryDialogueUiView.IsOpen ? "open" : "closed");
+                    }
+
                     case "status":
                         return "OK: " + StoryProbeState.Describe()
                              + " || steps: " + StoryProbeState.DescribeSteps()
