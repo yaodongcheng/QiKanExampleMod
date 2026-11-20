@@ -280,8 +280,8 @@
     "I was stealing something and didn't dare call out; I only saw them heading towards the private warehouse inside the west gate."
   ],
   "LWN_story_son_deal": [
-    "你替我让墙根那伙人停手，我把备用钩索和撬锁包给你，这只手没好之前我也用不上——钩索能上墙，撬锁包能摸门，都是手上功夫。",
-    "Get the gang by the wall to leave me alone and you can have my spare hook and lock tools, no use to me until this hand heals — the hook gets you over a wall, the picks get you through a lock, both handwork."
+    "你替我让墙根那伙人停手，绳子和撬锁包我还能给你，钩子被杜野拿走了，你得自己从他身上弄回来——撬锁包能摸门，绳子配钩子才能上墙。",
+    "Get the gang by the wall to leave me alone and I can still give you rope and lockpicks; Du Ye took my hook, so you will have to get it back from him — picks open doors, but rope and hook get you over a wall."
   ],
   "LWN_story_son_deal_why": [
     "手肿得握不住钩子，他们人又多，我再去就是把另一只手也搭上。",
@@ -294,6 +294,34 @@
   "LWN_story_son_quest_accept": [
     "领头的在粮仓外，让他不再抢我的东西就行，谈妥了回来取工具。",
     "Their leader's at outside the granary; get him to stop robbing me, then come back for the tools."
+  ],
+  "LWN_story_son_turnin": [
+    "你手里那把钩子……哪来的？",
+    "That hook in your hand... where did you get it?"
+  ],
+  "LWN_story_son_opt_hook_give": [
+    "从杜野手里拿回来的，还你。",
+    "I got it back from Du Ye. Here."
+  ],
+  "LWN_story_hint_son_opt_hook_give": [
+    "把钩子交给小六；他随后到北边城墙根下演示怎么钩上去。",
+    "Hand the hook to Xiaoliu; he will then show you how to grapple up the north wall."
+  ],
+  "LWN_story_son_hook_back": [
+    "真是我那一把……",
+    "It really is mine..."
+  ],
+  "LWN_story_son_hook_back_2": [
+    "手还没好，甩一遍给你看还行。",
+    "My hand is still bad, but I can throw it once for you."
+  ],
+  "LWN_story_son_hook_back_3": [
+    "走，到北边城墙根下。",
+    "Come to the foot of the north wall."
+  ],
+  "LWN_story_son_hook_demo_depart": [
+    "跟上，别靠太近。",
+    "Follow me, and keep your distance."
   ],
   "LWN_story_son_turnin_ok": [
     "钩索和撬锁包是你应得的，替我拿回工具这件事，我也记着。",
@@ -454,6 +482,50 @@
   "LWN_story_outlaw_fight": [
     "你要硬抢，那就过来试试！",
     "If you're taking it by force, come and try!"
+  ],
+  "LWN_story_outlaw_hook_price": [
+    "五十。",
+    "Fifty."
+  ],
+  "LWN_story_outlaw_hook_price_2": [
+    "少一个子儿不卖，拿不出就走。",
+    "Not a coin less; if you cannot pay, leave."
+  ],
+  "LWN_story_outlaw_hook_sold": [
+    "钱货两清，钩子拿走。",
+    "Done, the hook is yours."
+  ],
+  "LWN_story_outlaw_hook_sold_2": [
+    "别指望我再认别的账。",
+    "Do not expect me to settle any other account."
+  ],
+  "LWN_story_outlaw_hook_refused": [
+    "嫌贵就自己去拿，别在这儿磨嘴皮子。",
+    "If it is too dear, go take it yourself; do not waste my time."
+  ],
+  "LWN_story_outlaw_opt_hook_price": [
+    "你从小六那儿拿的飞钩，我出钱买。",
+    "That hook you took from Xiaoliu. I will buy it back."
+  ],
+  "LWN_story_outlaw_opt_hook_price_hint": [
+    "先问价；他开口后再决定付不付。",
+    "Ask his price first; decide after he names it."
+  ],
+  "LWN_story_outlaw_opt_hook_pay": [
+    "[付钱] 五十，钩子归我。",
+    "[Pay] Fifty. The hook is mine."
+  ],
+  "LWN_story_outlaw_opt_hook_pay_hint": [
+    "支付50第纳尔，拿走他身上的钩子。",
+    "Pay 50 denars and take the hook from him."
+  ],
+  "LWN_story_outlaw_opt_hook_haggle": [
+    "一把旧钩子，值不了五十。",
+    "An old hook is not worth fifty."
+  ],
+  "LWN_story_outlaw_opt_hook_haggle_hint": [
+    "试着压价；他不松口。",
+    "Try to haggle; he will not budge."
   ],
   "LWN_story_outlaw_settled": [
     "东西的事算了，我也不再找他麻烦，你们离这地方远些。",
@@ -836,8 +908,8 @@
     "Not my affair."
   ],
   "LWN_story_son_opt_pay": [
-    "[付钱] 按你说的价，连工具一起教我。",
-    "[Pay] Your price, tools and lesson included."
+    "[付钱] 按你说的价，教我使钩索。",
+    "[Pay] Your price; teach me to use the hook."
   ],
   "LWN_story_son_learn_opt_sneak": [
     "你说的空当，我怎么才能抓住？",
@@ -1132,8 +1204,8 @@
     "My swollen finger cannot grip a rope, and going back might get my other hand hurt too."
   ],
   "LWN_story_son_playerhelp": [
-    "希望有人让粮仓外的野贼停手，以备用钩索、撬锁工具和使用经验答谢。",
-    "I need someone to make the gang by the granary leave me alone; I offer spare climbing and lock tools, and show how to use them."
+    "希望有人让粮仓外的野贼停手，把我的钩子拿回来；绳子、撬锁工具和使用经验都能给他。",
+    "I need someone to make the gang by the granary leave me alone and get my hook back; I can give rope, lockpicks and a lesson in return."
   ],
   "LWN_story_persona_son_temperament": [
     "嘴快、戒备，熟了才愿意多说，知道自己害怕却爱逞能，常留意守卫是否在听。",
@@ -1860,8 +1932,8 @@
     "Come on, let us do this away from Luo Tie, and tell me if you want to stop."
   ],
   "LWN_story_son_opt_pay_hint": [
-    "支付40第纳尔，获得绳子和钩索，并可开始独立实操教学；本轮只收费一次。",
-    "Pay 40 denars for the rope, hook and optional hands-on lesson. Charged once."
+    "支付40第纳尔学习钩索；绳子给你，钩子用你自己的。本轮只收费一次。",
+    "Pay 40 denars for the lesson and a rope; bring your own hook. Charged once."
   ],
   "LWN_story_son_grapple_earned": [
     "工具已经替你拿回来了，教我用吧。",
@@ -1948,8 +2020,8 @@
     "Follow Xiaoliu to the foot of the wall to the southwest. Talk to him to retry or stop."
   ],
   "LWN_story_practice_stealth_dagger_ready": [
-    "我背朝你了。先退到几步外，按下蹲键，绕到我背后两步内，从交互栏选偷窃；浮标进可偷区再按出手键。只拿腰上的小刀。",
-    "My back is turned. Step away, crouch, and approach behind me within two paces. Choose Pickpocket in the interaction list, then use the attempt button when the cursor enters the effective zone. Take only the little knife."
+    "我背朝你了。先退到几步外，按 {CROUCH} 蹲下，绕到我背后两步内；按 {ACTION} 打开交互栏选偷窃，浮标进可偷区再按出手键。只拿腰上的小刀。",
+    "My back is turned. Step away, press {CROUCH} to crouch, and approach behind me within two paces. Press {ACTION} to open the interaction list and choose Pickpocket, then use the attempt button when the cursor enters the effective zone. Take only the little knife."
   ],
   "LWN_story_practice_stealth_dagger_retry": [
     "停，你露面了，或者脚步太重。再退几步，等我不看你了，蹲着绕回来；出手别着急。",
@@ -1959,33 +2031,121 @@
     "小刀真拿走了，行！留着吧。对付罗铁也得这么来，但他可没答应让你练，被抓住是要算账的。",
     "You really took it. Good! Keep it. The same idea works on Luo Tie, but he never agreed to practise; if he catches you, there will be consequences."
   ],
+  "LWN_story_practice_stealth_dagger_next": [
+    "练完了，下一步回墙根找小六问工具差事——钩子被杜野抢走了，得从他身上弄回来。",
+    "Practice done. Next, find Xiaoliu by the wall and ask about his tools; Du Ye took his hook, so you will have to get it back from him."
+  ],
   "LWN_story_practice_stealth_dagger_cancel": [
     "这回先停下，刀还在我腰上就别拿了。想练，再来找我。",
     "Let us stop here. Leave the knife if it is still on my belt. Find me when you want to try again."
+  ],
+  "LWN_story_practice_stealth_dagger_greet": [
+    "到这儿就行。你绕到我背后，蹲下，别让我看见；先拿我腰上这把小刀练。",
+    "This is far enough. Circle behind me, crouch, and keep out of my sight; practise on the little knife on my belt."
+  ],
+  "LWN_story_practice_stealth_dagger_hint_crouch": [
+    "先蹲下——按 {CROUCH}。站着走过来，我听得见。",
+    "Crouch first - press {CROUCH}. I will hear you if you walk up standing."
+  ],
+  "LWN_story_practice_stealth_dagger_hint_behind": [
+    "别在我侧边停，绕到我正后方。",
+    "Do not stop at my side; get directly behind me."
+  ],
+  "LWN_story_practice_stealth_dagger_hint_approach": [
+    "方向对了，再贴近一点，到我背后两步内。",
+    "Right direction. Move closer, within two paces behind me."
+  ],
+  "LWN_story_practice_stealth_dagger_hint_strike": [
+    "就现在。按 {ACTION} 打开交互，选偷窃；浮标进亮区再点出手。",
+    "Now. Press {ACTION} for the interaction list and choose Pickpocket; click when the cursor is in the bright zone."
+  ],
+  "LWN_story_practice_stealth_dagger_hint_seen": [
+    "哎，我看见你了。退开几步，等我转过去再过来。",
+    "Ah, I saw you. Step back and wait until I look away again."
+  ],
+  "LWN_story_practice_stealth_dagger_hint_noise": [
+    "脚步太重了。蹲着慢慢挪，别跑。",
+    "Too much noise. Crouch and creep; do not run."
+  ],
+  "LWN_story_practice_stealth_dagger_hint_botch": [
+    "手滑了吧？我没发现。稳住，等我放松再摸一次。",
+    "Your hand slipped, did it? I did not notice. Steady yourself and try again when I relax."
+  ],
+  "LWN_story_practice_stealth_dagger_hint_wait": [
+    "急什么，我还没站稳。想重来就跟我说话。",
+    "Easy; I have not settled yet. Speak to me to retry or stop."
+  ],
+  "LWN_story_practice_grapple_wall_greet": [
+    "到了。站这儿看，我甩一遍，你看钩落在哪。",
+    "Here we are. Stand there and watch; I will throw once so you see where the hook lands."
+  ],
+  "LWN_story_practice_grapple_wall_hint_wait": [
+    "急什么，我还没站稳。想重来就跟我说话。",
+    "Easy; I am not ready yet. Speak to me to retry or stop."
+  ],
+  "LWN_story_practice_grapple_demo_title": [
+    "小六的钩索",
+    "Xiaoliu's grapple"
+  ],
+  "LWN_story_practice_grapple_demo_follow": [
+    "跟上小六，到北边城墙根下看他怎么上去。",
+    "Follow Xiaoliu to the foot of the north wall and watch how he gets up."
+  ],
+  "LWN_story_practice_grapple_demo_greet": [
+    "站这儿，别靠太近。看我甩一遍。",
+    "Stand here, not too close. Watch me throw once."
+  ],
+  "LWN_story_practice_grapple_demo_hint_wait": [
+    "别出声，看我甩、看脚往哪落。",
+    "Stay quiet. Watch where I throw and where I put my feet."
+  ],
+  "LWN_story_practice_grapple_demo_ready": [
+    "看清楚：勾那个点，拉上去。绳子和钩子给你，放进空武器槽、拿出绳子，照这样来一遍。",
+    "Watch closely: hook that point and pull yourself up. Here are the rope and hook; put them in empty weapon slots, wield the rope, and do the same."
+  ],
+  "LWN_story_practice_grapple_demo_retry": [
+    "没勾住。收回来，照我刚才指的地方再试一次。",
+    "You missed. Pull it back and aim where I showed you."
+  ],
+  "LWN_story_practice_grapple_demo_done": [
+    "行，上来了。这条路记住，罗铁在门口站着也拦不住你。",
+    "There you are, up top. Remember this way; Luo Tie can stand at the gate all he likes."
+  ],
+  "LWN_story_practice_grapple_demo_cancel": [
+    "先下来吧，想练再来找我。",
+    "Come down for now; find me when you want to try again."
+  ],
+  "LWN_story_practice_grapple_demo_FollowObjectiveKey": [
+    "跟小六到北边城墙根下",
+    "Follow Xiaoliu to the foot of the north wall"
+  ],
+  "LWN_story_practice_grapple_demo_PracticeObjectiveKey": [
+    "照小六的样子钩上城墙",
+    "Grapple up the wall the way Xiaoliu showed you"
   ],
   "LWN_story_practice_grapple_wall_title": [
     "小六的钩索课",
     "Xiaoliu's grappling lesson"
   ],
   "LWN_story_practice_grapple_wall_follow": [
-    "跟上小六，去西边矮墙旁看他投钩；准备好绳子和钩子，交谈可重试或结束。",
-    "Follow Xiaoliu to the low wall to the west and watch his throw. Have the rope and hook ready. Talk to retry or stop."
+    "跟上小六，到北边城墙根下看他怎么上去；交谈可重试或结束。",
+    "Follow Xiaoliu to the foot of the north wall and watch how he gets up. Talk to retry or stop."
   ],
   "LWN_story_practice_grapple_wall_ready": [
-    "就是我刚才钩住的矮墙上沿。把绳子和钩子放进空武器槽，拿出绳子，瞄准同一处按开火键；钩住后攀拉到落地。钩偏了收回重来，别往人身上扔。",
-    "Use the top of the low wall where my hook caught. Equip the rope and hook in empty weapon slots, wield the rope, aim at that spot and fire. Let it pull you to a landing. Release a bad throw and try again; do not throw at people."
+    "看清楚：勾那个点，拉上去。绳子和钩子给你，放进空武器槽、拿出绳子，照这样来一遍。",
+    "Watch closely: hook that point and pull yourself up. Here are the rope and hook; put them in empty weapon slots, wield the rope, and do the same."
   ],
   "LWN_story_practice_grapple_wall_retry": [
-    "这一下攀完了，可钩的不是我指的地方。收回钩子，再瞄准矮墙上沿试一次。",
-    "You finished that pull, but the hook caught elsewhere. Release it and aim at the top of the low wall again."
+    "没勾住。收回来，照我刚才指的地方再试一次。",
+    "You missed. Pull it back and aim where I showed you."
   ],
   "LWN_story_practice_grapple_wall_done": [
-    "这回落稳了。上高墙也一样：先看钩住哪里，再看脚落哪里。罗铁会抬头，别练会一招就什么都不管了。",
-    "Your feet are safely down. A high wall is the same: check the hook and check the landing. Luo Tie can look up. One trick does not make you invincible."
+    "行，上来了。这条路记住，罗铁在门口站着也拦不住你。",
+    "There you are, up top. Remember this way; Luo Tie can stand at the gate all he likes."
   ],
   "LWN_story_practice_grapple_wall_cancel": [
-    "先不练了。我回箱子那边，工具你收好，下次再来不用再付学费。",
-    "We will stop for now. I will go back to my box. Keep the tools; there is no second lesson fee."
+    "先下来吧，想练再来找我。",
+    "Come down for now; find me when you want to try again."
   ],
   "LWN_story_son_money_open_part1": [
     "钩索。",
@@ -2108,12 +2268,12 @@
     "Crouch behind Xiaoliu and pickpocket the practice dagger."
   ],
   "LWN_story_practice_grapple_wall_FollowObjectiveKey": [
-    "跟随小六到西边矮墙旁；交谈可结束练习。",
-    "Follow Xiaoliu to the low wall to the west; talk to stop."
+    "跟随小六到北边城墙根下；交谈可结束练习。",
+    "Follow Xiaoliu to the foot of the north wall; talk to stop."
   ],
   "LWN_story_practice_grapple_wall_PracticeObjectiveKey": [
-    "装备绳子与钩索，在示范的矮墙上沿投钩并攀拉落地。",
-    "Equip rope and hook, aim at the demonstrated wall top, and finish a pull and landing."
+    "照小六的样子钩上城墙。",
+    "Grapple up the wall the way Xiaoliu showed you."
   ],
   "LWN_story_son_grapple_review_ask": [
     "钩索我练过了，到门口还有什么要留神？",

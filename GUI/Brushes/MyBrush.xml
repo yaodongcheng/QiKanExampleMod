@@ -591,46 +591,68 @@
 	     四态齐全 ⇒ 鼠标移上去能看到状态变化。 -->
 	<Brush Name="LWN_Dlg_Panel">
 		<Layers>
-			<BrushLayer Name="Fill" Sprite="StdAssets\Popup\canvas_dark" />
-			<BrushLayer Name="Frame" Sprite="StdAssets\Popup\frame_9" ExtendLeft="18" ExtendRight="18" ExtendTop="18" ExtendBottom="18" />
+			<BrushLayer Name="Default" Sprite="lwn_dialogue_panel_9" AlphaFactor="0.65" />
 		</Layers>
 		<Styles>
 			<Style Name="Default">
-				<BrushLayer Name="Fill" />
-				<BrushLayer Name="Frame" Color="#C8A24AE6" />
+				<BrushLayer Name="Default" />
 			</Style>
 		</Styles>
 	</Brush>
 
 	<Brush Name="LWN_Dlg_Option">
 		<Layers>
-			<BrushLayer Name="Default" Sprite="StdAssets\Popup\canvas_dark" />
+			<BrushLayer Name="Default" Sprite="lwn_dialogue_option_9" />
 		</Layers>
 		<Styles>
-			<Style Name="Default"><BrushLayer Name="Default" Color="#FFFFFFFF" /></Style>
-			<Style Name="Hovered"><BrushLayer Name="Default" Color="#D8C08AFF" /></Style>
-			<Style Name="Pressed"><BrushLayer Name="Default" Color="#F0DCA8FF" /></Style>
-			<Style Name="Disabled"><BrushLayer Name="Default" Color="#8A8A8AFF" /></Style>
+			<Style Name="Default">
+				<BrushLayer Name="Default" AlphaFactor="0.65" />
+			</Style>
+			<Style Name="Hovered">
+				<BrushLayer Name="Default" AlphaFactor="0.8" HueFactor="40" SaturationFactor="80" ValueFactor="15" />
+			</Style>
+			<Style Name="Pressed">
+				<BrushLayer Name="Default" AlphaFactor="1.0" HueFactor="40" SaturationFactor="80" ValueFactor="10" />
+			</Style>
+			<Style Name="Disabled">
+				<BrushLayer Name="Default" AlphaFactor="0.4" />
+			</Style>
 		</Styles>
 	</Brush>
 
 	<Brush Name="LWN_Dlg_Continue">
 		<Layers>
-			<BrushLayer Name="Default" Sprite="StdAssets\Popup\canvas_dark" />
+			<BrushLayer Name="Default" Sprite="lwn_dialogue_name_shadow_9" AlphaFactor="0.7" />
 		</Layers>
 		<Styles>
-			<Style Name="Default"><BrushLayer Name="Default" Color="#FFFFFFFF" /></Style>
-			<Style Name="Hovered"><BrushLayer Name="Default" Color="#D8C08AFF" /></Style>
-			<Style Name="Pressed"><BrushLayer Name="Default" Color="#F0DCA8FF" /></Style>
+			<Style Name="Default"><BrushLayer Name="Default" /></Style>
+			<Style Name="Hovered">
+				<BrushLayer Name="Default" AlphaFactor="0.95" HueFactor="40" SaturationFactor="80" ValueFactor="30" />
+			</Style>
+			<Style Name="Pressed">
+				<BrushLayer Name="Default" AlphaFactor="1.0" HueFactor="40" SaturationFactor="80" ValueFactor="20" />
+			</Style>
 		</Styles>
 	</Brush>
 
 	<Brush Name="LWN_Dlg_NameShadow">
 		<Layers>
-			<BrushLayer Name="Default" Sprite="BlankWhiteSquare_9" />
+			<BrushLayer Name="Default" Sprite="lwn_dialogue_name_shadow_9" />
 		</Layers>
 		<Styles>
-			<Style Name="Default"><BrushLayer Name="Default" Color="#00000099" /></Style>
+			<Style Name="Default"><BrushLayer Name="Default" /></Style>
+		</Styles>
+	</Brush>
+
+	<Brush Name="LWN_Dlg_Hover">
+		<Layers>
+			<BrushLayer Name="HoverLayer" Sprite="lwn_dialogue_hover" IsHidden="true" />
+		</Layers>
+		<Styles>
+			<Style Name="Default"><BrushLayer Name="HoverLayer" IsHidden="true" /></Style>
+			<Style Name="Hovered"><BrushLayer Name="HoverLayer" IsHidden="false" /></Style>
+			<Style Name="Pressed"><BrushLayer Name="HoverLayer" IsHidden="false" ColorFactor="0.3" /></Style>
+			<Style Name="Disabled"><BrushLayer Name="HoverLayer" IsHidden="true" /></Style>
 		</Styles>
 	</Brush>
 

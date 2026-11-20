@@ -764,3 +764,100 @@ V.LoadMov(_layer, "HeroDetail", _detailVm);          // 同层换片
 
 **选项浮框的显隐口径**：原版每个选项都挂 `HintWidget`，`HintText` 为 null 时传 `TextObject.GetEmpty()`（= 不弹）。
 本模块口径（2026-11-19 用户裁定）：**只有写了 `HintKey`（或带检定）的选项才弹**。
+
+### 原版对话 UI 的完整构成（1.2.12 正本逐项，缺一项就会"看着差不多但不对"）
+
+| 位置 | 控件 | 关键参数 |
+|---|---|---|
+| 根 | `ConversationScreenButtonWidget` | 全屏、`Brush="Conversation.Screen"`、`AnswerList=` / `ContinueButton=` / `Command.OnFinalSelection`（**点击继续的接收方就是它**） |
+| 底部容器 | `ListPanel VerticalContainer` | `VerticalTopToBottom`、Bottom 对齐 |
+| 行容器 | `ListPanel BottomPanelsContainer` | Bottom 对齐、`MarginBottom="20"` |
+| 对话框 | `Widget 720 宽` → `ConversationAnswersContainerWidget` | `Sprite="npc_dialogue_panel_9"`、`AlphaFactor="0.65"`、`MinHeight="192"`、`AnswerContainerWidget=..\..\..\AnswerListContainer`（**自身高度跟随选项列表**） |
+| 台词 | `RichTextWidget` | `Brush="Conversation.ConversedPartyLine.Text"`、左 80 / 右 25 / 上下 25 |
+| 选项区 | `Widget AnswerListContainer` | 750 宽、Left 对齐、`MarginLeft="10"` |
+| 选项列表 | `NavigatableListPanel AnswerList` | `VerticalBottomToTop`；`NavigationScopeTargeter` 提供手柄上下选 |
+| 选项项 | `ConversationOptionListPanel OptionButtonWidget="OptionButtonParent\OptionButton"` | 见下一节 |
+| 名字 | `DimensionSyncWidget` 680 宽 | `MarginLeft="270"`、`PaddingAmount="55"`、`WidgetToCopyHeightFrom=..\VerticalContainer\BottomPanelsContainer\DialogueContainer` |
+| 名字底 | `Widget CharacterNameContainer` | `Sprite="name_shadow_9"`；文字 `Conversation.HeaderText`、`SuggestedHeight="70"`、`MarginLeft="25"` |
+| 继续 | `ButtonWidget` 454×80 | 右下 `MarginRight="250"` `MarginBottom="22"`、`Sprite="name_shadow_9"`、`Brush.AlphaFactor="0.7"`、`IsDisabled="true"` `IsVisible="false"`、文字 `Conversation.HeaderText` `FontSize="45"` |
+
+**选项项（`ConversationItem.xml`）逐项**：
+
+```
+ConversationOptionListPanel  OptionButtonWidget="OptionButtonParent\OptionButton"
+└ Widget OptionButtonParent   Fixed 750 × CoverChildren  UpdateChildrenStates
+  └ ButtonWidget OptionButton  StretchToParent × CoverChildren
+      Brush="ConversationItem.SoundBrush"  ← 只负责「点击播放 conversation 音效」，不画底
+      IsEnabled="@IsEnabled"  Command.Click / HoverBegin=SetCurrentAnswer / HoverEnd=ResetCurrentAnswer
+    ├ ConversationItemImageWidget   MarginTop=2.5 MarginBottom=2.5   ← 相邻选项那几像素缝隙就是它
+    │    NormalBrush="ConversationItemBrush"  SpecialBrush="ConversationItem.SpecialBrush"  IsSpecial="@IsSpecial"
+    │  ├ RichTextWidget   MarginTop/Bottom=5 MarginLeft=30  Brush="ConversationItem.Text"
+    │  └ ImageWidget HoverIndicator  39×20  Left+Center  PositionXOffset=-15   ← 悬停时左侧小三角
+    └ HintWidget  DataSource="{OptionHint}"  MinWidth=120  HoverBegin/End=ExecuteBeginHint/ExecuteEndHint
+```
+
+**两个容易漏的机制**：
+- **点击音效**在 `ConversationItem.SoundBrush` 的 `SoundProperties`（`EventSound EventName="Click" Audio="conversation"`）。我们自建面板没有复刻这条音效——如果要，得把这个 brush 挂在按钮上，或自己 `Mission.MakeSound`。
+- **手柄上下选**靠 `NavigatableListPanel` + `NavigationScopeTargeter`；自建面板目前没接（鼠标/数字键/回车可用）。
+
+**原版还有四块我们没要**（不是漏做，是设计上不需要）：
+金币条 `@GoldText`、敌对双方实力对比 `PowerComparer`（`IsVisible="@IsAggressive"`）、说服进度条 `Persuasion`、对话对象家徽 `ConversedHeroBanner`。
+
+**九宫格切边参数**（`NativeSpriteData.xml` 的 `NineRegionSprite`，供以后要重造贴图时对照）：
+`npc_dialogue_panel_9` 左 97 / 右 25 / 上 93 / 下 92；`dialog_option_canvas_9` 左 7 / 右 23 / 上 21 / 下 21；`name_shadow_9` 左 55 / 右 82 / 上 30 / 下 34。
+
+> ⚠️ 上一条"Native `Conversation\*` 贴图取不到"是**现象推断**（文字 brush 着色正常、引擎 tooltip 有底、只有带 sprite 的 brush 全透明），没有源码级结论。若日后有人能找到跨模块取图的正确姿势，这条可以推翻。
+
+## 🔴 自制 GUI 贴图的正路 = 打成 tpac（2026-11-20 实机验证）+ 两代 GauntletLayer 结构差异
+
+### 引擎事实（别再凭印象说"直接读 PNG"）
+
+- `SpriteCategory.Load()` 拼的路径是 `SpriteSheets\{类别}\{类别}_{序号}`，**故意不带扩展名**。
+- `TwoDimensionEngineResourceContext.LoadTexture` 内部只有一句 `Texture.GetFromResource(leaf)` ——
+  **只查 .tpac 的 native 资源池**，查不到返回 null。所以模块 `GUI/SpriteSheets/` 里丢 PNG **没有任何用**。
+
+### 正路（本次实机跑通）
+
+1. 从原版包里导出图集：
+   `tpaccli dump --packdir <只含 gauntlet_ui.tpac 的目录> --filter ui_conversation_1 --out <dir> --format png`
+   （`Modules/Native/AssetPackages/gauntlet_ui.tpac` = 266 MB，是 GUI 资产包；整目录扫 19 GB 会慢，先单独拷出来）
+2. 按 `Modules/Native/GUI/NativeSpriteData.xml` 的 `SpritePart` 坐标裁切需要的块。
+3. 打 tpac（`makepack` 会把坑都填了：`Source=""`、mipmap 三层一致、`has_alpha`、KEY_* UserData）：
+   ```json
+   { "packs": [ { "packName": "lwn_dialogue",
+                  "textures": [ { "name": "lwn_dialogue_1", "png": "...", "width": 1024, "height": 192 } ] } ] }
+   ```
+   `tpaccli makepack --manifest <json> --out <模块>/AssetPackages`
+4. **必须回读验证**（大小说明不了问题，数据段是压缩的）：
+   `tpaccli dump --packdir <模块>/AssetPackages --filter lwn_dialogue --format png` → 能出图且像素对才算完整。
+5. SpriteData 声明照 `plans/任意png图加载-custom-png-import-guide.md` 的严格格式
+   （零注释、全子元素、`<AlwaysLoad>true</AlwaysLoad>`、`<SpriteSheetSize>` 与图集实际尺寸一致）。
+
+兜底（可选）：Harmony Postfix 拦 `LoadTexture`，tpac 未命中时读 `GUI/SpriteParts/{leaf}.png` → 转 BMP。
+🔴 目标解析**必须用 `TargetMethods()` 返回空集合**，不能 `TargetMethod()` 返回 null ——
+null 会让 Harmony 抛异常掐断整个 PatchAll（后面所有补丁全打不上）。
+
+### 🔴 两代 `GauntletLayer` 结构完全不同（踩过的坑）
+
+| | 1.2.12 | 1.5.x |
+|---|---|---|
+| movie 列表 | `public readonly List<Tuple<IGauntletMovie, ViewModel>> MoviesAndDataSources` | `private MBList<GauntletMovieIdentifier> _movieIdentifiers` |
+| 按名取 | **没有** `GetMovieIdentifier` | `GetMovieIdentifier(name)` |
+| 构造 | `GauntletLayer(int localOrder, string categoryId, bool shouldClear)` | 参数顺序不同（走 `V.NewLayer`） |
+
+写反射代码时必须两条路都试（范本：`GUI/GauntletUiIntrospect.cs`），否则在一个版本上永远取不到。
+`ScreenBase._layers` 两代一致，可以直接反射。
+
+### 对话时收起原版血条 HUD（方案 A，不改 Mission.Mode）
+
+原版靠 `Mission.Mode == Conversation` 让引擎收起 HUD，但 `Mission.Mode` 是**只读**的；
+反射硬写它 = 让引擎以为在对话 = 重新引入问题 49 的副作用源，**禁止**。
+
+做法（`GUI/MissionHudVisibility.cs`）：遍历层 → 读 movie 列表 → **按数据源类型名认**
+（血条那个 movie 的 VM 是 `MissionAgentStatusVM`，类型名含 `AgentStatus`）→ 关它的 `RootWidget.IsVisible`，
+对话结束第一步恢复。不要按 movie 名猜（1.2.12 里名字不一定是 `MainAgentHUD`）。
+
+### 🔴 教训：反编译前先定版本
+
+同一个类在不同客户端里字段名/方法名会变。动手前先读注册表 `MB2_PATH`，反编译**那个安装目录**的 DLL；
+拿另一个版本的结构当通用结构，写出来的反射代码编译能过、运行时全是 0。

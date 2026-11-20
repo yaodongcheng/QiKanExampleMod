@@ -26,7 +26,7 @@ namespace LivingWorldNpcs
                 "enable", "disable", "city", "status", "crime", "quests", "enter", "intro", "phase", "where", "spawn", "favor",
                 "check", "roll", "learn", "resolve", "strip", "restore", "reset", "talk", "goal",
                 "life", "lesson", "combat", "event", "dialogue", "goto", "abort", "money", "stage", "atom", "action", "reload", "hud",
-                "script", "population", "layout", "intercept", "work", "group", "persona", "gate", "trace", "scene", "environment", "help", "cooperate",
+                "script", "population", "layout", "intercept", "work", "group", "persona", "gate", "trace", "scene", "environment", "help", "cooperate", "carry",
             };
 
         [CommandLineFunctionality.CommandLineArgumentFunction("story_probe", "custom")]
@@ -387,6 +387,22 @@ namespace LivingWorldNpcs
                             return $"OK: goal = {stages[idx]} ({LWNScreenGoalText.Resolve()})";
                         }
                         return $"Usage: custom.story_probe goal 0..4 (current={StoryProbeState.Goal})";
+                    }
+
+                    case "carry":
+                    {
+                        string npc = Arg(args, used, 0);
+                        if (string.IsNullOrEmpty(npc)) return "Usage: custom.story_probe carry <npcId> (read-only)";
+                        var agent = StoryProbeMissionBehavior.Current?.GetAgent(npc);
+                        if (agent == null) return "NO: actor not in scene: " + npc;
+                        var items = new List<string>();
+                        for (int i = 0; i < 4; i++)
+                        {
+                            var el = agent.SpawnEquipment[(TaleWorlds.Core.EquipmentIndex)i];
+                            if (!el.IsEmpty && el.Item != null)
+                                items.Add("slot" + i + "=" + el.Item.StringId);
+                        }
+                        return "OK: carry " + npc + " items=" + (items.Count == 0 ? "none" : string.Join(",", items));
                     }
 
                     case "lesson":

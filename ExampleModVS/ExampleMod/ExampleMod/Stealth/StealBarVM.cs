@@ -643,7 +643,9 @@ namespace LivingWorldNpcs
             _pendingIsPurse = false;
 
             // 钱袋进盲盒：身上有钱时有概率摸到（装备摸空后有钱袋必摸钱袋）——金钱独立偷窃目标
+            // 🔴 但剧情必需道具还在身上时钱袋不抢：否则玩家为了一件剧情物品要先跟概率搏运气。
             if (StoryProbeMissionBehavior.Current?.ExistingPractice?.IsPracticeTarget(_target) != true && StealManager.HasPurseGold(_target)
+                && !StealManager.HasPrioritySlot(_target)
                 && (!_pendingSlot.HasValue || _random.NextDouble() < PurseChance))
             {
                 _pendingIsPurse = true;

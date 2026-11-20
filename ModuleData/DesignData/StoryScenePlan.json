@@ -1,7 +1,7 @@
 {
   "_comment": "P3/P4 正式数据（2026-11-15）：首遇双岗的布局、岗位、候选规则与质问流程。改这里 = 改谁站哪、谁有资格问、先问谁、开窗后等多久，不需要改 C#。几何坐标仍待实机快照复核（V06），当前锚点来自场景 tag。",
   "Schema": "story_stage/2",
-  "ContentVersion": 19,
+  "ContentVersion": 20,
   "Scene": "empire_town_m",
   "WallLevel": "2",
   "Layouts": {

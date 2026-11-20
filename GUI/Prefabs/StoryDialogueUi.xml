@@ -88,9 +88,13 @@
                                           IsEnabled="@IsEnabled"
                                           UpdateChildrenStates="true">
                               <Children>
+                                <!-- 🔴 UpdateChildrenStates 必须给：原版正是靠 ConversationItemImageWidget
+                                     上的这个属性把 Hovered/Pressed 传给里面的文字与悬停箭头。
+                                     漏了它 = 箭头永远 IsHidden、文字也不会变色。 -->
                                 <BrushWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                                              MarginTop="2.5" MarginBottom="2.5"
-                                             Brush="LWN_Dlg_Option" DoNotAcceptEvents="true">
+                                             Brush="LWN_Dlg_Option" UpdateChildrenStates="true"
+                                             DoNotAcceptEvents="true">
                                   <Children>
                                     <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                                                     MarginTop="5" MarginBottom="5" MarginLeft="30"
@@ -100,7 +104,8 @@
                                     <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                                                  SuggestedWidth="39" SuggestedHeight="20"
                                                  HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                 PositionXOffset="-15" Brush="ConversationItem.HoverIndicator" />
+                                                 PositionXOffset="-15" Brush="LWN_Dlg_Hover"
+                                                 DoNotAcceptEvents="true" />
                                   </Children>
                                 </BrushWidget>
 

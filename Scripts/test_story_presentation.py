@@ -108,6 +108,7 @@ namespace LivingWorldNpcs {
  public static class V {public static bool NavMesh(Scene s,Vec3 p,out int face){face=0;return true;}public static bool PathExists(TaleWorlds.Engine.WorldPosition a,TaleWorlds.Engine.WorldPosition b)=>true;}
  public static class MBRandom {public static float RandomFloat=>.5f;}
  public static class StoryProbeTuning {public static Tuning Current=new();public class Tuning {public Events Events=new();}public class Events {public float ActorSpacingMeters=3,ActorApproachMeters=2;}}
+ public static class StoryDialogueUiRunner {public static bool IsParticipant(Agent a)=>false;}
  public class StoryEventDef {public string Placement="gather",ActionA="act_talk",ActionB="act_talk";public int Index=1;public string[] Members={"host","guest"};}
  public class EventHarness {public StoryEventDef _activeEvent=new();public StoryProbeMissionBehavior _host=new();public Dictionary<Agent,PerformanceAction> _eventActors=new();public Dictionary<Agent,Vec3> _eventGatherTargets=new();public bool _eventPrepared;public int Plays;
   string[] EventMembers(StoryEventDef e)=>e.Members;bool OwnsBody(Agent a)=>_eventActors.TryGetValue(a,out var p)&&p.CanControl;string ResolveNpcId(Agent a)=>_host.Agents.First(x=>x.Value==a).Key;

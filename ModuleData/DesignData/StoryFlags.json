@@ -703,6 +703,22 @@
       "Note": "话题/进度标记（legacy）：改名时按 knows./npc. 规范，并保持单一写入点"
     },
     {
+      "Id": "outlaw_hook_sold",
+      "Owner": "player",
+      "Type": "bool",
+      "Legacy": true,
+      "Lifetime": "save",
+      "Reset": "never",
+      "Writers": [
+        "story_outlaw.dialog.json:outlaw_hook_price_2/pay"
+      ],
+      "Readers": [
+        "story_outlaw.dialog.json:outlaw_hub/hook_price",
+        "story_outlaw.dialog.json:outlaw_intro/hook_price"
+      ],
+      "Note": "杜野已把钩子卖给玩家；买过一次后不再出现买回选项"
+    },
+    {
       "Id": "past_more",
       "Owner": "player",
       "Type": "bool",

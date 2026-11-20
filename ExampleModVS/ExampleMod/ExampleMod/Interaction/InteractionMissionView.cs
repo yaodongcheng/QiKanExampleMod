@@ -65,6 +65,8 @@ namespace LivingWorldNpcs
 
         // 偷窃期间冻结玩家控制（Controller→AI：输入移交 AI 组件，主角待机；v1.2.12/1.4.x 均支持）
         private bool _playerControlFrozen = false;
+        // 只对实操课练习目标的偷窃条做玩家定身；普通偷窃保持原行为。
+        private bool _practiceStealPinned;
         // 冻结前的蹲姿（切 AI 后原生姿态被重置为站立，需用 scripted flag 保持）
         private bool _frozenWasCrouching = false;
 
@@ -521,6 +523,15 @@ namespace LivingWorldNpcs
                     break;
                 case InteractionIds.Pickpocket:
                     if (_lastFocusedAgent != null) TryStealFromAgent(_lastFocusedAgent);
+                    else
+                    {
+                        // 实操课：玩家蹲在小六背后时准星可能没落在人身上，面板只剩"箱子"。
+                        // 这里允许无焦点时回落到本节课的老师，避免把 F 键让给保管箱。
+                        var practice = StoryProbeMissionBehavior.Current?.ExistingPractice;
+                        var teacher = practice?.Active == true
+                            ? StoryProbeMissionBehavior.Current.GetAgent(practice.Actor) : null;
+                        if (teacher != null) TryStealFromAgent(teacher);
+                    }
                     break;
                 case InteractionIds.StealAnimal:
                     if (_lastFocusedAgent != null) TryStealAnimal(_lastFocusedAgent);
@@ -575,8 +586,10 @@ namespace LivingWorldNpcs
             Agent currentAgent = GetFocusdAgent();
 
             // A2. 箱子接近度检测（每 3 帧更新，用于上下文判定 + 首次接近提示）
-            bool nearChest = TryGetSceneLock(out _, out _) || (_chestEntity != null && Agent.Main != null
-                && Agent.Main.Position.Distance(_chestEntity.GetGlobalFrame().origin) < 3f);
+            // 实操课期间整段屏蔽：课是来偷小六的，不能让旧箱子实体/旧锁档抢走 F 键。
+            bool practiceActive = StoryProbeMissionBehavior.Current?.ExistingPractice?.Active == true;
+            bool nearChest = !practiceActive && (TryGetSceneLock(out _, out _) || (_chestEntity != null && Agent.Main != null
+                && Agent.Main.Position.Distance(_chestEntity.GetGlobalFrame().origin) < 3f));
 
             // 🔴 2026-10-23：玩家正被 NPC 的绳绑着 ⇒ 不给任何交互入口（控制器已被收走，面板也该收）。
             if (GrappleLogic.IsPlayerBoundByOtherRope())
@@ -1156,6 +1169,7 @@ namespace LivingWorldNpcs
         /// <summary>无目标上下文：近箱子 → [Lockpick]；否则 → [Inspect]（探查键无 focus 看自己，UI 隐藏但响应保留）。</summary>
         private void BuildNoTargetContext(bool nearChest)
         {
+            bool practiceActive = StoryProbeMissionBehavior.Current?.ExistingPractice?.Active == true;
             _availableIds.Clear();
             _uiItems.Clear();
             _uiTargetName = "";
@@ -1163,14 +1177,32 @@ namespace LivingWorldNpcs
 
             if (nearChest)
             {
-                var chestCtx = StealManager.GetCurrentChestContext();
-                var (_, title, _) = GetChestTexts(chestCtx);
-                _uiTargetName = TryGetSceneLock(out _, out var rule)
-                    ? LWNTextHelper.ResolveText(rule.TitleKey, null) : title;
-                // 本地化：撬锁交互按钮
-                // 🔴 牵着绳 ⇒ F 长按归【松绳】（见 BuildAgentContext 里 ropeHeld 的说明）
-                if (!IsRopeHeld())
-                    AddInteractionRow(InteractionIds.Lockpick, LWNTextHelper.ResolveText("LWN_ui_interact_lockpick", "Pick Lock"));
+                // 实操课期间不提供保管箱/撬锁入口：玩家是来偷小六的，箱子会把 F 键抢走
+                //（实机：蹲在小六背后按交互，焦点为空 + 近箱子 ⇒ 直接开了城镇保管箱）。
+                // 课结束后照常恢复。
+                if (!practiceActive)
+                {
+                    var chestCtx = StealManager.GetCurrentChestContext();
+                    var (_, title, _) = GetChestTexts(chestCtx);
+                    _uiTargetName = TryGetSceneLock(out _, out var rule)
+                        ? LWNTextHelper.ResolveText(rule.TitleKey, null) : title;
+                    // 本地化：撬锁交互按钮
+                    // 🔴 牵着绳 ⇒ F 长按归【松绳】（见 BuildAgentContext 里 ropeHeld 的说明）
+                    if (!IsRopeHeld())
+                        AddInteractionRow(InteractionIds.Lockpick, LWNTextHelper.ResolveText("LWN_ui_interact_lockpick", "Pick Lock"));
+                }
+                else
+                {
+                    // 有练习课时，把"偷老师"直接摆到无焦点面板上（准星没落在人身上也能按）。
+                    var practice = StoryProbeMissionBehavior.Current?.ExistingPractice;
+                    var teacher = practice.Active ? StoryProbeMissionBehavior.Current.GetAgent(practice.Actor) : null;
+                    if (teacher != null && practice.CanAttempt(teacher))
+                    {
+                        _uiTargetName = AgentControlHelper.GetDisplayName(teacher);
+                        AddInteractionRow(InteractionIds.Pickpocket,
+                            LWNTextHelper.ResolveText("LWN_ui_interact_pickpocket", "Pickpocket"));
+                    }
+                }
             }
             else
             {
@@ -1352,7 +1384,9 @@ namespace LivingWorldNpcs
                     if (isCrouching)
                     {
                         // 🆕 友方保护：友方目标不注册偷窃行（显示与触发双断）
-                        if ((!hostileBlocked || practiceTheft) && !ropeHeld)   // 🔴 牵着绳 ⇒ F 长按归【松绳】
+                        // 实操课：只有真正蹲在背后 2 米内才给偷窃行，避免开条后打中判定区却因位置不对被判"手滑"。
+                        if ((!hostileBlocked || practiceTheft) && !ropeHeld
+                            && (!practiceTheft || StoryProbeMissionBehavior.Current?.ExistingPractice?.CanAttempt(currentAgent) == true))
                         {
                             // 本地化：偷窃交互按钮
                             AddInteractionRow(InteractionIds.Pickpocket, LWNTextHelper.ResolveText("LWN_ui_interact_pickpocket", "Pickpocket"));
@@ -1957,6 +1991,14 @@ namespace LivingWorldNpcs
 
             // 9. 冻结玩家控制：切 ControllerType.AI → 输入处理权移交 AI 组件（跳/走/攻击全死；键盘 mask 拦不住只能切控制器）
             FreezePlayerControl();
+            // 打开偷窃条就定身玩家（2026-11-20 用户裁定：所有偷窃都按小六实操课那样处理）——
+            // 切 AI 后 AI 可能带着玩家避障/漂移，把玩家钉住才谈得上"原地摸东西"；关条时成对释放。
+            _practiceStealPinned = Agent.Main != null;
+            if (_practiceStealPinned)
+            {
+                AgentControlHelper.HoldInPlace(Agent.Main);
+                DebugLogger.Log("[StealUI] player pinned for the steal");
+            }
         }
 
         // 关闭偷窃界面（所有路径统一收口：收手Tab/强制/质问接管/Finalize；ESC 让给游戏菜单，不再收条）
@@ -1968,6 +2010,14 @@ namespace LivingWorldNpcs
             _activeLockRuntimeToken = 0;
             // 子弹时间先收（幂等）
             StopStealSlowmo();
+            // 先解除练习定身，再把控制权还给玩家；顺序同 StoryStageRunner：解锁 → 还 Player。
+            if (_practiceStealPinned)
+            {
+                try { AgentControlHelper.ForceUnlockAgent(Agent.Main); }
+                catch (Exception ex) { DebugLogger.Log("[StealUI] practice unpin failed: " + ex.Message); }
+                _practiceStealPinned = false;
+                DebugLogger.Log("[StealUI] practice target: player pin released");
+            }
             // 玩家控制同步恢复（幂等）
             UnfreezePlayerControl();
 
@@ -3281,6 +3331,13 @@ namespace LivingWorldNpcs
         /// <summary>玩家按 F 互动箱子时调用：空箱早退，否则先撬锁（StealBar Lockpick 模式）。</summary>
         private void OpenChest()
         {
+            // 实操课期间禁止任何保管箱/锁箱界面：目标只有一个——小六的练习匕首。
+            // 旧箱子实体/旧场景锁档残留时也不许抢 F 键（2026-11-20 实机：无可见箱子却弹城镇保管箱）。
+            if (StoryProbeMissionBehavior.Current?.ExistingPractice?.Active == true)
+            {
+                DebugLogger.Log("[Chest] OpenChest suppressed during practice lesson");
+                return;
+            }
             bool sceneLock = TryGetSceneLock(out string sceneProp, out var sceneDef);
             int gold = StealManager.StashGold;
             var roster = StealManager.ChestItemRoster;
@@ -3327,6 +3384,11 @@ namespace LivingWorldNpcs
         /// <summary>撬锁成功后弹出：全部拿走 / 自己挑选。IsUIOpen 贯穿 Inquiry + 战利品界面全程，loot 收尾才复位。</summary>
         private void ShowChestInquiry()
         {
+            if (StoryProbeMissionBehavior.Current?.ExistingPractice?.Active == true)
+            {
+                DebugLogger.Log("[Chest] ShowChestInquiry suppressed during practice lesson");
+                return;
+            }
             int gold = StealManager.StashGold;
             var roster = StealManager.ChestItemRoster;
             var settlement = Settlement.CurrentSettlement;

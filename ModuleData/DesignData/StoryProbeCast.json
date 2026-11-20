@@ -150,9 +150,10 @@
       "OffsetRight": -8.0,
       "QuestTargetNpcId": "outlaw",
       "QuestLogKey": "LWN_story_quest_son_title",
+      "QuestObjectiveKey": "LWN_story_quest_son_objective",
+      "QuestItemId": "lwn_grapple_hook",
       "RewardItems": [
-        "lwn_grapple_rope",
-        "lwn_grapple_hook"
+        "lwn_grapple_rope"
       ],
       "AttrItemId": "lwn_lockpick_kit",
       "AttrSkill": "Roguery",
@@ -469,6 +470,9 @@
         "looter",
         "deserter",
         "civillian_template_gangster_tier3_empire"
+      ],
+      "CarryItems": [
+        "lwn_grapple_hook"
       ],
       "Age": 32,
       "OffsetForward": -3.70016,

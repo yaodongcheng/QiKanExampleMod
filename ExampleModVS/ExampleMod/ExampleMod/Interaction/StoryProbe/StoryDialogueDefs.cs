@@ -59,6 +59,7 @@ namespace LivingWorldNpcs
             Add("coop_available", true, "当前演员有有效协作约定或是主队同伴", new string[0]);
             Add("coop_favor_available", true, "当前演员的人情余额足够支付数据配置的协作费用", new string[0]);
             Add("gold>=", true, "玩家钱数下限（参数=无符号整数）");
+            Add("favor>=", true, "玩家对当前 NPC 的人情余额下限（参数=正整数）");
             Add("item", true, "玩家是否持有物品（参数=物品 id）");
             Add("event_resolved", true, "某起市井纠纷是否已解决（参数=事件编号）");
             Add("resolution", true, "玩家上次对某事件的做法（参数=做法 id）");
@@ -131,6 +132,8 @@ namespace LivingWorldNpcs
             Add("skill_check", true, new[] { "tactic" }, new[] { "tactic" },
                 "复用对话技能检定，结果写会话事实；正式选项优先使用Check路由");
             Add("give_item", true, new[] { "item", "count" }, new[] { "item" }, "给玩家物品（失败不假发）", new[] { "count" });
+            Add("take_item", true, new[] { "item", "count" }, new[] { "item" }, "从玩家背包取走物品（交给NPC/世界，不假扣）", new[] { "count" });
+            Add("take_carried", true, new[] { "npc", "item" }, new[] { "npc", "item" }, "把NPC身上带着的物品转给玩家（买回/讨还）");
             Add("wear_item", true, new[] { "item", "slot" }, new[] { "item" },
                 "把背包里的一件穿到身上（默认 Body），旧衣回行囊；场景外观立刻刷新");
             Add("start_fight", true, new[] { "target", "mode", "reason", "beneficiaries", "start_line", "end_line", "resolve_event" }, new string[0],
@@ -161,6 +164,8 @@ namespace LivingWorldNpcs
             Add("message", true, new[] { "key" }, new[] { "key" }, "显示一条本地化消息");
             Add("favor_grant", true, new[] { "npc", "amount", "source", "key", "fallback", "quest", "event" },
                 new[] { "npc", "amount", "source", "key", "fallback" }, "真实交差或成功事件给予人情，通用 NPC 记忆保留来源", new[] { "amount", "event" });
+            Add("favor_spend", true, new[] { "npc", "amount", "source", "key", "fallback" },
+                new[] { "npc", "amount", "source", "key", "fallback" }, "消耗玩家对 NPC 的人情（余额不足则整条效果失败）", new[] { "amount" });
             // 随从协助破局（2026-11-18）：协作约定／正式招募／开始活动。
             // 效果只接既有业务管线，不在这里写玩法分支。
             Add("coop_contract", true, new[] { "mode", "purpose" }, new[] { "mode" },
@@ -688,6 +693,11 @@ namespace LivingWorldNpcs
                     name = "step>=";
                     value = term.Substring("step>=".Length);
                 }
+                else if (split < 0 && term.StartsWith("favor>=", StringComparison.Ordinal))
+                {
+                    name = "favor>=";
+                    value = term.Substring("favor>=".Length);
+                }
                 else if (split < 0 && term.IndexOf('@') > 0)
                 {
                     // 跨 NPC 引用：quest_accepted@pawnbroker
@@ -702,7 +712,7 @@ namespace LivingWorldNpcs
                 }
                 if (spec.RequiredParams.Length > 0 && string.IsNullOrEmpty(value))
                     errors.Add(new StoryDialogueIssue(path + ".Requires", "missing_param", "谓词 '" + name + "' 需要参数"));
-                if (value != null && (name == "gold>=" || name == "event_resolved"))
+                if (value != null && (name == "gold>=" || name == "favor>=" || name == "event_resolved"))
                 {
                     if (!int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out _))
                         errors.Add(new StoryDialogueIssue(path + ".Requires", "bad_param", "谓词 '" + name + "' 的参数必须是非负整数：" + value));
@@ -782,6 +792,16 @@ namespace LivingWorldNpcs
                     if (eff.Params.TryGetValue("event", out var favorEvent)
                         && (!int.TryParse(favorEvent, out int evt) || evt <= 0))
                         errors.Add(new StoryDialogueIssue(path + ".Effects.favor_grant.Params.event", "bad_param", "纠纷编号必须是正整数"));
+                }
+                if (eff.Id == "favor_spend")
+                {
+                    if (!eff.Params.TryGetValue("amount", out var spendAmount)
+                        || !int.TryParse(spendAmount, out int spend) || spend <= 0)
+                        errors.Add(new StoryDialogueIssue(path + ".Effects.favor_spend.Params.amount", "bad_param", "人情消耗必须是正整数"));
+                    if (!eff.Params.TryGetValue("key", out var spendKey) || !Regex.IsMatch(spendKey, @"^LWN_[A-Za-z0-9_]+$"))
+                        errors.Add(new StoryDialogueIssue(path + ".Effects.favor_spend.Params.key", "bad_param", "必须是本地化语言键"));
+                    if (!eff.Params.TryGetValue("source", out var spendSource) || !Regex.IsMatch(spendSource, @"^[A-Za-z0-9_.:-]+$"))
+                        errors.Add(new StoryDialogueIssue(path + ".Effects.favor_spend.Params.source", "bad_param", "来源须为稳定 ASCII 业务编号"));
                 }
             }
         }

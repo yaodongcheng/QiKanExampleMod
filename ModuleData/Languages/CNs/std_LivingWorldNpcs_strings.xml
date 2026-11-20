@@ -4964,11 +4964,14 @@
     <string id="LWN_story_son_ask_climb_2" text="他们掰伤了我这只手，攥着绳子往上爬是不行了，另一只手还能甩两下，示范能做，攀墙你得自己来。" />
     <string id="LWN_story_son_ask_sister" text="上个月夜里，我在屋顶见过两个码头帮的人带着个穿青布的姑娘，嘴里塞着布。" />
     <string id="LWN_story_son_ask_sister_2" text="我当时正偷东西，没敢出声，只看见他们往大西门里的私仓走。" />
-    <string id="LWN_story_son_deal" text="你替我让墙根那伙人停手，我把备用钩索和撬锁包给你，这只手没好之前我也用不上——钩索能上墙，撬锁包能摸门，都是手上功夫。" />
+    <string id="LWN_story_son_deal" text="杜野抢了我的钩索，还打伤了我这只手；你替我把它要回来，绳子和撬锁包我还能给你——撬锁包能摸门，绳子配钩子才能上墙。" />
+    <string id="LWN_story_quest_son_objective" text="杜野抢了小六的钩索，还伤了他的手——去找杜野把东西要回来，买、抢、偷都行。" />
+    <string id="LWN_story_son_stealth_done_auto" text="刀拿稳了，手也会找空当了。" />
+    <string id="LWN_story_son_stealth_done_auto_part1" text="光拿我练不算本事——正主在粮仓外头，我跟你说说怎么过他那关。" />
     <string id="LWN_story_son_deal_why" text="手肿得握不住钩子，他们人又多，我再去就是把另一只手也搭上。" />
     <string id="LWN_story_son_deal_refuse" text="那算了，我再找别人，你要问别的事就问。" />
     <string id="LWN_story_son_quest_accept" text="领头的在粮仓外，让他不再抢我的东西就行，谈妥了回来取工具。" />
-    <string id="LWN_story_son_turnin" text="墙根那个野贼，还会来抢我的东西吗？" />
+    <string id="LWN_story_son_turnin" text="你手里那把钩子……哪来的？" />
     <string id="LWN_story_son_turnin_ok" text="钩索和撬锁包是你应得的，替我拿回工具这件事，我也记着。" />
     <string id="LWN_story_son_chat" text="我娘听说你帮我拿回了工具，还说让我少跟你学那些危险的事。" />
     <string id="LWN_story_son_chat_2" text="蹲着走到他身后，等他看向别处再过门，要摸他的刀也得先看看有没有别人盯着。" />
@@ -5137,7 +5140,7 @@
     <string id="LWN_story_rival_fight" text="在我演出的地方动手，那就来吧！" />
     <string id="LWN_story_rival_opt_sign" text="你这块招牌有些年头了，是家里传下来的？" />
     <string id="LWN_story_rival_opt_fight" text="你想靠拳头讲理，那就试试。" />
-    <string id="LWN_story_outlaw_entry" text="[说两句] 你们这帮人就窝在墙根底下？" />
+    <string id="LWN_story_outlaw_entry" text="[说两句] 你们这帮人就窝在粮仓外头？" />
     <string id="LWN_story_outlaw_intro" text="这儿的东西别乱碰，你要找谁？" />
     <string id="LWN_story_outlaw_hub" text="说完就走，别堵在这儿。" />
     <string id="LWN_story_outlaw_talk" text="墙边那小子自己护不住东西，倒知道找个人来帮忙，你打算怎么替他讨？" />
@@ -5160,7 +5163,7 @@
     <string id="LWN_faction_dockhands" text="码头帮" />
     <string id="LWN_story_quest_pawnbroker_title" text="老周的账" />
     <string id="LWN_story_quest_widow_title" text="两家戏班的争执" />
-    <string id="LWN_story_quest_son_title" text="墙根下的野贼" />
+    <string id="LWN_story_quest_son_title" text="帮小六讨回钩索" />
     <string id="LWN_story_quest_butcher_title" text="砸摊的那个人" />
     <string id="LWN_story_menu_enter" text="入城（玩法测试）" />
     <string id="LWN_story_intro_inquiry_title" text="城门" />
@@ -5289,7 +5292,7 @@
     <string id="LWN_story_widow_opt_money" text="六十第纳尔，买你两句实话。" />
     <string id="LWN_story_widow_opt_pay" text="那姑娘进城时到底是什么样？" />
     <string id="LWN_story_son_opt_money" text="[塞钱] 四十第纳尔，买个准信。" />
-    <string id="LWN_story_son_opt_pay" text="[付钱] 按你说的价，连工具一起教我。" />
+    <string id="LWN_story_son_opt_pay" text="[付钱] 按你说的价，教我使钩索。" />
     <string id="LWN_story_butcher_opt_money" text="这些钱，买你一句话。" />
     <string id="LWN_story_money_pawnbroker" text="门口那个铁头，欠了赌坊三个月的利。
 （老周，玩家）：他怕丢差事，比怕刀子还甚。" />
@@ -5582,7 +5585,7 @@
     <string id="LWN_story_son_learn_opt_beam_price" text="梁上哪一段能挂住钩子，给我指一下。" />
     <string id="LWN_story_son_learn_lock_1" text="先试出锁里有几层，稳住一层再拨下一层，别只顾着使劲。" />
     <string id="LWN_story_son_learn_lock_2" text="开别人的锁会惹麻烦，先拿我这口旧箱练，别跑到人家柜上试。" />
-    <string id="LWN_story_son_business_hub" text="这手指还疼，墙根那伙人又在抢我的东西，你愿意帮我跑一趟吗？" />
+    <string id="LWN_story_son_business_hub" text="我这手还疼，杜野他们又在抢我的东西，你愿意帮我跑一趟吗？" />
     <string id="LWN_story_butcher_lesson_opt_methods" text="我想从门口过去，教我两手。" />
     <string id="LWN_story_hint_butcher_lesson_methods" text="请教大山应战、威吓与制服对手的办法。" />
     <string id="LWN_story_butcher_lesson_opt_business" text="说说你这肉摊。" />
@@ -5663,7 +5666,7 @@
     <string id="LWN_story_widow_playerhelp" text="希望有人让对面领班停止堵路，以戏服、护符和应对门卫的经验答谢。" />
     <string id="LWN_story_son_goal" text="想保住自己的地盘和工具，等手好后还能有饭吃。" />
     <string id="LWN_story_son_trouble" text="手指肿着，握不住绳子，再去讨东西怕另一只手也被打坏。" />
-    <string id="LWN_story_son_playerhelp" text="希望有人让粮仓外的野贼停手，以备用钩索、撬锁工具和使用经验答谢。" />
+    <string id="LWN_story_son_playerhelp" text="希望有人让粮仓外的野贼停手，把我的钩子拿回来；绳子、撬锁工具和使用经验都能给他。" />
     <string id="LWN_story_butcher_goal" text="想保住肉摊、收个徒弟，不再参与押人的买卖。" />
     <string id="LWN_story_butcher_trouble" text="马横来砸摊，徒弟已被吓跑，我动刀反而会让他们找到报复的借口。" />
     <string id="LWN_story_butcher_playerhelp" text="希望外人让马横停手，答谢家伙、绳子、短刀，并教站姿和发力。" />
@@ -5771,7 +5774,7 @@
     <string id="LWN_story_son_stealth_start_hint" text="开始可取消的潜行、扒窃教学；跟随小六，到背后使用原有偷窃小游戏。练习失败可重试，取走其他人的财物仍是偷窃。" />
     <string id="LWN_story_son_stealth_offer" text="只许拿这把练习的刀，别顺走我的钱。" />
     <string id="LWN_story_son_stealth_depart" text="走吧，别在罗铁眼皮底下练，你要不想练了，开口跟我说一声就行。" />
-    <string id="LWN_story_son_opt_pay_hint" text="支付40第纳尔，获得绳子和钩索，并可开始独立实操教学；本轮只收费一次。" />
+    <string id="LWN_story_son_opt_pay_hint" text="支付40第纳尔学习钩索；绳子给你，钩子用你自己的。本轮只收费一次。" />
     <string id="LWN_story_son_grapple_earned" text="工具已经替你拿回来了，教我用吧。" />
     <string id="LWN_story_son_grapple_earned_hint" text="继续这个话题。" />
     <string id="LWN_story_son_grapple_paid" text="工具我买下了，现在教我用吧。" />
@@ -5793,16 +5796,17 @@
     <string id="LWN_story_son_practice_cancelled" text="行，我回箱子那边，想练再来找我，收过的钱不收第二遍。" />
     <string id="LWN_story_practice_stealth_dagger_title" text="跟小六练手" />
     <string id="LWN_story_practice_stealth_dagger_follow" text="跟上小六，去西南边墙根下练习；跟他交谈可重试或结束。" />
-    <string id="LWN_story_practice_stealth_dagger_ready" text="我背朝你了。先退到几步外，按下蹲键，绕到我背后两步内，从交互栏选偷窃；浮标进可偷区再按出手键。只拿腰上的小刀。" />
+    <string id="LWN_story_practice_stealth_dagger_ready" text="我背朝你了。先退到几步外，按 {CROUCH} 蹲下，绕到我背后两步内；按 {ACTION} 打开交互栏选偷窃，浮标进可偷区再按出手键。只拿腰上的小刀。" />
     <string id="LWN_story_practice_stealth_dagger_retry" text="停，你露面了，或者脚步太重。再退几步，等我不看你了，蹲着绕回来；出手别着急。" />
     <string id="LWN_story_practice_stealth_dagger_done" text="小刀真拿走了，行！留着吧。对付罗铁也得这么来，但他可没答应让你练，被抓住是要算账的。" />
+    <string id="LWN_story_practice_stealth_dagger_next" text="去找杜野，把钩子弄回来。" />
     <string id="LWN_story_practice_stealth_dagger_cancel" text="这回先停下，刀还在我腰上就别拿了。想练，再来找我。" />
     <string id="LWN_story_practice_grapple_wall_title" text="小六的钩索课" />
-    <string id="LWN_story_practice_grapple_wall_follow" text="跟上小六，去西边矮墙旁看他投钩；准备好绳子和钩子，交谈可重试或结束。" />
-    <string id="LWN_story_practice_grapple_wall_ready" text="就是我刚才钩住的矮墙上沿。把绳子和钩子放进空武器槽，拿出绳子，瞄准同一处按开火键；钩住后攀拉到落地。钩偏了收回重来，别往人身上扔。" />
-    <string id="LWN_story_practice_grapple_wall_retry" text="这一下攀完了，可钩的不是我指的地方。收回钩子，再瞄准矮墙上沿试一次。" />
-    <string id="LWN_story_practice_grapple_wall_done" text="这回落稳了。上高墙也一样：先看钩住哪里，再看脚落哪里。罗铁会抬头，别练会一招就什么都不管了。" />
-    <string id="LWN_story_practice_grapple_wall_cancel" text="先不练了。我回箱子那边，工具你收好，下次再来不用再付学费。" />
+    <string id="LWN_story_practice_grapple_wall_follow" text="跟上小六，到西南边墙根下看他怎么上去；交谈可重试或结束。" />
+    <string id="LWN_story_practice_grapple_wall_ready" text="看清楚：勾那个点，拉上去。绳子和钩子给你，放进空武器槽、拿出绳子，照这样来一遍。" />
+    <string id="LWN_story_practice_grapple_wall_retry" text="没勾住。收回来，照我刚才指的地方再试一次。" />
+    <string id="LWN_story_practice_grapple_wall_done" text="行，上来了。这条路记住，罗铁在门口站着也拦不住你。" />
+    <string id="LWN_story_practice_grapple_wall_cancel" text="先下来吧，想练再来找我。" />
     <string id="LWN_story_son_money_open_part1" text="钩索。" />
     <string id="LWN_story_son_money_open_part2" text="绳子挂住高处，人就能攀上去，省得往罗铁跟前凑。" />
     <string id="LWN_story_son_money_open_part3" text="四十第纳尔，给你一套备用的，我教你甩钩、找落脚处。" />
@@ -5833,8 +5837,8 @@
     <string id="LWN_story_son_learn_steal_2_review_reply" text="刚才你确实把刀拿走了，对着罗铁也得有这份耐心。" />
     <string id="LWN_story_practice_stealth_dagger_FollowObjectiveKey" text="跟随小六到西南边墙根下；交谈可结束练习。" />
     <string id="LWN_story_practice_stealth_dagger_PracticeObjectiveKey" text="蹲着绕到小六背后，使用偷窃取走练习匕首。" />
-    <string id="LWN_story_practice_grapple_wall_FollowObjectiveKey" text="跟随小六到西边矮墙旁；交谈可结束练习。" />
-    <string id="LWN_story_practice_grapple_wall_PracticeObjectiveKey" text="装备绳子与钩索，在示范的矮墙上沿投钩并攀拉落地。" />
+    <string id="LWN_story_practice_grapple_wall_FollowObjectiveKey" text="跟随小六到西南边墙根下；交谈可结束练习。" />
+    <string id="LWN_story_practice_grapple_wall_PracticeObjectiveKey" text="照小六的样子钩上城墙。" />
     <string id="LWN_story_son_grapple_review_ask" text="钩索我练过了，到门口还有什么要留神？" />
     <string id="LWN_story_son_grapple_review_hint" text="向小六请教实际过墙时要留神的地方。" />
     <string id="LWN_story_son_grapple_review" text="先看钩牢没、脚下能不能站稳，再攀，别练会一遍就往高处乱甩。" />
@@ -5993,5 +5997,53 @@
     <string id="LWN_story_conflict_gate_push" text="{OPPONENT}不肯出示通行文书，还想往门里挤，{INITIATOR}要把他拦下。" />
     <string id="LWN_story_conflict_gate_threat" text="{OPPONENT}当面出言威胁守门的人，{INITIATOR}今天不打算放他走。" />
     <string id="LWN_story_conflict_gate_disguise" text="{OPPONENT}穿着戏班的衣裳冒充身份想过门，被{INITIATOR}当场识破。" />
+    <string id="LWN_story_son_opt_hook_give" text="从杜野手里拿回来的，还你。" />
+    <string id="LWN_story_hint_son_opt_hook_give" text="把钩子交给小六；他随后到西南边墙根下演示怎么钩上去。" />
+    <string id="LWN_story_son_hook_back" text="真是我那一把……" />
+    <string id="LWN_story_son_hook_demo_done" text="绳和钩都在我手上，你要自己上墙，得拿点东西来换。" />
+    <string id="LWN_story_son_opt_hook_buy" text="[付钱] 五十第纳尔，我买回来。" />
+    <string id="LWN_story_hint_son_opt_hook_buy" text="花 50 第纳尔换回钩爪和绳子（人情不够时的兜底）。" />
+    <string id="LWN_story_son_opt_hook_take" text="[人情] 这份人情我用了，钩爪给我。" />
+    <string id="LWN_story_hint_son_opt_hook_take" text="花掉 2 点人情换回钩爪和绳子。" />
+    <string id="LWN_story_son_opt_hook_later" text="先不拿，我再看看。" />
+    <string id="LWN_story_hint_son_opt_hook_later" text="离开，之后可以再来找他。" />
+    <string id="LWN_story_son_hook_demo_buy" text="钱我收了，东西拿去。" />
+    <string id="LWN_story_son_hook_demo_handover" text="拿稳了，上去吧。" />
+    <string id="LWN_coop_favor_hook_lesson" text="花掉一份人情，换回钩爪和绳子自己练。" />
+    <string id="LWN_story_son_hook_demo_depart" text="跟上，别靠太近。" />
+    <string id="LWN_story_outlaw_hook_price" text="五十。" />
+    <string id="LWN_story_outlaw_hook_sold" text="钱货两清，钩子拿走。" />
+    <string id="LWN_story_outlaw_hook_refused" text="嫌贵就自己去拿，别在这儿磨嘴皮子。" />
+    <string id="LWN_story_outlaw_opt_hook_price" text="你从小六那儿拿的飞钩，我出钱买。" />
+    <string id="LWN_story_outlaw_opt_hook_price_hint" text="先问价；他开口后再决定付不付。" />
+    <string id="LWN_story_outlaw_opt_hook_pay" text="[付钱] 五十，钩子归我。" />
+    <string id="LWN_story_outlaw_opt_hook_pay_hint" text="支付50第纳尔，拿走他身上的钩子。" />
+    <string id="LWN_story_outlaw_opt_hook_haggle" text="一把旧钩子，值不了五十。" />
+    <string id="LWN_story_outlaw_opt_hook_haggle_hint" text="试着压价；他不松口。" />
+    <string id="LWN_story_practice_stealth_dagger_greet" text="到这儿就行。你绕到我背后，蹲下，别让我看见；先拿我腰上这把小刀练。" />
+    <string id="LWN_story_practice_stealth_dagger_hint_crouch" text="先蹲下——按 {CROUCH}。站着走过来，我听得见。" />
+    <string id="LWN_story_practice_stealth_dagger_hint_behind" text="别在我侧边停，绕到我正后方。" />
+    <string id="LWN_story_practice_stealth_dagger_hint_approach" text="方向对了，再贴近一点，到我背后两步内。" />
+    <string id="LWN_story_practice_stealth_dagger_hint_strike" text="就现在。按 {ACTION} 打开交互，选偷窃；浮标进亮区再点出手。" />
+    <string id="LWN_story_practice_stealth_dagger_hint_seen" text="哎，我看见你了。退开几步，等我转过去再过来。" />
+    <string id="LWN_story_practice_stealth_dagger_hint_noise" text="脚步太重了。蹲着慢慢挪，别跑。" />
+    <string id="LWN_story_practice_stealth_dagger_hint_botch" text="手滑了吧？我没发现。稳住，等我放松再摸一次。" />
+    <string id="LWN_story_practice_stealth_dagger_hint_wait" text="急什么，我还没站稳。想重来就跟我说话。" />
+    <string id="LWN_story_practice_grapple_wall_greet" text="到了。站这儿看，我甩一遍，你看钩落在哪。" />
+    <string id="LWN_story_practice_grapple_wall_hint_wait" text="急什么，我还没站稳。想重来就跟我说话。" />
+    <string id="LWN_story_practice_grapple_demo_title" text="小六的钩索" />
+    <string id="LWN_story_practice_grapple_demo_follow" text="跟上小六，到西南边墙根下看他怎么上去。" />
+    <string id="LWN_story_practice_grapple_demo_greet" text="站这儿，别靠太近。看我甩一遍。" />
+    <string id="LWN_story_practice_grapple_demo_hint_wait" text="别出声，看我甩、看脚往哪落。" />
+    <string id="LWN_story_practice_grapple_demo_ready" text="看清楚：勾那个点，拉上去。绳子和钩子给你，放进空武器槽、拿出绳子，照这样来一遍。" />
+    <string id="LWN_story_practice_grapple_demo_retry" text="没勾住。收回来，照我刚才指的地方再试一次。" />
+    <string id="LWN_story_practice_grapple_demo_done" text="行，上来了。这条路记住，罗铁在门口站着也拦不住你。" />
+    <string id="LWN_story_practice_grapple_demo_cancel" text="先下来吧，想练再来找我。" />
+    <string id="LWN_story_practice_grapple_demo_FollowObjectiveKey" text="跟小六到西南边墙根下" />
+    <string id="LWN_story_practice_grapple_demo_PracticeObjectiveKey" text="照小六的样子钩上城墙" />
+    <string id="LWN_story_son_hook_back_2" text="手还没好，甩一遍给你看还行。" />
+    <string id="LWN_story_son_hook_back_3" text="走，到西南边墙根下。" />
+    <string id="LWN_story_outlaw_hook_price_2" text="少一个子儿不卖，拿不出就走。" />
+    <string id="LWN_story_outlaw_hook_sold_2" text="别指望我再认别的账。" />
 </strings>
 </base>

@@ -874,6 +874,16 @@ namespace LivingWorldNpcs
                     return int.TryParse(term.Substring(6), NumberStyles.None, CultureInfo.InvariantCulture, out int gold)
                         ? (bool?)(Hero.MainHero != null && Hero.MainHero.Gold >= gold) : null;
 
+                // 人情余额门槛（如「用这份人情换回钩爪」只在余额够时出现）。
+                if (term.StartsWith("favor>="))
+                {
+                    if (!int.TryParse(term.Substring(7), NumberStyles.None, CultureInfo.InvariantCulture, out int need)) return null;
+                    var favorHero = StoryProbeMissionBehavior.Current?.GetHero(npcId);
+                    var favorMemory = favorHero != null ? AllNpcMemoryManager.GetMemory(favorHero.StringId) : null;
+                    return favorMemory != null && Hero.MainHero != null
+                        && favorMemory.FavorBalance(Hero.MainHero.StringId) >= need;
+                }
+
                 if (term.StartsWith("item:"))
                 {
                     var item = StoryProbeDefs.FindItem(term.Substring(5));

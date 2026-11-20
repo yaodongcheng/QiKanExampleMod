@@ -2720,6 +2720,7 @@ DLG_PREDICATES = {
     "stripped": (False, True), "gate_open": (False, True), "stripped_disarmed": (False, True),
     "asked": (True, True), "reward": (True, True), "quest_accepted": (False, True),
     "quest_done": (False, True), "quest_turned": (False, True), "gold>=": (True, True),
+    "favor>=": (True, True),
     "coop_recruitable": (False, True), "coop_available": (False, True), "coop_favor_available": (False, True),
     "item": (True, True), "event_resolved": (True, True), "resolution": (True, True),
     "money_attitude": (True, True),
@@ -2731,6 +2732,8 @@ DLG_PREDICATES = {
 # 效果原子：name -> (params, required, implemented)
 DLG_EFFECTS = {
     "favor_grant": (("npc", "amount", "source", "key", "fallback", "quest", "event"),
+                    ("npc", "amount", "source", "key", "fallback"), True),
+    "favor_spend": (("npc", "amount", "source", "key", "fallback"),
                     ("npc", "amount", "source", "key", "fallback"), True),
     "coop_contract": (("mode", "purpose"), ("mode",), True),
     "coop_recruit": (("mode", "npc"), ("mode",), True),
@@ -2745,6 +2748,8 @@ DLG_EFFECTS = {
     "relation": (("faction", "delta"), ("faction", "delta"), True),
     "skill_check": (("tactic",), ("tactic",), True),
     "give_item": (("item", "count"), ("item",), True),
+    "take_item": (("item", "count"), ("item",), True),
+    "take_carried": (("npc", "item"), ("npc", "item"), True),
     "wear_item": (("item", "slot"), ("item",), True),
     "start_fight": (("target", "mode", "reason", "beneficiaries", "start_line", "end_line", "resolve_event"), (), True),
     "detain_player": (("target", "mode"), ("mode",), True),
@@ -2846,6 +2851,8 @@ def story_dialogue_issues(data, formal=False):
                 name, value = "gold>=", term[len("gold>="):]
             elif not sep and term.startswith("step>="):
                 name, value = "step>=", term[len("step>="):]
+            elif not sep and term.startswith("favor>="):
+                name, value = "favor>=", term[len("favor>="):]
             elif not sep and "@" in term:
                 name, _, value = term.partition("@")
             if name not in DLG_PREDICATES:
@@ -3264,7 +3271,7 @@ def story_lesson_issues(data, cast_ids):
     """The lesson catalog is a closed contract, independent of any particular teacher."""
     import math
     issues = []
-    allowed = set('Id Mode Actor TitleKey FollowKey ReadyKey RetryKey DoneKey CancelKey Item DoneFlag Kit Position Aim FacingDegrees SightMeters TimeoutSec AimTolerance FollowObjectiveKey PracticeObjectiveKey'.split())
+    allowed = set('Id Mode Actor TitleKey FollowKey ReadyKey RetryKey DoneKey CancelKey Item DoneFlag Kit Position Aim FacingDegrees SightMeters TimeoutSec AimTolerance FollowObjectiveKey PracticeObjectiveKey GreetKey HintCrouchKey HintBehindKey HintApproachKey HintStrikeKey HintSeenKey HintNoiseKey HintBotchKey HintWaitKey NextKey DoneDialogueTrigger DemoDialogueTrigger'.split())
     required = set('Id Mode Actor TitleKey FollowKey ReadyKey RetryKey DoneKey CancelKey DoneFlag FollowObjectiveKey PracticeObjectiveKey'.split())
     if not isinstance(data, list) or not data:
         return ['lesson catalog must be a nonempty array']
@@ -3286,8 +3293,17 @@ def story_lesson_issues(data, cast_ids):
             ids.add(identity)
         if lesson.get('Actor') not in cast_ids:
             issues.append(path + ': unknown Actor')
-        if lesson.get('Mode') not in ('pickpocket', 'grapple'):
+        if lesson.get('Mode') not in ('pickpocket', 'grapple', 'grapple_demo'):
             issues.append(path + ': unknown Mode')
+        if not isinstance(lesson.get('GreetKey'), str) or not lesson['GreetKey'].strip():
+            issues.append(path + ': missing string GreetKey')
+        if not isinstance(lesson.get('HintWaitKey'), str) or not lesson['HintWaitKey'].strip():
+            issues.append(path + ': missing string HintWaitKey')
+        if lesson.get('Mode') == 'pickpocket':
+            for key in ('HintCrouchKey', 'HintBehindKey', 'HintApproachKey', 'HintStrikeKey',
+                        'HintSeenKey', 'HintNoiseKey', 'HintBotchKey'):
+                if not isinstance(lesson.get(key), str) or not lesson[key].strip():
+                    issues.append(path + ': missing string ' + key)
         vectors = ['Position'] + (['Aim'] if lesson.get('Mode') == 'grapple' else [])
         for key in vectors:
             vector = lesson.get(key)
@@ -3301,7 +3317,7 @@ def story_lesson_issues(data, cast_ids):
             issues.append(path + ': pickpocket Item required')
         if 'Kit' in lesson and (not isinstance(lesson['Kit'], list) or any(not isinstance(x, str) or not x.strip() for x in lesson['Kit'])):
             issues.append(path + ': invalid Kit')
-        if lesson.get('Mode') == 'grapple':
+        if lesson.get('Mode') in ('grapple', 'grapple_demo'):
             kit = lesson.get('Kit')
             if not isinstance(kit, list) or len(kit) != 2 or any(not isinstance(x, str) or not x for x in kit) or len(set(kit)) != 2:
                 issues.append(path + ': two distinct Kit items required')
@@ -3320,6 +3336,12 @@ def check_lessons(module, problems, cast, en, cn):
     if issues:
         return
     items = known_items(_game_root(module))
+    trigger_ids = set()
+    for path in dialogue_paths(module):
+        definition = load_data_json(path) or {}
+        for trigger in definition.get('Triggers', []):
+            if isinstance(trigger, dict) and trigger.get('Id'):
+                trigger_ids.add(trigger['Id'])
     for lesson in lessons:
         for field, value in lesson.items():
             if field.endswith('Key') and (value not in en or value not in cn):
@@ -3327,6 +3349,12 @@ def check_lessons(module, problems, cast, en, cn):
         for item in lesson.get('Kit', []) + ([lesson['Item']] if lesson.get('Item') else []):
             if item not in items:
                 problems.append('lessons: unknown item ' + item)
+        done_trigger = lesson.get('DoneDialogueTrigger')
+        if done_trigger and done_trigger not in trigger_ids:
+            problems.append('lessons: unknown DoneDialogueTrigger ' + str(done_trigger))
+        demo_trigger = lesson.get('DemoDialogueTrigger')
+        if demo_trigger and demo_trigger not in trigger_ids:
+            problems.append('lessons: unknown DemoDialogueTrigger ' + str(demo_trigger))
     ids = {l['Id'] for l in lessons}
     for path in dialogue_paths(module):
         definition = load_data_json(path) or {}

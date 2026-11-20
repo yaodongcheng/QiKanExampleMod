@@ -114,6 +114,8 @@ namespace LivingWorldNpcs
                 End("entry node missing");
                 return false;
             }
+            // 原版对话会把血条 HUD 收起来；自建面板不启动引擎对话，得自己收（方案 A：只动显示层）。
+            MissionHudVisibility.SetVisible(false);
             DebugLogger.Log($"[StoryDialogueUI] opened npc={npcId ?? "-"} dialogue={session.Definition?.DialogueId ?? "-"} entry={script.EntryNode} nodes={script.Nodes.Count}");
             return true;
         }
@@ -214,6 +216,9 @@ namespace LivingWorldNpcs
             }
             _running = false;
             DebugLogger.Log($"[StoryDialogueUI] end reason={reason ?? "-"} node={_node?.Id ?? "-"}");
+
+            // 0) 先把血条 HUD 还回来（无论后面哪步抛异常，界面上都不能缺一块）。
+            MissionHudVisibility.SetVisible(true);
 
             // 1) 先把我们钉住的玩家放开（放在最前：后面任何一步抛异常都不能把玩家留着）。
             ReleasePlayerPin();

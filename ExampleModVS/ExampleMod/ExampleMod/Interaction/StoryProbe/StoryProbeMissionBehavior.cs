@@ -83,6 +83,8 @@ namespace LivingWorldNpcs
             return prepState;
         }
         private float _time;
+        // 委托必需物品的背包检查节流（0.5 秒一次，别每帧翻物品栏）。
+        private float _nextQuestItemCheck;
 
         /// <summary>P4 岗位规则调度（数据驱动质问者与流程）；没有正式 v2 数据时为空。</summary>
         private StoryPostDirector _posts;
@@ -287,6 +289,33 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>委托必需物品拿到手 = 目标达成（买 / 偷 / 打倒搜刮都算），与"目标倒下"走同一条收尾：
+        /// 任务日志记「回去交差」、屏幕目标跟着换。数据没配 QuestItemId 的委托不看这里。</summary>
+        private void ProcessQuestItemPickup()
+        {
+            if (_time < _nextQuestItemCheck) return;
+            _nextQuestItemCheck = _time + 0.5f;
+            var roster = Hero.MainHero?.PartyBelongedTo?.ItemRoster;
+            if (roster == null) return;
+            foreach (var def in StoryProbeDefs.Representatives)
+            {
+                if (string.IsNullOrEmpty(def.QuestItemId)) continue;
+                if (!StoryProbeState.IsQuestAccepted(def.Id) || StoryProbeState.IsQuestDone(def.Id)) continue;
+                var item = StoryProbeDefs.FindItem(def.QuestItemId);
+                if (item == null || roster.GetItemNumber(item) <= 0) continue;
+                StoryProbeState.CompleteQuest(def.Id);
+                if (!StoryProbeState.Data.QuestResolutions.ContainsKey(def.Id))
+                    StoryProbeState.Data.QuestResolutions[def.Id] = "item";
+                StoryProbeDialogue.ResolveCompletedQuestConflict(def.Id);
+                try { PrologueQuestLauncher.FindActive(def.Id)?.MarkObjectivesDone(); }
+                catch (Exception ex) { DebugLogger.Log($"[StoryProbe] quest item journal update failed: {ex.Message}"); }
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveCompound("LWN_story_narr_quest_done",
+                        "It's done. Go back and tell {NAME}.", ("NAME", NpcName(def.Id)))));
+                DebugLogger.Log($"[StoryProbe] quest '{def.Id}' item '{def.QuestItemId}' acquired -> ready to turn in");
+            }
+        }
+
         /// <summary>Agent → 剧情 NPC id（反查 _agents）。</summary>
         private string ResolveNpcIdOf(Agent agent)
         {
@@ -308,6 +337,7 @@ namespace LivingWorldNpcs
             _time += dt;
 
             ProcessPendingCombatResults();
+            ProcessQuestItemPickup();
 
             // 演出台本（布景 / 摆人 / 镜头 / 冻解玩家）——自己的时间轴，与剧本阶段无关
             try { _stage?.Tick(dt); }
@@ -2388,6 +2418,7 @@ namespace LivingWorldNpcs
                 _agents[npcId] = existing;
                 _postPositions[npcId] = pos;
                 ApplyStoryPersona(def, hero, existing);
+                ApplyCarryItems(def, existing);
                 return existing;
             }
 
@@ -2408,6 +2439,7 @@ namespace LivingWorldNpcs
                     _agents[npcId] = agent;
                     _postPositions[npcId] = pos;
                     ApplyStoryPersona(def, hero, agent);
+                    ApplyCarryItems(def, agent);
                     DebugLogger.Log($"[StoryProbe] spawned {npcId} hero={hero.StringId} agent={agent.Index} requested=({pos.x:F1},{pos.y:F1},{pos.z:F1}) actual={agent.Position} controller={agent.Controller}");
                 }
                 return agent;
@@ -2522,6 +2554,45 @@ namespace LivingWorldNpcs
             if (agent != null)
                 ReactiveAgent.ApplyPlan(agent, new ReactivePlan { Role = def.ReactiveRole, Personality = def.Personality });
             DebugLogger.Log($"[StoryProbe] persona applied: actor={def.Id} hero={hero.StringId} name={hero.Name} identity={memory?._profile?.IdentityOverride} role={def.ReactiveRole}");
+        }
+
+        /// <summary>
+        /// 出场携带物（Cast.CarryItems）：只填空武器槽，不覆盖已有装备。
+        /// 剧情道具/赃物必须真的在 NPC 身上，玩家才能用偷、击倒搜刮、买回三条路拿到。
+        /// </summary>
+        private static void ApplyCarryItems(StoryNpcDef def, Agent agent)
+        {
+            if (agent == null || def?.CarryItems == null || def.CarryItems.Length == 0) return;
+            var eq = agent.SpawnEquipment.Clone();
+            bool changed = false;
+            foreach (string id in def.CarryItems)
+            {
+                if (string.IsNullOrEmpty(id)) continue;
+                var item = StoryProbeDefs.FindItem(id);
+                if (item == null) { DebugLogger.Log("[StoryProbe] carry item missing: " + id); continue; }
+                // 已经被买走/偷走/搜刮过，或玩家已持有 ⇒ 不再补发（跨 Mission 不刷新赃物）。
+                if (StoryProbeState.HasAsked("carry", def.Id + ":" + id)) continue;
+                var playerRoster = Hero.MainHero?.PartyBelongedTo?.ItemRoster;
+                if (playerRoster != null && playerRoster.GetItemNumber(item) > 0)
+                {
+                    StoryProbeState.MarkAsked("carry", def.Id + ":" + id);
+                    continue;
+                }
+                bool already = false;
+                for (int i = 0; i < 12; i++) if (eq[(EquipmentIndex)i].Item == item) { already = true; break; }
+                if (already) continue;
+                int slot = -1;
+                for (int i = 0; i < 4; i++) if (eq[(EquipmentIndex)i].IsEmpty) { slot = i; break; }
+                if (slot < 0) { DebugLogger.Log("[StoryProbe] carry slot unavailable for " + id); continue; }
+                eq[(EquipmentIndex)slot] = new EquipmentElement(item);
+                // 剧情必需道具：登记优先槽位，偷窃盲盒先摸它（不让随机把玩家卡在无关装备上）。
+                StealManager.RegisterPrioritySlot(agent, (EquipmentIndex)slot);
+                changed = true;
+            }
+            if (!changed) return;
+            agent.UpdateSpawnEquipmentAndRefreshVisuals(eq);
+            agent.UpdateAgentStats();
+            DebugLogger.Log("[StoryProbe] carry items applied: actor=" + def.Id + " items=" + string.Join(",", def.CarryItems));
         }
 
         /// <summary>模板查找：两轮策略（铁律 5）。</summary>
@@ -2660,18 +2731,27 @@ namespace LivingWorldNpcs
         public void SayOnAgent(Agent agent, string key, string fallback, SpeechPriority priority = SpeechPriority.Chat,
             Agent listener = null, bool forwardToNearby = false, bool selfTalk = false)
         {
-            if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
+            SayOnAgentText(agent, LWNTextHelper.ResolveText(key, fallback), priority, listener, forwardToNearby, selfTalk);
+        }
+
+        /// <summary>台词已经是解析好的成品（含键位图标等运行期变量）时走这里，避免再按 key 解析把占位符漏出来。
+        /// unbound=true：这句不是演出里的台词（教学提示、收尾话），**不绑定当前 PerformanceAction**。
+        /// 绑定的后果（2026-11-20 实机）：台词入队时演出还在，排队到租约释放后才轮到播放，
+        /// SpeechChannel 的「晚到的旧演出台词不进入新动作」规则就把它静默丢掉——小六的完成话一句没说出来。</summary>
+        public void SayOnAgentText(Agent agent, string text, SpeechPriority priority = SpeechPriority.Chat,
+            Agent listener = null, bool forwardToNearby = false, bool selfTalk = false, bool unbound = false)
+        {
+            if (agent == null || !AgentControlHelper.SafeIsActive(agent) || string.IsNullOrEmpty(text)) return;
             try
             {
                 listener = selfTalk ? null : listener ?? Agent.Main;
                 if (!selfTalk && (!AgentControlHelper.SafeIsActive(listener) || listener == agent || listener.Health <= 0f)) return;
-                SpeechChannel.Say(agent, LWNTextHelper.ResolveText(key, fallback), priority,
-                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), listener,
-                        selfTalk ? "story-self-talk" : "story", null, listener),
-                    0f, forwardToNearby);
-
+                var context = SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), listener,
+                    selfTalk ? "story-self-talk" : "story", null, listener);
+                if (unbound) context.Performance = null;
+                SpeechChannel.Say(agent, text, priority, context, 0f, forwardToNearby);
             }
-            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] SayOnAgent failed: {ex.Message}"); }
+            catch (Exception ex) { DebugLogger.Log($"[StoryProbe] SayOnAgentText failed: {ex.Message}"); }
         }
 
         /// <summary>演出层/台本级用途：把回调排到 `delay` 秒后（`Schedule` 的公开版）。</summary>
@@ -3263,6 +3343,9 @@ namespace LivingWorldNpcs
                                              && !StoryProbeState.IsQuestTurnedIn(d.Id));
                     if (job != null && !string.IsNullOrEmpty(job.QuestLogKey))
                     {
+                        // 委托配了详情就显示详情（写清要做什么），否则回落「标题——去找谁」。
+                        if (!string.IsNullOrEmpty(job.QuestObjectiveKey))
+                            return LWNTextHelper.ResolveText(job.QuestObjectiveKey, job.Id);
                         string title = LWNTextHelper.ResolveText(job.QuestLogKey, job.Id);
                         string target = string.IsNullOrEmpty(job.QuestTargetNpcId)
                             ? "" : StoryProbeMissionBehavior.NpcName(job.QuestTargetNpcId);

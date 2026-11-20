@@ -4859,11 +4859,14 @@
     <string id="LWN_story_son_ask_climb_2" text="They hurt this hand and it cannot grip a rope for a climb, but the other can still throw, so I can demonstrate while the climbing is yours." />
     <string id="LWN_story_son_ask_sister" text="Last month I saw two dock gang men taking a girl in blue along the lane at night; I was on a roof and she had a cloth in her mouth." />
     <string id="LWN_story_son_ask_sister_2" text="I was stealing something and didn&#x27;t dare call out; I only saw them heading towards the private warehouse inside the west gate." />
-    <string id="LWN_story_son_deal" text="Get the gang by the wall to leave me alone and you can have my spare hook and lock tools, no use to me until this hand heals — the hook gets you over a wall, the picks get you through a lock, both handwork." />
+    <string id="LWN_story_son_deal" text="Du Ye took my hook and hurt my hand; get it back for me and I can still give you rope and lockpicks — picks open doors, but rope and hook get you over a wall." />
+    <string id="LWN_story_quest_son_objective" text="Du Ye took Xiaoliu's grappling hook and hurt his hand — get it back from him by buying it, fighting for it, or stealing it." />
+    <string id="LWN_story_son_stealth_done_auto" text="Your hand is steady now and you know where the gaps are." />
+    <string id="LWN_story_son_stealth_done_auto_part1" text="Practising on me proves nothing — the man who matters is out by the granary, so let me tell you how to get past him." />
     <string id="LWN_story_son_deal_why" text="My hand&#x27;s too swollen to hold a hook and there are several of them; going back will just get the other one broken." />
     <string id="LWN_story_son_deal_refuse" text="Then leave it; I&#x27;ll find someone else, though you can still ask about other things." />
     <string id="LWN_story_son_quest_accept" text="Their leader&#x27;s at outside the granary; get him to stop robbing me, then come back for the tools." />
-    <string id="LWN_story_son_turnin" text="Will that robber at the wall steal from me again?" />
+    <string id="LWN_story_son_turnin" text="That hook in your hand... where did you get it?" />
     <string id="LWN_story_son_turnin_ok" text="You earned the hook, rope and lockpick kit; I will remember that you got my tools back, too." />
     <string id="LWN_story_son_chat" text="My mother heard you&#x27;d helped with the tools; she told me not to learn any dangerous tricks from you." />
     <string id="LWN_story_son_chat_2" text="Crouch behind him and wait for him to look away before passing; if you&#x27;re taking his blade, check for other eyes first." />
@@ -5032,7 +5035,7 @@
     <string id="LWN_story_rival_fight" text="Pick a fight where we perform and you can face me!" />
     <string id="LWN_story_rival_opt_sign" text="That sign looks old; has it been in your family long?" />
     <string id="LWN_story_rival_opt_fight" text="You want to settle this with fists? Try me." />
-    <string id="LWN_story_outlaw_entry" text="[Say a word] You lot camp right under the wall?" />
+    <string id="LWN_story_outlaw_entry" text="[Say a word] You lot camp right outside the granary?" />
     <string id="LWN_story_outlaw_intro" text="Keep your hands off the things here; who are you looking for?" />
     <string id="LWN_story_outlaw_hub" text="Say your piece and go; don&#x27;t block the way." />
     <string id="LWN_story_outlaw_talk" text="The boy by the wall can&#x27;t keep hold of his things, but he knows how to find help; how do you plan to get them back?" />
@@ -5055,7 +5058,7 @@
     <string id="LWN_faction_dockhands" text="The Dockhands" />
     <string id="LWN_story_quest_pawnbroker_title" text="Old Zhou&#x27;s Accounts" />
     <string id="LWN_story_quest_widow_title" text="The Dispute Between the Troupes" />
-    <string id="LWN_story_quest_son_title" text="The Thieves at the Wall" />
+    <string id="LWN_story_quest_son_title" text="Get Xiaoliu's Hook Back" />
     <string id="LWN_story_quest_butcher_title" text="The Man Who Broke the Stall" />
     <string id="LWN_story_menu_enter" text="Enter the town (playtest)" />
     <string id="LWN_story_intro_inquiry_title" text="The Gate" />
@@ -5184,7 +5187,7 @@
     <string id="LWN_story_widow_opt_money" text="Sixty denars for two honest words." />
     <string id="LWN_story_widow_opt_pay" text="How did that girl really look going in?" />
     <string id="LWN_story_son_opt_money" text="[Slip him coins] Forty denars for a straight tip." />
-    <string id="LWN_story_son_opt_pay" text="[Pay] Your price, tools and lesson included." />
+    <string id="LWN_story_son_opt_pay" text="[Pay] Your price; teach me to use the hook." />
     <string id="LWN_story_butcher_opt_money" text="This coin buys me a word." />
     <string id="LWN_story_money_pawnbroker" text="Ironhead at the gate owes the gambling den three months of interest.
 (Old Zhou, Player): He fears losing his post more than he fears a knife." />
@@ -5477,7 +5480,7 @@
     <string id="LWN_story_son_learn_opt_beam_price" text="Show me which part of the beam can hold the hook." />
     <string id="LWN_story_son_learn_lock_1" text="Feel for the layers in the lock, hold one steady and work on the next; forcing it won&#x27;t help." />
     <string id="LWN_story_son_learn_lock_2" text="Opening someone else&#x27;s lock will get you in trouble; practise on my old chest before trying a shopkeeper&#x27;s cupboard." />
-    <string id="LWN_story_son_business_hub" text="This finger still hurts and the men by the wall keep taking my things; will you go and see them for me?" />
+    <string id="LWN_story_son_business_hub" text="My hand still hurts and Du Ye's lot keep taking my things; will you go and see them for me?" />
     <string id="LWN_story_butcher_lesson_opt_methods" text="The man at the gate bars my way; teach me a trick or two." />
     <string id="LWN_story_hint_butcher_lesson_methods" text="Ask Da Shan about combat, intimidation and close restraint." />
     <string id="LWN_story_butcher_lesson_opt_business" text="Tell me about your stall." />
@@ -5558,7 +5561,7 @@
     <string id="LWN_story_widow_playerhelp" text="I need someone to get the rival leader to clear our path; I offer a costume, a charm and advice for talking to the guard." />
     <string id="LWN_story_son_goal" text="I want my patch and tools safe so I can earn again when my hand heals." />
     <string id="LWN_story_son_trouble" text="My swollen finger cannot grip a rope, and going back might get my other hand hurt too." />
-    <string id="LWN_story_son_playerhelp" text="I need someone to make the gang by the granary leave me alone; I offer spare climbing and lock tools, and show how to use them." />
+    <string id="LWN_story_son_playerhelp" text="I need someone to make the gang by the granary leave me alone and get my hook back; I can give rope, lockpicks and a lesson in return." />
     <string id="LWN_story_butcher_goal" text="I want the stall safe, an apprentice and no part in trafficking people." />
     <string id="LWN_story_butcher_trouble" text="Ma Heng wrecks the stall and has scared off my apprentice; using a knife would give the gang an excuse for reprisals." />
     <string id="LWN_story_butcher_playerhelp" text="I need an outsider to make Ma Heng stop; I offer equipment, a rope and a knife, and teach stance and force." />
@@ -5666,7 +5669,7 @@
     <string id="LWN_story_son_stealth_start_hint" text="Start the optional stealth and pickpocket exercise. Follow Xiaoliu and use the existing minigame behind him. Failures can be retried; taking anyone else&#x27;s possessions remains theft." />
     <string id="LWN_story_son_stealth_offer" text="Just this practice knife; leave my purse alone." />
     <string id="LWN_story_son_stealth_depart" text="Come on, let us do this away from Luo Tie, and tell me if you want to stop." />
-    <string id="LWN_story_son_opt_pay_hint" text="Pay 40 denars for the rope, hook and optional hands-on lesson. Charged once." />
+    <string id="LWN_story_son_opt_pay_hint" text="Pay 40 denars for the lesson and a rope; bring your own hook. Charged once." />
     <string id="LWN_story_son_grapple_earned" text="I recovered your tools. Teach me how to use them." />
     <string id="LWN_story_son_grapple_earned_hint" text="Continue this topic." />
     <string id="LWN_story_son_grapple_paid" text="I bought the tools. Teach me how to use them." />
@@ -5688,16 +5691,17 @@
     <string id="LWN_story_son_practice_cancelled" text="All right, I will go back to my box; find me when you want to practise again, and I will not charge you twice." />
     <string id="LWN_story_practice_stealth_dagger_title" text="Practice with Xiaoliu" />
     <string id="LWN_story_practice_stealth_dagger_follow" text="Follow Xiaoliu to the foot of the wall to the southwest. Talk to him to retry or stop." />
-    <string id="LWN_story_practice_stealth_dagger_ready" text="My back is turned. Step away, crouch, and approach behind me within two paces. Choose Pickpocket in the interaction list, then use the attempt button when the cursor enters the effective zone. Take only the little knife." />
+    <string id="LWN_story_practice_stealth_dagger_ready" text="My back is turned. Step away, press {CROUCH} to crouch, and approach behind me within two paces. Press {ACTION} to open the interaction list and choose Pickpocket, then use the attempt button when the cursor enters the effective zone. Take only the little knife." />
     <string id="LWN_story_practice_stealth_dagger_retry" text="Stop. I saw you or heard heavy feet. Step back, wait until I look away, then crouch and circle behind me. Take your time before reaching." />
     <string id="LWN_story_practice_stealth_dagger_done" text="You really took it. Good! Keep it. The same idea works on Luo Tie, but he never agreed to practise; if he catches you, there will be consequences." />
+    <string id="LWN_story_practice_stealth_dagger_next" text="Find Du Ye and get his hook back." />
     <string id="LWN_story_practice_stealth_dagger_cancel" text="Let us stop here. Leave the knife if it is still on my belt. Find me when you want to try again." />
     <string id="LWN_story_practice_grapple_wall_title" text="Xiaoliu&#x27;s grappling lesson" />
-    <string id="LWN_story_practice_grapple_wall_follow" text="Follow Xiaoliu to the low wall to the west and watch his throw. Have the rope and hook ready. Talk to retry or stop." />
-    <string id="LWN_story_practice_grapple_wall_ready" text="Use the top of the low wall where my hook caught. Equip the rope and hook in empty weapon slots, wield the rope, aim at that spot and fire. Let it pull you to a landing. Release a bad throw and try again; do not throw at people." />
-    <string id="LWN_story_practice_grapple_wall_retry" text="You finished that pull, but the hook caught elsewhere. Release it and aim at the top of the low wall again." />
-    <string id="LWN_story_practice_grapple_wall_done" text="Your feet are safely down. A high wall is the same: check the hook and check the landing. Luo Tie can look up. One trick does not make you invincible." />
-    <string id="LWN_story_practice_grapple_wall_cancel" text="We will stop for now. I will go back to my box. Keep the tools; there is no second lesson fee." />
+    <string id="LWN_story_practice_grapple_wall_follow" text="Follow Xiaoliu to the foot of the west wall and watch how he gets up. Talk to retry or stop." />
+    <string id="LWN_story_practice_grapple_wall_ready" text="Watch closely: hook that point and pull yourself up. Here are the rope and hook; put them in empty weapon slots, wield the rope, and do the same." />
+    <string id="LWN_story_practice_grapple_wall_retry" text="You missed. Pull it back and aim where I showed you." />
+    <string id="LWN_story_practice_grapple_wall_done" text="There you are, up top. Remember this way; Luo Tie can stand at the gate all he likes." />
+    <string id="LWN_story_practice_grapple_wall_cancel" text="Come down for now; find me when you want to try again." />
     <string id="LWN_story_son_money_open_part1" text="A grappling rope." />
     <string id="LWN_story_son_money_open_part2" text="Catch it on something high and climb up, without going near Luo Tie." />
     <string id="LWN_story_son_money_open_part3" text="Forty denars buys a spare set and a lesson in throwing the hook and finding a landing." />
@@ -5728,8 +5732,8 @@
     <string id="LWN_story_son_learn_steal_2_review_reply" text="You did take the knife earlier; bring the same patience when you face Luo Tie." />
     <string id="LWN_story_practice_stealth_dagger_FollowObjectiveKey" text="Follow Xiaoliu to the foot of the wall to the southwest; talk to stop." />
     <string id="LWN_story_practice_stealth_dagger_PracticeObjectiveKey" text="Crouch behind Xiaoliu and pickpocket the practice dagger." />
-    <string id="LWN_story_practice_grapple_wall_FollowObjectiveKey" text="Follow Xiaoliu to the low wall to the west; talk to stop." />
-    <string id="LWN_story_practice_grapple_wall_PracticeObjectiveKey" text="Equip rope and hook, aim at the demonstrated wall top, and finish a pull and landing." />
+    <string id="LWN_story_practice_grapple_wall_FollowObjectiveKey" text="Follow Xiaoliu to the foot of the west wall; talk to stop." />
+    <string id="LWN_story_practice_grapple_wall_PracticeObjectiveKey" text="Grapple up the wall the way Xiaoliu showed you." />
     <string id="LWN_story_son_grapple_review_ask" text="I&#x27;ve practised with the hook. What should I watch for at the gate?" />
     <string id="LWN_story_son_grapple_review_hint" text="Ask Xiaoliu what to watch for when crossing the wall." />
     <string id="LWN_story_son_grapple_review" text="Check that the hook is secure and there&#x27;s somewhere to stand before you climb; one good try doesn&#x27;t mean you should throw it at every high wall." />
@@ -5888,5 +5892,53 @@
     <string id="LWN_story_conflict_gate_push" text="{OPPONENT} would not show papers and kept pushing for the gate; {INITIATOR} means to stop him." />
     <string id="LWN_story_conflict_gate_threat" text="{OPPONENT} threatened the gatekeeper to his face; {INITIATOR} is not letting him walk away." />
     <string id="LWN_story_conflict_gate_disguise" text="{OPPONENT} tried to pass the gate in an actor&#x27;s clothes under a false name; {INITIATOR} saw through it." />
+    <string id="LWN_story_son_opt_hook_give" text="I got it back from Du Ye. Here." />
+    <string id="LWN_story_hint_son_opt_hook_give" text="Hand the hook to Xiaoliu; he will then show you how to grapple up the west wall." />
+    <string id="LWN_story_son_hook_back" text="It really is mine…" />
+    <string id="LWN_story_son_hook_demo_done" text="The rope and hook are in my hands now; if you want to climb it yourself, you will have to pay me something for them." />
+    <string id="LWN_story_son_opt_hook_buy" text="[Pay] Fifty denars, I'll buy them back." />
+    <string id="LWN_story_hint_son_opt_hook_buy" text="Pay 50 denars to get the hook and rope (fallback when favors are short)." />
+    <string id="LWN_story_son_opt_hook_take" text="[Favor] Take it out of what you owe me — hand me the hook." />
+    <string id="LWN_story_hint_son_opt_hook_take" text="Spend 2 favors to get the hook and rope." />
+    <string id="LWN_story_son_opt_hook_later" text="Not yet. Let me think about it." />
+    <string id="LWN_story_hint_son_opt_hook_later" text="Leave; you can come back for it later." />
+    <string id="LWN_story_son_hook_demo_buy" text="Coin taken — take the gear." />
+    <string id="LWN_story_son_hook_demo_handover" text="Steady now — up you go." />
+    <string id="LWN_coop_favor_hook_lesson" text="Spent a favor to take the hook and rope for practice." /> text="It really is mine..." />
+    <string id="LWN_story_son_hook_demo_depart" text="Follow me, and keep your distance." />
+    <string id="LWN_story_outlaw_hook_price" text="Fifty." />
+    <string id="LWN_story_outlaw_hook_sold" text="Done, the hook is yours." />
+    <string id="LWN_story_outlaw_hook_refused" text="If it is too dear, go take it yourself; do not waste my time." />
+    <string id="LWN_story_outlaw_opt_hook_price" text="That hook you took from Xiaoliu. I will buy it back." />
+    <string id="LWN_story_outlaw_opt_hook_price_hint" text="Ask his price first; decide after he names it." />
+    <string id="LWN_story_outlaw_opt_hook_pay" text="[Pay] Fifty. The hook is mine." />
+    <string id="LWN_story_outlaw_opt_hook_pay_hint" text="Pay 50 denars and take the hook from him." />
+    <string id="LWN_story_outlaw_opt_hook_haggle" text="An old hook is not worth fifty." />
+    <string id="LWN_story_outlaw_opt_hook_haggle_hint" text="Try to haggle; he will not budge." />
+    <string id="LWN_story_practice_stealth_dagger_greet" text="This is far enough. Circle behind me, crouch, and keep out of my sight; practise on the little knife on my belt." />
+    <string id="LWN_story_practice_stealth_dagger_hint_crouch" text="Crouch first - press {CROUCH}. I will hear you if you walk up standing." />
+    <string id="LWN_story_practice_stealth_dagger_hint_behind" text="Do not stop at my side; get directly behind me." />
+    <string id="LWN_story_practice_stealth_dagger_hint_approach" text="Right direction. Move closer, within two paces behind me." />
+    <string id="LWN_story_practice_stealth_dagger_hint_strike" text="Now. Press {ACTION} for the interaction list and choose Pickpocket; click when the cursor is in the bright zone." />
+    <string id="LWN_story_practice_stealth_dagger_hint_seen" text="Ah, I saw you. Step back and wait until I look away again." />
+    <string id="LWN_story_practice_stealth_dagger_hint_noise" text="Too much noise. Crouch and creep; do not run." />
+    <string id="LWN_story_practice_stealth_dagger_hint_botch" text="Your hand slipped, did it? I did not notice. Steady yourself and try again when I relax." />
+    <string id="LWN_story_practice_stealth_dagger_hint_wait" text="Easy; I have not settled yet. Speak to me to retry or stop." />
+    <string id="LWN_story_practice_grapple_wall_greet" text="Here we are. Stand there and watch; I will throw once so you see where the hook lands." />
+    <string id="LWN_story_practice_grapple_wall_hint_wait" text="Easy; I am not ready yet. Speak to me to retry or stop." />
+    <string id="LWN_story_practice_grapple_demo_title" text="Xiaoliu&#x27;s grapple" />
+    <string id="LWN_story_practice_grapple_demo_follow" text="Follow Xiaoliu to the foot of the west wall and watch how he gets up." />
+    <string id="LWN_story_practice_grapple_demo_greet" text="Stand here, not too close. Watch me throw once." />
+    <string id="LWN_story_practice_grapple_demo_hint_wait" text="Stay quiet. Watch where I throw and where I put my feet." />
+    <string id="LWN_story_practice_grapple_demo_ready" text="Watch closely: hook that point and pull yourself up. Here are the rope and hook; put them in empty weapon slots, wield the rope, and do the same." />
+    <string id="LWN_story_practice_grapple_demo_retry" text="You missed. Pull it back and aim where I showed you." />
+    <string id="LWN_story_practice_grapple_demo_done" text="There you are, up top. Remember this way; Luo Tie can stand at the gate all he likes." />
+    <string id="LWN_story_practice_grapple_demo_cancel" text="Come down for now; find me when you want to try again." />
+    <string id="LWN_story_practice_grapple_demo_FollowObjectiveKey" text="Follow Xiaoliu to the foot of the west wall" />
+    <string id="LWN_story_practice_grapple_demo_PracticeObjectiveKey" text="Grapple up the wall the way Xiaoliu showed you" />
+    <string id="LWN_story_son_hook_back_2" text="My hand is still bad, but I can throw it once for you." />
+    <string id="LWN_story_son_hook_back_3" text="Come to the foot of the west wall." />
+    <string id="LWN_story_outlaw_hook_price_2" text="Not a coin less; if you cannot pay, leave." />
+    <string id="LWN_story_outlaw_hook_sold_2" text="Do not expect me to settle any other account." />
 </strings>
 </base>

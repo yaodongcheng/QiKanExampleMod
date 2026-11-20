@@ -235,11 +235,53 @@ namespace LivingWorldNpcs
         // ----------------------------------------------------------------
         // 1. 辅助方法：从 NPC 身上随机找一件装备的槽位 (用于“摸索”阶段)
         // ----------------------------------------------------------------
+        /// <summary>剧情必需道具（Cast.CarryItems）登记在这里：盲盒优先摸它，不让无关装备把玩家卡住。</summary>
+        private static readonly ConditionalWeakTable<Agent, HashSet<EquipmentIndex>> _prioritySlots
+            = new ConditionalWeakTable<Agent, HashSet<EquipmentIndex>>();
+
+        /// <summary>登记「剧情必需道具」槽位（剧情 NPC 发放 CarryItems 时调用）。</summary>
+        public static void RegisterPrioritySlot(Agent agent, EquipmentIndex slot)
+        {
+            if (agent == null) return;
+            var slots = _prioritySlots.GetOrCreateValue(agent);
+            lock (slots) slots.Add(slot);
+        }
+
+        /// <summary>注销优先槽位（道具已被拿走、或课程收走时）。</summary>
+        public static void ClearPrioritySlot(Agent agent, EquipmentIndex slot)
+        {
+            if (agent == null || !_prioritySlots.TryGetValue(agent, out var slots)) return;
+            lock (slots) slots.Remove(slot);
+        }
+
+        /// <summary>这名目标身上此刻是否还有未拿走的剧情必需道具（钱袋不该抢在它前面）。</summary>
+        public static bool HasPrioritySlot(Agent agent)
+        {
+            if (agent == null || !_prioritySlots.TryGetValue(agent, out var slots)) return false;
+            lock (slots)
+            {
+                foreach (var slot in slots)
+                    if (!agent.SpawnEquipment[slot].IsEmpty) return true;
+            }
+            return false;
+        }
+
         public static EquipmentIndex? GetRandomStealableItemIndex(Agent agent)
         {
             if (agent == null) return null;
             var practice = StoryProbeMissionBehavior.Current?.ExistingPractice;
             if (practice?.IsPracticeTarget(agent) == true) return practice.PracticeSlot(agent);
+
+            // 🔴 剧情必需道具优先（2026-11-20 用户裁定）：只要它还在这人身上，盲盒就先摸它。
+            //    否则玩家为了一件剧情道具要反复随机，可能先把对方的刀甲摸光（既拖节奏又打草惊蛇）。
+            if (_prioritySlots.TryGetValue(agent, out var priority))
+            {
+                lock (priority)
+                {
+                    foreach (var slot in priority)
+                        if (!agent.SpawnEquipment[slot].IsEmpty) return slot;
+                }
+            }
 
             List<EquipmentIndex> validIndices = new List<EquipmentIndex>();
 

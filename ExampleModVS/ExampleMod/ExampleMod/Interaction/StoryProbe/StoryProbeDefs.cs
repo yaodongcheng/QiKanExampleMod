@@ -65,7 +65,13 @@ namespace LivingWorldNpcs
         public float OffsetRight;
 
         public string QuestTargetNpcId; // 委托仇家（null = 无委托）
+        /// <summary>委托详情文案键（任务 HUD / 任务日志里那句「要做什么」；空 = 用标题 + 目标名的兜底模板）。</summary>
+        public string QuestObjectiveKey;
+        /// <summary>委托必需物品：玩家背包拿到它 = 目标达成（买/偷/打倒搜刮都算）；空 = 只认「打倒目标」。</summary>
+        public string QuestItemId;
         public string[] RewardItems;    // 交差奖励物品 id
+        /// <summary>出场时带在身上的物品（只填空武器槽，不改已有装备）；剧情道具/赃物的来源。</summary>
+        public string[] CarryItems;
         public string QuestLogKey;      // 任务日志标题键
         public string AttrItemId;       // 随身属性道具（偷到 +1 技能）
         public string AttrSkill;        // 对应技能（Charm / Roguery / Vigor / OneHanded / Trade）

@@ -104,7 +104,7 @@ namespace LivingWorldNpcs
                 bool selectable = DialogueInjector.IsTransitionSelectable(transition);
                 Options.Add(new StoryDialogueOptionVM(
                     i,
-                    (i + 1) + ". " + DialogueInjector.GetTransitionText(transition),
+                    DialogueInjector.GetTransitionText(transition),
                     DialogueInjector.GetTransitionHint(transition),
                     selectable));
             }

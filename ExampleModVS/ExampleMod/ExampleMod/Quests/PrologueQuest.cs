@@ -36,8 +36,15 @@ namespace LivingWorldNpcs
         private string TargetText()
             => string.IsNullOrEmpty(_targetNpcId) ? "" : StoryProbeMissionBehavior.NpcName(_targetNpcId);
 
+        /// <summary>委托详情（任务 HUD / 任务日志里「要做什么」）；数据没配就回落到「标题——去找谁」。</summary>
+        private string DetailText()
+        {
+            string key = StoryProbeDefs.GetNpc(_npcId)?.QuestObjectiveKey;
+            return string.IsNullOrEmpty(key) ? null : LWNTextHelper.ResolveText(key, TitleText());
+        }
+
         private TextObject ObjectiveText()
-            => new TextObject(LWNTextHelper.ResolveCompound("LWN_story_goal_quest_named",
+            => new TextObject(DetailText() ?? LWNTextHelper.ResolveCompound("LWN_story_goal_quest_named",
                 ("TASK", TitleText()), ("TARGET", TargetText())));
 
         // ── IssueBase 抽象成员 ──
@@ -128,6 +135,17 @@ namespace LivingWorldNpcs
         private string GiverText()
             => string.IsNullOrEmpty(_npcId) ? "" : StoryProbeMissionBehavior.NpcName(_npcId);
 
+        /// <summary>委托详情（任务日志里「要做什么」）；数据没配就回落「标题——去找谁」。</summary>
+        private string DetailText()
+        {
+            string key = StoryProbeDefs.GetNpc(_npcId)?.QuestObjectiveKey;
+            return string.IsNullOrEmpty(key) ? null : LWNTextHelper.ResolveText(key, Title.ToString());
+        }
+
+        private TextObject ObjectiveText()
+            => new TextObject(DetailText() ?? LWNTextHelper.ResolveCompound("LWN_story_goal_quest_named",
+                ("TASK", Title.ToString()), ("TARGET", TargetText())));
+
         public string NpcId => _npcId;
         public bool ObjectivesDone => _objectivesDone;
 
@@ -138,8 +156,7 @@ namespace LivingWorldNpcs
 
         protected override void OnStartQuest()
         {
-            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_story_goal_quest_named",
-                ("TASK", Title.ToString()), ("TARGET", TargetText()))));
+            AddLog(ObjectiveText());
             DebugLogger.Log($"[PrologueQuest] start {StringId} giver={_npcId} target={_targetNpcId}");
         }
 

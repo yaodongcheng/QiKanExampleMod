@@ -13,6 +13,16 @@
     "SightMeters": 5,
     "TimeoutSec": 300,
     "AimTolerance": 2,
+    "GreetKey": "LWN_story_practice_stealth_dagger_greet",
+    "HintCrouchKey": "LWN_story_practice_stealth_dagger_hint_crouch",
+    "HintBehindKey": "LWN_story_practice_stealth_dagger_hint_behind",
+    "HintApproachKey": "LWN_story_practice_stealth_dagger_hint_approach",
+    "HintStrikeKey": "LWN_story_practice_stealth_dagger_hint_strike",
+    "HintSeenKey": "LWN_story_practice_stealth_dagger_hint_seen",
+    "HintNoiseKey": "LWN_story_practice_stealth_dagger_hint_noise",
+    "HintBotchKey": "LWN_story_practice_stealth_dagger_hint_botch",
+    "HintWaitKey": "LWN_story_practice_stealth_dagger_hint_wait",
+    "DoneDialogueTrigger": "practice_done",
     "DoneFlag": "lesson_stealth_done",
     "FollowKey": "LWN_story_practice_stealth_dagger_follow",
     "ReadyKey": "LWN_story_practice_stealth_dagger_ready",
@@ -25,34 +35,61 @@
   },
   {
     "Id": "grapple_wall",
-    "Mode": "grapple",
+    "Mode": "grapple_demo",
     "Actor": "son",
     "TitleKey": "LWN_story_practice_grapple_wall_title",
     "Position": [
-      414,
-      418,
-      73.02
+      433.58,
+      399.35,
+      74.09
     ],
-    "FacingDegrees": 180,
+    "FacingDegrees": 94.7,
     "SightMeters": 5,
     "TimeoutSec": 300,
     "AimTolerance": 2,
+    "GreetKey": "LWN_story_practice_grapple_wall_greet",
+    "HintWaitKey": "LWN_story_practice_grapple_wall_hint_wait",
     "DoneFlag": "lesson_grapple_done",
     "FollowKey": "LWN_story_practice_grapple_wall_follow",
     "ReadyKey": "LWN_story_practice_grapple_wall_ready",
     "RetryKey": "LWN_story_practice_grapple_wall_retry",
     "DoneKey": "LWN_story_practice_grapple_wall_done",
     "CancelKey": "LWN_story_practice_grapple_wall_cancel",
-    "Aim": [
-      410.55,
-      417.8,
-      74.1
-    ],
     "Kit": [
       "lwn_grapple_rope",
       "lwn_grapple_hook"
     ],
     "FollowObjectiveKey": "LWN_story_practice_grapple_wall_FollowObjectiveKey",
     "PracticeObjectiveKey": "LWN_story_practice_grapple_wall_PracticeObjectiveKey"
+  },
+  {
+    "Id": "grapple_demo",
+    "Mode": "grapple_demo",
+    "Actor": "son",
+    "TitleKey": "LWN_story_practice_grapple_demo_title",
+    "Position": [
+      433.58,
+      399.35,
+      74.09
+    ],
+    "FacingDegrees": 94.7,
+    "SightMeters": 5,
+    "TimeoutSec": 300,
+    "AimTolerance": 2.5,
+    "GreetKey": "LWN_story_practice_grapple_demo_greet",
+    "HintWaitKey": "LWN_story_practice_grapple_demo_hint_wait",
+    "DoneFlag": "lesson_grapple_demo_done",
+    "FollowKey": "LWN_story_practice_grapple_demo_follow",
+    "ReadyKey": "LWN_story_practice_grapple_demo_ready",
+    "RetryKey": "LWN_story_practice_grapple_demo_retry",
+    "DoneKey": "LWN_story_practice_grapple_demo_done",
+    "CancelKey": "LWN_story_practice_grapple_demo_cancel",
+    "Kit": [
+      "lwn_grapple_rope",
+      "lwn_grapple_hook"
+    ],
+    "FollowObjectiveKey": "LWN_story_practice_grapple_demo_FollowObjectiveKey",
+    "PracticeObjectiveKey": "LWN_story_practice_grapple_demo_PracticeObjectiveKey",
+    "DemoDialogueTrigger": "grapple_demo_ready"
   }
 ]

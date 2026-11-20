@@ -4,7 +4,7 @@
   "DialogueId": "story_outlaw",
   "ContentVersion": 9,
   "EntryOption": "LWN_story_outlaw_entry",
-  "EntryOptionZh": "[说两句] 你们这帮人就窝在墙根底下？",
+  "EntryOptionZh": "[说两句] 你们这帮人就窝在粮仓外头？",
   "SkipVanillaOpening": true,
   "Participants": [
     "npc",
@@ -90,33 +90,6 @@
           "Listener": "npc"
         },
         {
-          "Id": "settle",
-          "PlayerKey": "LWN_story_outlaw_opt_settle",
-          "PlayerKeyZh": "[劝说] 他靠钩索吃饭，手又伤着，别再抢他的东西、找他的麻烦了。",
-          "HintKey": "LWN_story_hint_outlaw_opt_settle",
-          "HintKeyZh": "成功：他归还工具｜失败：他不松口",
-          "Requires": ["clue:son_tools"],
-          "Effects": [
-            {
-              "Id": "mark",
-              "Params": {
-                "flag": "attempt_LWN_story_outlaw_opt_settle"
-              },
-              "Commit": "on_select",
-              "Receipt": "once"
-            }
-          ],
-          "Check": {
-            "Tactic": "Coerce",
-            "Target": "outlaw",
-            "Success": "outlaw_settled",
-            "Fail": "outlaw_settle_refused",
-            "Capability": "Persuade"
-          },
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
           "Id": "ask",
           "PlayerKey": "LWN_story_outlaw_opt_ask",
           "PlayerKeyZh": "你们昨天抢了墙头那个半大孩子的飞钩，还伤了人。",
@@ -134,27 +107,6 @@
             }
           ],
           "NextNode": "outlaw_talk",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "fight",
-          "PlayerKey": "LWN_story_outlaw_opt_fight",
-          "PlayerKeyZh": "你要靠拳头讲理，那就来。",
-          "HintKey": "LWN_story_hint_outlaw_opt_fight",
-          "HintKeyZh": "直接与野贼开战。",
-          "Requires": ["clue:son_tools"],
-          "Effects": [
-            {
-              "Id": "start_fight",
-              "Params": {
-                "target": "outlaw"
-              },
-              "Commit": "on_select",
-              "Receipt": "never"
-            }
-          ],
-          "NextNode": "outlaw_fight",
           "Speaker": "player",
           "Listener": "npc"
         },
@@ -184,33 +136,6 @@
       "OnEnter": [],
       "Options": [
         {
-          "Id": "settle",
-          "PlayerKey": "LWN_story_outlaw_opt_settle",
-          "PlayerKeyZh": "[劝说] 他靠钩索吃饭，手又伤着，别再抢他的东西、找他的麻烦了。",
-          "HintKey": "LWN_story_hint_outlaw_opt_settle",
-          "HintKeyZh": "成功：他归还工具｜失败：他不松口",
-          "Requires": ["clue:son_tools"],
-          "Effects": [
-            {
-              "Id": "mark",
-              "Params": {
-                "flag": "attempt_LWN_story_outlaw_opt_settle"
-              },
-              "Commit": "on_select",
-              "Receipt": "once"
-            }
-          ],
-          "Check": {
-            "Tactic": "Coerce",
-            "Target": "outlaw",
-            "Success": "outlaw_settled",
-            "Fail": "outlaw_settle_refused",
-            "Capability": "Persuade"
-          },
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
           "Id": "ask",
           "PlayerKey": "LWN_story_outlaw_opt_ask",
           "PlayerKeyZh": "你们昨天抢了墙头那个半大孩子的飞钩，还伤了人。",
@@ -228,27 +153,6 @@
             }
           ],
           "NextNode": "outlaw_talk",
-          "Speaker": "player",
-          "Listener": "npc"
-        },
-        {
-          "Id": "fight",
-          "PlayerKey": "LWN_story_outlaw_opt_fight",
-          "PlayerKeyZh": "你要靠拳头讲理，那就来。",
-          "HintKey": "LWN_story_hint_outlaw_opt_fight",
-          "HintKeyZh": "直接与野贼开战。",
-          "Requires": ["clue:son_tools"],
-          "Effects": [
-            {
-              "Id": "start_fight",
-              "Params": {
-                "target": "outlaw"
-              },
-              "Commit": "on_select",
-              "Receipt": "never"
-            }
-          ],
-          "NextNode": "outlaw_fight",
           "Speaker": "player",
           "Listener": "npc"
         },
@@ -301,6 +205,23 @@
             "Fail": "outlaw_settle_refused",
             "Capability": "Persuade"
           },
+          "Speaker": "player",
+          "Listener": "npc"
+        },
+        {
+          "Id": "hook_price",
+          "PlayerKey": "LWN_story_outlaw_opt_hook_price",
+          "PlayerKeyZh": "你从小六那儿拿的飞钩，我出钱买。",
+          "HintKey": "LWN_story_outlaw_opt_hook_price_hint",
+          "HintKeyZh": "先问价；他开口后再决定付不付。",
+          "Requires": [
+            "asked:outlaw_ask",
+            "clue:son_tools",
+            "!item:lwn_grapple_hook",
+            "!asked:outlaw_hook_sold"
+          ],
+          "Effects": [],
+          "NextNode": "outlaw_hook_price",
           "Speaker": "player",
           "Listener": "npc"
         },
@@ -369,9 +290,144 @@
           },
           "Commit": "on_enter",
           "Receipt": "once"
+        },
+        {
+          "Id": "take_carried",
+          "Params": {
+            "npc": "outlaw",
+            "item": "lwn_grapple_hook"
+          },
+          "Commit": "on_enter",
+          "Receipt": "once"
         }
       ],
       "NextNode": ""
+    },
+    {
+      "Id": "outlaw_hook_price",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_outlaw_hook_price",
+      "TextKeyZh": "五十。",
+      "LineActions": [
+        "act_conversation_aggressive_trivial"
+      ],
+      "OnEnter": [],
+      "NextNode": "outlaw_hook_price_2"
+    },
+    {
+      "Id": "outlaw_hook_price_2",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_outlaw_hook_price_2",
+      "TextKeyZh": "少一个子儿不卖，拿不出就走。",
+      "LineActions": [
+        "act_conversation_aggressive_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "pay",
+          "PlayerKey": "LWN_story_outlaw_opt_hook_pay",
+          "PlayerKeyZh": "[付钱] 五十，钩子归我。",
+          "HintKey": "LWN_story_outlaw_opt_hook_pay_hint",
+          "HintKeyZh": "支付50第纳尔，拿走他身上的钩子。",
+          "Requires": ["gold>=50"],
+          "Effects": [
+            {
+              "Id": "pay",
+              "Params": {
+                "amount": "50",
+                "to": "outlaw"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "take_carried",
+              "Params": {
+                "npc": "outlaw",
+                "item": "lwn_grapple_hook"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            },
+            {
+              "Id": "mark",
+              "Params": {
+                "flag": "outlaw_hook_sold"
+              },
+              "Commit": "on_select",
+              "Receipt": "once"
+            }
+          ],
+          "NextNode": "outlaw_hook_sold",
+          "Speaker": "player",
+          "Listener": "npc"
+        },
+        {
+          "Id": "haggle",
+          "PlayerKey": "LWN_story_outlaw_opt_hook_haggle",
+          "PlayerKeyZh": "一把旧钩子，值不了五十。",
+          "HintKey": "LWN_story_outlaw_opt_hook_haggle_hint",
+          "HintKeyZh": "试着压价；他不松口。",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "outlaw_hook_refused",
+          "Speaker": "player",
+          "Listener": "npc"
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_pawnbroker_opt_back",
+          "PlayerKeyZh": "[收住] 说点别的。",
+          "HintKey": "LWN_story_hint_back_topics",
+          "HintKeyZh": "继续聊别的。",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "outlaw_hub",
+          "Speaker": "player",
+          "Listener": "npc"
+        }
+      ]
+    },
+    {
+      "Id": "outlaw_hook_sold",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_outlaw_hook_sold",
+      "TextKeyZh": "钱货两清，钩子拿走。",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "OnEnter": [],
+      "NextNode": "outlaw_hook_sold_2"
+    },
+    {
+      "Id": "outlaw_hook_sold_2",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_outlaw_hook_sold_2",
+      "TextKeyZh": "别指望我再认别的账。",
+      "LineActions": [
+        "act_conversation_closed_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [],
+      "OptionsFrom": "outlaw_hub"
+    },
+    {
+      "Id": "outlaw_hook_refused",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_outlaw_hook_refused",
+      "TextKeyZh": "嫌贵就自己去拿，别在这儿磨嘴皮子。",
+      "LineActions": [
+        "act_conversation_aggressive_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [],
+      "OptionsFrom": "outlaw_hub"
     },
     {
       "Id": "outlaw_settle_refused",

@@ -111,6 +111,15 @@ namespace LivingWorldNpcs
         /// <summary>这个人有没有被我们接管岗位（感知层只对我们接管的人写身体，原版 NPC 不动）。</summary>
         public bool HasDutyPoint => _hasDutyPoint;
         public Vec3 DutyPoint => _dutyPoint;
+        public float DutyFacing => _dutyFacing;
+
+        /// <summary>
+        /// 外部有正经任务/教学占着这个人时，暂停「空闲就回岗位」的默认兜底：
+        /// 这段期间他只会站住，等外部动作/租约接管；任务结束再恢复。
+        /// 只暂停"回岗位"，不改变他原来的岗位点。
+        /// </summary>
+        private bool _dutyReturnSuspended;
+        public void SuspendDutyReturn(bool suspended) { _dutyReturnSuspended = suspended; }
 
         // ── 走回岗位的失败退避（2026-11-16，见 DecideDefaultBehavior）──
         private const float DutyMoveRetrySec = 60f;
@@ -1836,6 +1845,14 @@ namespace LivingWorldNpcs
             //    "追人/对话/演出这类临时行为结束、队列清空"之后，默认行为只有两种 ——
             //    离开自己的岗位 → 走回去；已在岗位 → 站住（StayAction），不交回原版 AI 乱逛。
             //    每个人都有自己的点位（屠夫→肉铺、守卫→门口），点位来自 JSON，不是写死。
+            // 🔴 但"外部有正经任务/教学占着这个人"时（SuspendDutyReturn）不适用：
+            //    这时他站住等外部接管，绝不按岗位点往回走——教学只把他叫到练习点，
+            //    他的岗位点仍是原工作处；不暂停兜底就会在打招呼后立刻走回去（2026-11-20 实机）。
+            if (_dutyReturnSuspended)
+            {
+                EnqueueAction(new StayAction(null, keepRotating: false));
+                return;
+            }
             if (_hasDutyPoint && !IsStunned && Owner != null)
             {
                 if (Owner.Position.Distance(_dutyPoint) > 1.2f && DutyMoveAllowed())

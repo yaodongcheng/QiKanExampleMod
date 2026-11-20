@@ -403,7 +403,9 @@ namespace LivingWorldNpcs
             // ConversationManager.IsConversationFlowActive（ConversationEntryPatch.IsConversationActive），
             // 不依赖 MissionMode=Conversation 翻转时序（地图对话等模式不翻的场景也兜住；
             // IsInteractionDisabled 的 Conversation 分支保留双保险）。
-            if (ConversationEntryPatch.IsConversationActive()) return false;
+            // 🔴 2026-11-20：判据改用 IsDialogueActiveNow —— 它同时覆盖原版对话流与自建剧情面板。
+            //    自建面板不启动 ConversationManager，原来那条判据恒为 false ⇒ 对话时按钮还挂着。
+            if (StoryProbeDialogue.IsDialogueActiveNow) return false;
             if (Mission.Current != null)
             {
                 if (Settings.Instance.IsInteractionDisabled()) return false;

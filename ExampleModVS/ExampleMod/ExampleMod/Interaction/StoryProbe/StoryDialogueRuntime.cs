@@ -4,6 +4,8 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
@@ -751,6 +753,29 @@ namespace LivingWorldNpcs
                     { error = "give_item.count invalid"; return false; }
                     if (!StoryProbeDefs.CanGiveItem(P("item"), count)) { error = "item cannot be granted: " + P("item"); return false; }
                     return true;
+                case "take_item":
+                {
+                    if (string.IsNullOrEmpty(P("item"))) { error = "take_item.item missing"; return false; }
+                    int takeCount = 1;
+                    if (P("count") != null && (!TryInt(P("count"), out takeCount) || takeCount <= 0))
+                    { error = "take_item.count invalid"; return false; }
+                    if (StoryProbeDefs.FindItem(P("item")) == null)
+                    { error = "take_item item not found: " + P("item"); return false; }
+                    if (CountPlayerItem(P("item")) < takeCount)
+                    { error = "player lacks item: " + P("item"); return false; }
+                    return true;
+                }
+                case "take_carried":
+                {
+                    string npc = P("npc"), item = P("item");
+                    if (string.IsNullOrEmpty(npc) || string.IsNullOrEmpty(item))
+                    { error = "take_carried.npc/item missing"; return false; }
+                    var carrier = host.GetAgent(npc);
+                    if (carrier == null
+                        || (!CarriesItem(carrier, item) && CountPlayerItem(item) < 1))
+                    { error = "npc does not carry item: " + npc + "/" + item; return false; }
+                    return true;
+                }
                 case "wear_item":
                 {
                     if (string.IsNullOrEmpty(P("item"))) { error = "wear_item.item missing"; return false; }
@@ -815,6 +840,12 @@ namespace LivingWorldNpcs
                         && (P("quest") == null || StoryProbeDefs.GetNpc(P("quest")) != null)
                         && (P("event") == null || (TryInt(P("event"), out int favorEvent)
                             && StoryProbeDefs.GetEvent(favorEvent) != null));
+                case "favor_spend":
+                    // 消耗人情（余额在提交时核，不足则整条效果失败、效果不落地）。
+                    return host.GetHero(P("npc")) != null && TaleWorlds.CampaignSystem.Hero.MainHero != null
+                        && TryInt(P("amount"), out int favorCost) && favorCost > 0
+                        && !string.IsNullOrWhiteSpace(P("source")) && !string.IsNullOrWhiteSpace(P("key"))
+                        && !string.IsNullOrWhiteSpace(P("fallback"));
                 case "debt_collect":
                     return !string.IsNullOrEmpty(P("from")) && !string.IsNullOrEmpty(P("quest"))
                            && TryInt(P("amount"), out int dc) && dc > 0;
@@ -881,6 +912,28 @@ namespace LivingWorldNpcs
                         int count = 1;
                         if (P("count") != null) TryInt(P("count"), out count);
                         return StoryProbeDefs.RemoveItem(TaleWorlds.CampaignSystem.Hero.MainHero, P("item"), count);
+                    }
+                    case "take_item":
+                    {
+                        int takeCount = 1;
+                        if (P("count") != null) TryInt(P("count"), out takeCount);
+                        return StoryProbeDefs.GiveItem(TaleWorlds.CampaignSystem.Hero.MainHero, P("item"), takeCount);
+                    }
+                    case "take_carried":
+                    {
+                        // 还原：从玩家背包收回，再放回 NPC 的空武器槽。
+                        var carrier = host.GetAgent(P("npc"));
+                        var obj = StoryProbeDefs.FindItem(P("item"));
+                        if (carrier == null || obj == null
+                            || !StoryProbeDefs.RemoveItem(TaleWorlds.CampaignSystem.Hero.MainHero, P("item"), 1)) return false;
+                        var eq = carrier.SpawnEquipment.Clone();
+                        int slot = -1;
+                        for (int i = 0; i < 4; i++) if (eq[(EquipmentIndex)i].IsEmpty) { slot = i; break; }
+                        if (slot < 0) return false;
+                        eq[(EquipmentIndex)slot] = new EquipmentElement(obj);
+                        carrier.UpdateSpawnEquipmentAndRefreshVisuals(eq);
+                        carrier.UpdateAgentStats();
+                        return true;
                     }
                     // mark / hazard / clue 由 CommitEffects 的「提交前快照」恢复（RestoreBefore）；
                     // 这里不再做反向操作 —— 原本就成立的事实被反向删掉才是错。
@@ -1007,6 +1060,47 @@ namespace LivingWorldNpcs
                         { error = "give_item.count invalid"; return false; }
                         if (Hero.MainHero == null || !StoryProbeDefs.GiveItem(Hero.MainHero, item, count))
                         { error = "item not granted: " + item; return false; }
+                        return true;
+                    }
+
+                    case "take_item":
+                    {
+                        string item = P("item");
+                        if (string.IsNullOrEmpty(item)) { error = "take_item.item missing"; return false; }
+                        int takeCount = 1;
+                        if (P("count") != null && (!TryInt(P("count"), out takeCount) || takeCount <= 0))
+                        { error = "take_item.count invalid"; return false; }
+                        if (Hero.MainHero == null || !StoryProbeDefs.RemoveItem(Hero.MainHero, item, takeCount))
+                        { error = "item not taken: " + item; return false; }
+                        DebugLogger.Log("[StoryDialogue] take_item " + item + " x" + takeCount + " (handed over)");
+                        return true;
+                    }
+
+                    case "take_carried":
+                    {
+                        string npc = P("npc"), item = P("item");
+                        if (string.IsNullOrEmpty(npc) || string.IsNullOrEmpty(item))
+                        { error = "take_carried.npc/item missing"; return false; }
+                        var carrier = host.GetAgent(npc);
+                        var obj = StoryProbeDefs.FindItem(item);
+                        if (carrier == null || obj == null) { error = "take_carried carrier/item missing"; return false; }
+                        int slot = -1;
+                        for (int i = 0; i < 12; i++)
+                            if (carrier.SpawnEquipment[(EquipmentIndex)i].Item == obj) { slot = i; break; }
+                        if (slot < 0)
+                        {
+                            // 玩家已经先一步拿到（偷/搜刮/买过）——结算不再重复发，也不判失败。
+                            DebugLogger.Log("[StoryDialogue] take_carried no-op; player already has " + item);
+                            return true;
+                        }
+                        var eq = carrier.SpawnEquipment.Clone();
+                        eq[(EquipmentIndex)slot] = EquipmentElement.Invalid;
+                        carrier.UpdateSpawnEquipmentAndRefreshVisuals(eq);
+                        carrier.UpdateAgentStats();
+                        if (Hero.MainHero == null || !StoryProbeDefs.GiveItem(Hero.MainHero, item, 1))
+                        { error = "take_carried transfer failed: " + item; return false; }
+                        StoryProbeState.MarkAsked("carry", npc + ":" + item);
+                        DebugLogger.Log("[StoryDialogue] take_carried " + item + " from " + npc + " slot=" + slot);
                         return true;
                     }
 
@@ -1140,6 +1234,23 @@ namespace LivingWorldNpcs
                         return false;
                     }
 
+                    case "favor_spend":
+                    {
+                        if (!TryInt(P("amount"), out int cost) || cost <= 0)
+                        { error = "favor_spend amount invalid"; return false; }
+                        var spendHero = host.GetHero(P("npc"));
+                        var spendMemory = spendHero != null ? AllNpcMemoryManager.GetMemory(spendHero.StringId) : null;
+                        var player = TaleWorlds.CampaignSystem.Hero.MainHero;
+                        if (spendMemory == null || player == null)
+                        { error = "favor_spend npc missing"; return false; }
+                        if (spendMemory.FavorBalance(player.StringId) < cost)
+                        { error = "favor_spend insufficient balance"; return false; }
+                        if (AgentControlHelper.ChangePlayerFavor(spendMemory, -cost, "story:" + P("source"),
+                            P("key"), P("fallback"))) return true;
+                        error = "favor_spend rejected";
+                        return false;
+                    }
+
                     case "debt_collect":
                     {
                         string from = P("from"), quest = P("quest");
@@ -1261,5 +1372,21 @@ namespace LivingWorldNpcs
 
         private static bool TryInt(string text, out int value)
             => int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+
+        private static int CountPlayerItem(string itemId)
+        {
+            var item = StoryProbeDefs.FindItem(itemId);
+            var roster = Hero.MainHero?.PartyBelongedTo?.ItemRoster;
+            return item != null && roster != null ? roster.GetItemNumber(item) : 0;
+        }
+
+        private static bool CarriesItem(Agent carrier, string itemId)
+        {
+            var item = StoryProbeDefs.FindItem(itemId);
+            if (item == null) return false;
+            for (int i = 0; i < 12; i++)
+                if (carrier.SpawnEquipment[(EquipmentIndex)i].Item == item) return true;
+            return false;
+        }
     }
 }

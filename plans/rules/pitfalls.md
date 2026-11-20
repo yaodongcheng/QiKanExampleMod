@@ -2325,3 +2325,64 @@ cmd /c rmdir "H:\SteamLibrary\steamapps\common\MB2_Version\MB2_1.2.12\Mount & Bl
   规避：出场资格只走 `StoryProbeDefs.StoryCastAvailabilityHelper.Evaluate(hero, 当前据点)`
   （死亡／被拘／在别的队伍才是硬拒绝；陈旧据点照常出场并记 `stale settlement ... ignored`）；
   源码闸门 `Scripts/check_story_cast_availability.py` 守"单一判据 + 陈旧据点不算拒绝"。
+
+## 2026-11-20 —— 511 自建对话面板（Gauntlet UI 复刻）踩坑集
+
+- **反编译拿错版本 → 反射代码编译能过、运行时全 0** → 症状：`custom.ui tree` 报 `gauntletLayers=23` 却 0 个控件；
+  重编时传的是 1.2.12 的 `MB2_PATH`，所以以为没问题，但反编译用的是 Steam 主目录（1.5.7）的 DLL。
+  根因：同一个类在不同客户端的**字段名/方法名会变**，编译期只校验签名存在与否。
+  规避：**反编译前先读注册表 `MB2_PATH`，只查那个安装目录的 DLL**；涉及反射的代码，写完按目标版本再核一遍。
+
+- **`GauntletLayer` 两代结构完全不同** → 1.2.12 = `public List<Tuple<IGauntletMovie, ViewModel>> MoviesAndDataSources`，
+  **没有** `GetMovieIdentifier`；1.5.x = 私有 `_movieIdentifiers` + `GetMovieIdentifier(name)`。
+  规避：反射两条路都试（范本 `GUI/GauntletUiIntrospect.cs`）；`ScreenBase._layers` 两代一致，可直接反射。
+
+- **模块 `GUI/SpriteSheets/<类>/<类>_1.png` 放 PNG = 白放** → 症状：图集文件在、brush 也写了，界面上什么都没有。
+  根因：`SpriteCategory.Load` 拼出 `SpriteSheets\<类>\<类>_<序>`（不带扩展名）后交给
+  `TwoDimensionEngineResourceContext.LoadTexture`，而它内部只有一句 `Texture.GetFromResource(leaf)` ——
+  **只查 .tpac 的 native 资源池**。
+  规避：走 `plans/任意png图加载-custom-png-import-guide.md` 的 Harmony 兜底，或（推荐）用
+  `tpaccli makepack` 打成 tpac 丢进模块 `AssetPackages/`；**打完必须 `tpaccli dump` 回读**（数据段是压缩的，文件大小说明不了问题）。
+
+- **SpriteData 格式松一点就整份不生效** → 必须：文件名以 `SpriteData.xml` 结尾；零注释；全子元素无属性；
+  `<AlwaysLoad>true</AlwaysLoad>`；`<SpriteSheetSize>` 与实际图集尺寸一致；九宫格用 `<NineRegionSprite>`（普通图用 `<GenericSprite>`）。
+
+- **状态传播断在中间那层 → 悬停箭头永远不出现、文字不变色** → 症状：选项有底、hover 却没反应。
+  根因：Gauntlet 的 Hovered/Pressed 靠 `UpdateChildrenStates="true"` 逐层往下传；原版
+  `ButtonWidget → ConversationItemImageWidget → ImageWidget` 三件都带这个属性，换成普通 `BrushWidget` 时漏了中间那件。
+  规避：**凡是包住可交互子元素的容器，都要 `UpdateChildrenStates="true"`**。
+
+- **`HintWidget` 的 tooltip 会残留在屏幕上** → 症状：对话关了，鼠标旁说明框还在。
+  根因：浮框靠 `Command.HoverEnd="ExecuteEndHint"` 关闭；hover 状态下销毁 widget（关面板/列表重建）收不到 HoverEnd。
+  规避：`Close()` 和每次 `Refresh()` 之前显式 `InformationManager.HideTooltip()`。
+
+- **自定义控件只取一次 Brush → 首帧失败就永久透明** → `ConversationItemImageWidget.OnLateUpdate` 里
+  `if (!_isInitialized) { Brush = IsSpecial ? SpecialBrush : NormalBrush; _isInitialized = true; }`。
+  规避：自建面板不要复用它，用 `BrushWidget` + `Brush=` 直接绑（每帧都按当前状态取）。
+
+- **Harmony `TargetMethod()` 返回 null 会掐断整个 PatchAll** → 后面所有补丁（伤害模型/崩溃钩子…）全打不上。
+  规避：用 `TargetMethods()` 返回**空集合**表示"跳过"（范本 `GUI/TextureLoadFallbackPatch.cs`）。
+  另外 patch **显式接口实现**的方法时，得先 `GetInterfaceMap` 拿到真实 MethodInfo，按名字字符串猜不到。
+
+- **原版「点击继续」不是一个按钮在接点击** → `ContinueButton` 是 `IsDisabled="true"` + `DoNotAcceptEvents="true"` 的纯视觉件，
+  真正接点击的是根控件 `ConversationScreenButtonWidget`（`ContinueButton=` + `Command.OnFinalSelection`）。
+  规避：复刻时用**全屏 ButtonWidget 接点击 + 内部视觉件**，并把全屏层放在 Children 第一个（最底层），
+  这样即使显隐绑定失效，选项也永远先命中。
+
+- **`Mission.Mode` 只读，别想靠它收起 HUD** → 原版对话时血条消失是引擎按 `Mission.Mode == Conversation` 做的；
+  反射硬写它 = 让引擎以为在对话 = 重新引入问题 49 的副作用。规避：找血条那个 movie 的 VM
+  （类型名含 `AgentStatus`）关它的 `RootWidget.IsVisible`，对话结束第一步恢复。
+
+- **Python 生成脚本里的反斜杠会被吃掉** → 症状：写 `StdAssets\Popup\frame_9` 结果 XML 里 `Popup` 后面换行再接 `rame_9`（`\f` 被当换页符）。
+  规避：用 `chr(92)` 拼反斜杠，或用列表 `chr(10).join(...)` 构造多行，别在普通字符串里写转义序列。
+
+- **"上课/对话中的人被别的系统拉走"会换入口复发——必须枚举全部拉人路径**（2026-11-20 实机两次）→
+  症状：教课刚到位即 `[StoryPractice] stopped: interrupted`，或自动对话打开 0.13 秒就被判"参与者不可用"。
+  根因：把 NPC 从当前活动里拽走的入口**不只一处**，修一个只挡住一个：
+  ① 工作点分配 `StoryWorkDirector`（已挡 `IsPracticeActor`）
+  ② 环境台词选人 `StreetLifeDirector` 常驻分支（已挡）
+  ③ **市井群戏事件选角 `StreetLifeDirector.StartEvent`**（2026-11-20 才补：成员在上课就整场推迟）
+  ④ 对话接管 `YieldActorForDialogue`（只对**已开演**的事件有效，没开演时挡不住未来选角）
+  规避：任何"当前正在进行某种独占活动"的系统（教学/对话/演出），都要在**每个拉人入口**加排除；
+  对话的判据用 `StoryProbeDialogue.IsDialogueActiveNow`（同时覆盖原版对话流与自建面板），
+  不能只用 `ConversationEntryPatch.IsConversationActive`（自建面板下恒 false）。

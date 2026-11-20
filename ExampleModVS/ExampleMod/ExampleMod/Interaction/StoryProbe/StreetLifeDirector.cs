@@ -263,6 +263,14 @@ namespace LivingWorldNpcs
                 return;
             }
 
+            // 🔴 有人在实操课上：整场群戏推迟，绝不把教课中的演员拉走（2026-11-20 实机：
+            // 小六刚走到练习点打招呼，事件 start actors=pawnbroker+son 把他拉去演群戏，课当场被判中断）。
+            if (memberIds.Any(id => _host.IsPracticeActor(id)))
+            {
+                _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec;
+                return;
+            }
+
             if (IsConversationActive()) { _nextEventAt = _time + StoryProbeTuning.Current.Events.RetryGapSec; return; }
             foreach (var agent in memberAgents) ReleaseAmbient(agent);
             string session = "street-event-" + Guid.NewGuid().ToString("N");
@@ -845,7 +853,11 @@ namespace LivingWorldNpcs
 
         private static bool IsConversationActive()
         {
-            try { return ConversationEntryPatch.IsConversationActive(); }
+            // 🔴 判据必须同时覆盖「原版对话流」和「自建剧情面板」（2026-11-20 实机）：
+            // 自动触发的剧情对话走自建面板，引擎会话没启动 ⇒ ConversationEntryPatch 的
+            // IsConversationActive 恒 false ⇒ 导演以为没人说话，对话打开 0.1 秒后就启动市井事件
+            // 把对话演员拉走（event start actors=pawnbroker+son），下一句被判参与者不可用、整场失败。
+            try { return StoryProbeDialogue.IsDialogueActiveNow; }
             catch { return false; }
         }
 
