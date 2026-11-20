@@ -956,7 +956,7 @@ namespace LivingWorldNpcs
                             }
                             // 🔴 2026-08-20（force 语义升级，用户反馈：点强制还被目击收手）：
                             // 强制执行 = 无视目击者硬偷——跳过中断，roll 照常进行；
-                            // 代价由 roll 成功后的 WitnessCrime 广播承担（目击者 +3.0 警戒/
+                            // 代价由 roll 成功后的 WitnessCrime 广播承担（目击者 +1.5 警戒/
                             // 呼叫守卫/可能动手，铁律 12：强制是有代价的选择，不是白嫖）。
                             DebugLogger.Log($"[PlanExecutor] {_agent.Name} 强制执行：无视 {witnesses.Count} 名目击者{(targetAware ? "+目标察觉" : "")}，照偷");
                         }
@@ -1122,7 +1122,7 @@ namespace LivingWorldNpcs
                             if (finalWitnesses.Count > 0)
                             {
                                 // 🔴 2026-08-20（感知管线统一重构，用户裁定）：目击者警戒改走 WitnessCrime
-                                // 广播——每个目击者 Brain 自行分类加警戒（+3.0 + 围观 + suspect 化参战打随从）。
+                                // 广播——每个目击者 Brain 自行分类加警戒（+1.5 + 围观 + suspect 化参战打随从）。
                                 // 原直拍 SetPulseTarget/AddAlert(3.0) 绕过感知管线（且 targetName 传目击者
                                 // 自己的名字是遗留笔误——把嫌疑人填进受害者字段）。广播侧视线过滤（锚点=作案
                                 // 随从，15m/120°）与证词名单（GetWitnesses 同款判定）一致；目标背对随从

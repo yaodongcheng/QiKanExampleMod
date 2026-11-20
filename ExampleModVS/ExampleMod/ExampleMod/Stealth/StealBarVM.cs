@@ -514,13 +514,13 @@ namespace LivingWorldNpcs
                     else
                     {
                         // 🔴 2026-08-20（感知管线统一重构）：受害者察觉 = TheftVictimized 定向直发
-                        //（normal=0.35）；目击者 = PulsePickpocketWitnesses 内 WitnessCrime 广播（脑自行 +3.0）。
+                        //（normal=2.0）；目击者 = PulsePickpocketWitnesses 内 WitnessCrime 广播（脑自行 +1.5）。
                         AgentAIController.Instance?.SendEventToAgent(_target, "TheftVictimized",
                             Agent.Main, _target, "normal", "gold");
                         PulsePickpocketWitnesses("gold", $"{gold} 第纳尔"); // lwn-ignore: A (debug label)
                         // 本地化：窃取钱袋得手消息
                         FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_gold_short", ("GOLD", gold.ToString())), ZoneColorSuccess, MsgColorSuccess);
-                        DebugLogger.Log($"[StealBar] 窃取钱袋 {gold} 第纳尔 ← {_target.Name}（受害者 normal 0.35，目击者 WitnessCrime +3.0）");
+                        DebugLogger.Log($"[StealBar] 窃取钱袋 {gold} 第纳尔 ← {_target.Name}（受害者 normal 2.0，目击者 WitnessCrime +1.5）");
                     }
                 }
                 else
@@ -544,13 +544,13 @@ namespace LivingWorldNpcs
                     }
                     else
                     {
-                        // 🔴 2026-08-20（感知管线统一重构）：受害者 = TheftVictimized normal=0.35；目击者 = WitnessCrime 广播
+                        // 🔴 2026-08-20（感知管线统一重构）：受害者 = TheftVictimized normal=2.0；目击者 = WitnessCrime 广播
                         AgentAIController.Instance?.SendEventToAgent(_target, "TheftVictimized",
                             Agent.Main, _target, "normal", itemId ?? itemName);
                         PulsePickpocketWitnesses(itemId ?? itemName, itemName);
                         // 本地化：窃取物品得手消息
                         FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_item", ("ITEM", itemName)), ZoneColorSuccess, MsgColorSuccess);
-                        DebugLogger.Log($"[StealBar] 窃取 {itemName} ← {_target.Name}（受害者 normal 0.35，目击者 WitnessCrime +3.0）");
+                        DebugLogger.Log($"[StealBar] 窃取 {itemName} ← {_target.Name}（受害者 normal 2.0，目击者 WitnessCrime +1.5）");
                     }
                 }
                 NextPickpocketRound();
@@ -740,8 +740,8 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 黄区偷窃得手后，向周围目击者宣告偷窃事件（WitnessCrime 广播——目击者脑自行分类加警戒
-        /// +3.0 + 围观/指控）+ 登记证词进 PendingWorldEvent。受害者（在身后看不见玩家）的体感察觉
-        /// 由调用方 TheftVictimized 直发承担（normal=0.35），不经本函数。
+        /// +1.5 + 围观/指控）+ 登记证词进 PendingWorldEvent。受害者（在身后看不见玩家）的体感察觉
+        /// 由调用方 TheftVictimized 直发承担（normal=2.0），不经本函数。
         /// 🔴 2026-08-20（感知管线统一重构，用户裁定）：原直拍目击者 SetPulseTarget/AddAlert(3.0)
         /// 已移除——警戒由每个目击者 Brain 的 WitnessCrime_GatherOnLook 分类块自行增加；
         /// 本函数只做事件宣告 + 证词记账。

@@ -564,6 +564,51 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>把物品装进玩家空武器槽（仅场景内有效；已装备的跳过，槽满只留背包）。
+        /// 剧情给钩索这类"要玩家当场用"的东西必须走这里——只进背包滚轮切不出来（2026-11-20 实机）。</summary>
+        public static void EquipOnPlayerHands(IEnumerable<ItemObject> items)
+        {
+            if (items == null) return;
+            var mission = TaleWorlds.MountAndBlade.Mission.Current;
+            var main = TaleWorlds.MountAndBlade.Agent.Main;
+            if (mission == null || main == null || !AgentControlHelper.SafeIsActive(main)) return;
+            bool civilian = false;
+            try { civilian = mission.DoesMissionRequireCivilianEquipment; } catch { }
+            var hero = Hero.MainHero;
+            var heroEq = hero != null ? (civilian ? hero.CivilianEquipment : hero.BattleEquipment) : null;
+            bool changed = false;
+            foreach (var item in items)
+            {
+                if (item == null) continue;
+                // 场景内：已经装在身上就不重复
+                if (GrappleFirePatch.FindItemSlot(main, item.StringId) != EquipmentIndex.None) continue;
+                EquipmentIndex slot = EquipmentIndex.None;
+                for (var s = EquipmentIndex.WeaponItemBeginSlot; s < EquipmentIndex.NumPrimaryWeaponSlots; s++)
+                    if (main.Equipment[s].IsEmpty) { slot = s; break; }
+                if (slot == EquipmentIndex.None)
+                { DebugLogger.Log("[StoryProbe] equip: no free weapon slot for " + item.StringId); continue; }
+                try
+                {
+                    // 🔴 必须走引擎装备 API（同 `custom.grapple equip`）：直接改装备表只会"看着挂上了"，
+                    //    武器实体没建 ⇒ 绳/钩发射不出去；钩的弹药数也要钉成 1（2026-11-20 实机）。
+                    var weapon = new TaleWorlds.MountAndBlade.MissionWeapon(item, null, main.Origin?.Banner);
+                    main.EquipWeaponWithNewEntity(slot, ref weapon);
+                    if (item.StringId == GrappleFirePatch.HookItemId) main.SetWeaponAmountInSlot(slot, 1, false);
+                    changed = true;
+                }
+                catch (Exception ex) { DebugLogger.Log("[StoryProbe] equip failed: " + ex.Message); continue; }
+                // 同步进英雄的战役装备层：否则开一次物品栏，引擎按老装备重建，手上这件就没了。
+                if (heroEq != null)
+                {
+                    for (var s = EquipmentIndex.WeaponItemBeginSlot; s < EquipmentIndex.NumPrimaryWeaponSlots; s++)
+                        if (heroEq[s].IsEmpty) { heroEq[s] = new EquipmentElement(item); break; }
+                }
+            }
+            if (!changed) return;
+            try { main.UpdateAgentStats(); } catch { }
+            DebugLogger.Log("[StoryProbe] equip: kit on player hands");
+        }
+
         /// <summary>给英雄加物品（走 InventoryRoster，不碰场景）。返回是否成功。</summary>
         public static bool GiveItem(Hero hero, string itemId, int count = 1)
         {

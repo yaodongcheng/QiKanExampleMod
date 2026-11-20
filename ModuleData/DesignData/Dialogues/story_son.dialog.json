@@ -3048,7 +3048,7 @@
       "TextKey": "LWN_story_son_hook_demo_handover",
       "TextKeyZh": "拿稳了，上去吧。",
       "LineActions": [
-        "act_conversation_confident_trivial"
+        "act_conversation_confident_positive"
       ],
       "OnEnter": [],
       "Options": [],
@@ -3061,7 +3061,7 @@
       "TextKey": "LWN_story_son_hook_demo_buy",
       "TextKeyZh": "钱我收了，东西拿去。",
       "LineActions": [
-        "act_conversation_confident_trivial"
+        "act_conversation_closed_positive"
       ],
       "OnEnter": [],
       "Options": [],
@@ -3098,17 +3098,21 @@
               "Receipt": "once"
             },
             {
-              "Id": "give_item",
+              "Id": "take_carried",
               "Params": {
-                "item": "lwn_grapple_hook"
+                "npc": "son",
+                "item": "lwn_grapple_hook",
+                "equip": "1"
               },
               "Commit": "on_select",
               "Receipt": "once"
             },
             {
-              "Id": "give_item",
+              "Id": "take_carried",
               "Params": {
-                "item": "lwn_grapple_rope"
+                "npc": "son",
+                "item": "lwn_grapple_rope",
+                "equip": "1"
               },
               "Commit": "on_select",
               "Receipt": "once"
@@ -3139,17 +3143,21 @@
               "Receipt": "once"
             },
             {
-              "Id": "give_item",
+              "Id": "take_carried",
               "Params": {
-                "item": "lwn_grapple_hook"
+                "npc": "son",
+                "item": "lwn_grapple_hook",
+                "equip": "1"
               },
               "Commit": "on_select",
               "Receipt": "once"
             },
             {
-              "Id": "give_item",
+              "Id": "take_carried",
               "Params": {
-                "item": "lwn_grapple_rope"
+                "npc": "son",
+                "item": "lwn_grapple_rope",
+                "equip": "1"
               },
               "Commit": "on_select",
               "Receipt": "once"

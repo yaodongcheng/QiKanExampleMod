@@ -1111,10 +1111,12 @@ namespace LivingWorldNpcs
                 float amount = resultType switch
                 {
                     "perfect" => 0.1f,          // 完美窃取：隐约觉得不对（原 StealBarVM 0.1）
-                    "normal" => 0.35f,          // 普通命中：感觉被摸（原 NormalHitVictimAlert）
+                    // 🔴 2026-11-20 用户裁定：**被偷的人先反应**。原来 normal 只有 0.35，
+                    // 当事人毫无表示、旁边目击者 +3.0 抢先开打（实机：偷杜野，马横冲上来砍人）。
+                    "normal" => 2.0f,           // 普通命中：当场察觉，先质问/动手
                     "fail" => 3.0f,             // 手滑失误：当场被抓现行（原 MissVictimAlert）
                     "equipment_fail" => 2.0f,   // 卸装备失败：目标察觉（原 InlineSteps 2.0）
-                    _ => 0.35f,
+                    _ => 2.0f,
                 };
                 SetPulseTarget(PlayerActionType.Steal, victim.Name, itemName, victim.Index,
                     thief == Agent.Main ? -1 : thief.Index);
@@ -1207,7 +1209,9 @@ namespace LivingWorldNpcs
                                 // （受害者直接指控，目击者抑制后逐步升级 → 围观后质问）
                                 SetPulseTarget(PlayerActionType.Steal, victim?.Name, null, victim?.Index ?? -1, criminal.Index);
                                 RecordNarration($"我看见{criminal.Name}在偷窃");
-                                if (AddAlert(PlayerActionType.Steal, 3.0f))  // 队友围观豁免 → 连带跳过质问意图
+                                // 🔴 2026-11-20 用户裁定：目击者只到「上前质问」，不抢在当事人前面直接开打
+                                // （原来 +3.0 直接 Alarmed 拔刀；当事人 normal 0.35 毫无反应）。
+                                if (AddAlert(PlayerActionType.Steal, 1.5f))
                                 {
                                     _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
                                     SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Recover);

@@ -131,9 +131,9 @@ namespace LivingWorldNpcs
             Add("relation", true, new[] { "faction", "delta" }, new[] { "faction", "delta" }, "改势力账与代表英雄关系", new[] { "delta" });
             Add("skill_check", true, new[] { "tactic" }, new[] { "tactic" },
                 "复用对话技能检定，结果写会话事实；正式选项优先使用Check路由");
-            Add("give_item", true, new[] { "item", "count" }, new[] { "item" }, "给玩家物品（失败不假发）", new[] { "count" });
+            Add("give_item", true, new[] { "item", "count", "equip" }, new[] { "item" }, "给玩家物品（失败不假发）", new[] { "count" });
             Add("take_item", true, new[] { "item", "count" }, new[] { "item" }, "从玩家背包取走物品（交给NPC/世界，不假扣）", new[] { "count" });
-            Add("take_carried", true, new[] { "npc", "item" }, new[] { "npc", "item" }, "把NPC身上带着的物品转给玩家（买回/讨还）");
+            Add("take_carried", true, new[] { "npc", "item", "equip" }, new[] { "npc", "item" }, "把NPC身上带着的物品转给玩家（买回/讨还；equip=1 当场装到手上）");
             Add("wear_item", true, new[] { "item", "slot" }, new[] { "item" },
                 "把背包里的一件穿到身上（默认 Body），旧衣回行囊；场景外观立刻刷新");
             Add("start_fight", true, new[] { "target", "mode", "reason", "beneficiaries", "start_line", "end_line", "resolve_event" }, new string[0],

@@ -1060,6 +1060,12 @@ namespace LivingWorldNpcs
                         { error = "give_item.count invalid"; return false; }
                         if (Hero.MainHero == null || !StoryProbeDefs.GiveItem(Hero.MainHero, item, count))
                         { error = "item not granted: " + item; return false; }
+                        // equip=1：这类东西要玩家当场用（钩索），只进背包滚轮切不出来。
+                        if (P("equip") == "1")
+                        {
+                            var granted = StoryProbeDefs.FindItem(item);
+                            if (granted != null) StoryProbeDefs.EquipOnPlayerHands(new[] { granted });
+                        }
                         return true;
                     }
 
@@ -1090,7 +1096,16 @@ namespace LivingWorldNpcs
                         if (slot < 0)
                         {
                             // 玩家已经先一步拿到（偷/搜刮/买过）——结算不再重复发，也不判失败。
-                            DebugLogger.Log("[StoryDialogue] take_carried no-op; player already has " + item);
+                            if (CountPlayerItem(item) > 0)
+                            {
+                                DebugLogger.Log("[StoryDialogue] take_carried no-op; player already has " + item);
+                                return true;
+                            }
+                            // 老师身上也没有（课程收摊清掉了临时装备）：兜底直接发给玩家，别把任务卡死。
+                            if (Hero.MainHero == null || !StoryProbeDefs.GiveItem(Hero.MainHero, item, 1))
+                            { error = "take_carried fallback grant failed: " + item; return false; }
+                            if (P("equip") == "1") StoryProbeDefs.EquipOnPlayerHands(new[] { obj });
+                            DebugLogger.Log("[StoryDialogue] take_carried fallback grant " + item + " (npc=" + npc + " has none)");
                             return true;
                         }
                         var eq = carrier.SpawnEquipment.Clone();
@@ -1099,6 +1114,8 @@ namespace LivingWorldNpcs
                         carrier.UpdateAgentStats();
                         if (Hero.MainHero == null || !StoryProbeDefs.GiveItem(Hero.MainHero, item, 1))
                         { error = "take_carried transfer failed: " + item; return false; }
+                        // equip=1：玩家当场要用（钩索），只进背包滚轮切不出来。
+                        if (P("equip") == "1") StoryProbeDefs.EquipOnPlayerHands(new[] { obj });
                         StoryProbeState.MarkAsked("carry", npc + ":" + item);
                         DebugLogger.Log("[StoryDialogue] take_carried " + item + " from " + npc + " slot=" + slot);
                         return true;

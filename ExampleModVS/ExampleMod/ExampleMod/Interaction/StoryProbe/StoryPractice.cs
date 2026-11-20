@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -491,9 +491,26 @@ namespace LivingWorldNpcs
                     BeginPlayerPractice(spoken: true);
                     if (!string.IsNullOrEmpty(_def.DemoDialogueTrigger))
                     {
-                        var demoTeacher = _teacher;
+                        // 🔴 演示完先**回到地面**再开口（2026-11-20 用户裁定：墙上跟玩家说话不合理）。
+                        // 走回玩家身边（navmesh 连通时沿墙下来）；8 秒没走到就照样开口，绝不把人卡在墙上。
+                        var demoTeacher = _teacher; var demoMission = _mission;
+                        int demoToken = _token; int demoSerial = _serial;
                         string demoTalk = _def.DemoDialogueTrigger;
-                        _host.SchedulePublic(1.5f, () => _host.StartStoryConversation(demoTeacher, null, demoTalk));
+                        var landPoint = _player != null && AgentControlHelper.SafeIsActive(_player)
+                            ? _player.Position : _point;
+                        bool spoken = false;
+                        Action openTalk = () =>
+                        {
+                            if (spoken) return;
+                            spoken = true;
+                            if (demoSerial != _serial || demoMission != Mission.Current
+                                || demoToken != StoryProbeState.RuntimeToken || !_host.Active) return;
+                            // 落地/超时后再钉住老师，玩家练习期间他站在旁边看着。
+                            if (AgentControlHelper.SafeIsActive(demoTeacher)) AgentControlHelper.HoldInPlace(demoTeacher);
+                            _host.SchedulePublic(0.25f, () => _host.StartStoryConversation(demoTeacher, null, demoTalk));
+                        };
+                        AgentControlHelper.ForceMoveTo(demoTeacher, landPoint, 1.6f, 8f,
+                            new Action<bool>(ok => openTalk()), null);
                     }
                     return;
                 }
@@ -583,7 +600,7 @@ namespace LivingWorldNpcs
         private void BeginPlayerPractice(bool spoken = false)
         {
             _phase = "practice"; _nextRetry = _host.Clock + 1f; _hintState = null;
-            if (_def.Mode == "grapple_demo") AgentControlHelper.HoldInPlace(_teacher);
+            // 演示课的老师此刻还在墙上、要自己走下来（见 demo 分支），这里不能提前钉住。
             _playerGrapple = GrappleLogic.Ensure();
             _playerReceipt = _playerGrapple != null ? _playerGrapple.PullFinishedReceipt : 0;
             _quest.Note(_def.ReadyKey);
@@ -591,20 +608,26 @@ namespace LivingWorldNpcs
             StoryGoalHudMissionView.RequestFlash = true;
         }
 
-        /// <summary>演示结束后把绳、钩交给玩家；已持有的不重复发（取消重练不会越练越多）。</summary>
+        /// <summary>演示结束后把绳、钩交给玩家并**当场装到手上**；已持有的不重复发（取消重练不会越练越多）。
+        /// 🔴 只进背包等于没给：滚轮只切已装备的武器槽，玩家在场景里调不出钩索（2026-11-20 实机）。</summary>
         private void GivePlayerKit()
         {
             if (_def.Kit == null) return;
             var roster = Hero.MainHero?.PartyBelongedTo?.ItemRoster;
+            var handed = new List<ItemObject>();
             foreach (string id in _def.Kit)
             {
                 var item = StoryProbeDefs.FindItem(id);
                 if (item == null) { DebugLogger.Log("[StoryPractice] kit item missing: " + id); continue; }
-                if (roster != null && roster.GetItemNumber(item) > 0) continue;
-                if (!StoryProbeDefs.GiveItem(Hero.MainHero, id, 1))
-                    DebugLogger.Log("[StoryPractice] give kit failed: " + id);
+                if (roster == null || roster.GetItemNumber(item) <= 0)
+                    if (!StoryProbeDefs.GiveItem(Hero.MainHero, id, 1))
+                        DebugLogger.Log("[StoryPractice] give kit failed: " + id);
+                handed.Add(item);
             }
+            EquipOnPlayerHands(handed);
         }
+
+        private static void EquipOnPlayerHands(List<ItemObject> items) => StoryProbeDefs.EquipOnPlayerHands(items);
 
         /// <summary>
         /// 潜行课的分步提示：按"被看见 / 脚步重 / 没蹲 / 距离远 / 可出手"切换。
