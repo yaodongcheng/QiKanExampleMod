@@ -26,7 +26,9 @@ namespace LivingWorldNpcs
 		public static NpcGrappleDirector Instance { get; private set; }
 
 		// ── 总开关与节奏（命令可调；默认值也是"能看出效果但不刷屏"）──
-		public static bool Enabled = true;
+		// 🔴 2026-11-20 用户裁定：自主钩索**暂时默认关闭**（剧情场景里会抢人/乱钩，观感不对）。
+		// 需要时用控制台 `custom.grapple ai on` 临时打开，再 `custom.grapple status` 看开关状态。
+		public static bool Enabled = false;
 		public static bool BindEnabled = true;
 		public static bool WallPullEnabled = true;
 		public static bool Verbose = false;
@@ -265,6 +267,14 @@ namespace LivingWorldNpcs
 			catch (Exception) { }
 			// 物品门槛（同玩家）：没带绳+钩的 NPC 不用
 			if (!GrappleFirePatch.HasRopeEquipped(a) || !GrappleFirePatch.HasHookEquipped(a)) return false;
+			// 🔴 正在上课的剧情演员不自主用钩索（2026-11-20 实机：小六去练习点半路自己钩墙，
+			// 清空了课内走位，课被判 move failed；玩家看到的是"他在错误位置乱钩"）。
+			try
+			{
+				var storyHost = StoryProbeMissionBehavior.Current;
+				if (storyHost != null && storyHost.IsPracticeActor(StoryProbeDialogue.ResolveNpcId(a))) return false;
+			}
+			catch (Exception) { }
 			return true;
 		}
 

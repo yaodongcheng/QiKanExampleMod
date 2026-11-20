@@ -508,6 +508,30 @@ namespace LivingWorldNpcs
             lock (_syncLock) { _registry.Clear(); }
         }
 
+        /// <summary>清空某个 agent 的待播队列（课程结束 / 对话接管时用）。
+        /// 过时的教学提示不该继续排队播放——玩家已经做完的事，别再过几秒才念给他听（2026-11-20 实机）。</summary>
+        public static void ClearAgent(Agent agent)
+        {
+            if (agent == null) return;
+            lock (_syncLock)
+            {
+                if (!_registry.TryGetValue(agent.Index, out var ch) || ch == null) return;
+                ch._queue.Clear();
+                ch._hasPlaying = false;
+                ch._playing = default;
+                ch._playTimer = 0f;
+            }
+        }
+
+        /// <summary>立即说：先清掉这个 agent 的待播队列，再当场播放。
+        /// 用于"过期即作废"的台词（教学提示、命令确认）——队列会把这些话拖到上下文已经变了才念（2026-11-20 用户要求）。</summary>
+        public static void SayNow(Agent agent, string text, SpeechPriority priority = SpeechPriority.Chat,
+            SpeechContext context = default, float duration = 0f, bool forwardToNearby = true)
+        {
+            ClearAgent(agent);
+            Say(agent, text, priority, context, duration, forwardToNearby);
+        }
+
         // ── 实例 ──
 
         private void Enqueue(SpeechRequest req)

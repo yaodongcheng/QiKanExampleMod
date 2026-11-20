@@ -209,7 +209,8 @@ def check_json(module, problems):
                 # Disdain 的递钱是遭拒，不实际收款；节点资格也约束其选项。
                 if cast_by_id.get(primary_actor, {}).get("Money", "").lower() == "disdain":
                     effects.discard("money_offer")
-                effective_requires = node.get("Requires", []) + req
+                # 置灰条件同样算"有这个门槛"：要求的是"没钱时不能白拿"，显示/置灰都满足。
+                effective_requires = node.get("Requires", []) + req + (opt.get("DisabledRequires") or [])
                 money_guard = any(r.startswith("gold>=") for r in effective_requires)
                 # 已注册的信物资格查询包含资金/已付款重试检查；保留现有合法资格。
                 money_guard = money_guard or "can_redeem_keepsake" in effective_requires
@@ -3049,7 +3050,7 @@ def story_dialogue_issues(data, formal=False):
             if not isinstance(o, dict):
                 bad(opath, "wrong_type", "选项必须是对象")
                 continue
-            keys(o, opath, ("Id", "Speaker", "Listener", "PlayerKey", "PlayerKeyZh", "HintKey", "HintKeyZh", "Requires", "Effects", "Check", "NextNode"))
+            keys(o, opath, ("Id", "Speaker", "Listener", "PlayerKey", "PlayerKeyZh", "HintKey", "HintKeyZh", "Requires", "DisabledRequires", "Effects", "Check", "NextNode"))
             oid = text(o, opath, "Id")
             ospeaker = text(o, opath, "Speaker")
             olistener = text(o, opath, "Listener")
@@ -3060,6 +3061,7 @@ def story_dialogue_issues(data, formal=False):
             text(o, opath, "PlayerKey")
             text(o, opath, "HintKey", False)
             conditions(str_list(o, opath, "Requires", False), opath)
+            conditions(str_list(o, opath, "DisabledRequires", False), opath)
             effects(o, opath, "Effects")
             nxt = text(o, opath, "NextNode", False)
             check = o.get("Check")

@@ -2647,6 +2647,8 @@ namespace LivingWorldNpcs
         {
             if (agent == null || !AgentControlHelper.SafeIsActive(agent)) return;
             if (Agent.Main == null) return;
+            // 对话一开，之前排队的教学提示/环境台词就不再念了（2026-11-20 实机：对话里还在冒"按 F"）。
+            try { SpeechChannel.ClearAgent(agent); } catch { }
 
             try
             {
@@ -2739,7 +2741,8 @@ namespace LivingWorldNpcs
         /// 绑定的后果（2026-11-20 实机）：台词入队时演出还在，排队到租约释放后才轮到播放，
         /// SpeechChannel 的「晚到的旧演出台词不进入新动作」规则就把它静默丢掉——小六的完成话一句没说出来。</summary>
         public void SayOnAgentText(Agent agent, string text, SpeechPriority priority = SpeechPriority.Chat,
-            Agent listener = null, bool forwardToNearby = false, bool selfTalk = false, bool unbound = false)
+            Agent listener = null, bool forwardToNearby = false, bool selfTalk = false, bool unbound = false,
+            bool interrupt = false)
         {
             if (agent == null || !AgentControlHelper.SafeIsActive(agent) || string.IsNullOrEmpty(text)) return;
             try
@@ -2749,7 +2752,9 @@ namespace LivingWorldNpcs
                 var context = SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), listener,
                     selfTalk ? "story-self-talk" : "story", null, listener);
                 if (unbound) context.Performance = null;
-                SpeechChannel.Say(agent, text, priority, context, 0f, forwardToNearby);
+                // interrupt = 立即说（清掉该 NPC 的待播队列）：教学提示这类"过期即作废"的话不排队。
+                if (interrupt) SpeechChannel.SayNow(agent, text, priority, context, 0f, forwardToNearby);
+                else SpeechChannel.Say(agent, text, priority, context, 0f, forwardToNearby);
             }
             catch (Exception ex) { DebugLogger.Log($"[StoryProbe] SayOnAgentText failed: {ex.Message}"); }
         }

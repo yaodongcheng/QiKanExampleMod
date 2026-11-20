@@ -115,6 +115,9 @@ namespace LivingWorldNpcs
         // Monotonic receipts: observers cannot confuse release/abort with a successful landing.
         public int WorldHitReceipt { get; private set; }
         public Vec3 LastWorldHit { get; private set; }
+        /// <summary>命中后解算出的**可站立落点**（没有平台时 Found=false）。演示判成没打中时，
+        /// 钩头常常只是擦在平台侧面，真正该比的是这个落点——它才是"人会被拉到哪里"（2026-11-20 实机）。</summary>
+        internal GrappleLanding.Result Landing => _landing;
         public int PullFinishedReceipt { get; private set; }
         public Vec3 LastPullAnchor { get; private set; }
 		public Agent BoundTarget => _bind.Target;
@@ -262,6 +265,9 @@ namespace LivingWorldNpcs
 		//    · 技巧 100 → 射程 115%（34.5 m），散布 0.6°
 		//    调参入口就是下面四个静态字段（`custom.grapple tune` 一族可热改）。
 		public static bool SkillScaling = true;
+		/// <summary>按 agent 覆盖散布（返回 &lt;0 = 不覆盖）。教学演示用：老师"示范"不该因 Roguery=0 打偏
+		/// （2026-11-20 实机：小六技巧 0 ⇒ 散布 7° ⇒ 钩子飞过平台判打空）。</summary>
+		public static Func<Agent, float> SpreadOverride;
 		public static float SkillRangeMinScale = 0.55f;
 		public static float SkillRangeMaxScale = 1.15f;
 		public static float SkillSpreadMaxDeg = 7f;
@@ -293,7 +299,18 @@ namespace LivingWorldNpcs
 
 		/// <summary>出手散布（度）：技巧越低越歪。</summary>
 		public float SpreadDegrees
-			=> SkillScaling ? Lerp01(SkillSpreadMaxDeg, SkillSpreadMinDeg, Skill01(Owner)) : 0f;
+		{
+			get
+			{
+				try
+				{
+					float over = SpreadOverride != null ? SpreadOverride(Owner) : -1f;
+					if (over >= 0f) return over;
+				}
+				catch (Exception) { }
+				return SkillScaling ? Lerp01(SkillSpreadMaxDeg, SkillSpreadMinDeg, Skill01(Owner)) : 0f;
+			}
+		}
 
 		/// <summary>把出手方向在一个圆锥内随机偏一点（角度 ≤ 散布）。高技巧基本等于零偏移。</summary>
 		private static Vec3 ApplySpread(Vec3 dir, float spreadDeg)

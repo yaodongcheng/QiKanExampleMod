@@ -747,7 +747,14 @@ namespace LivingWorldNpcs
                         return string.IsNullOrEmpty(hint) ? null : new TextObject(hint);
                     };
                     // 2026-11-19 用户裁定：随机检定不设门槛，选项永远可选；成功率可以是 0%。
-                    t.RuntimeCanSelect = () => true;
+                    // 2026-11-20 补充：DisabledRequires 不满足 → 选项仍显示但置灰（人情不够这类可预期缺口，
+                    // 用户要求"看得到、点不动"，不能直接消失）。
+                    t.RuntimeCanSelect = () =>
+                    {
+                        if (opt.DisabledRequires == null || opt.DisabledRequires.Count == 0) return true;
+                        return StoryDialogueFacts.TryEvaluateAll(opt.DisabledRequires, ctx, out bool canSelect, out _, out _)
+                               && canSelect;
+                    };
                     if (opt.Check != null)
                         t.LazyPlayerLine = () => DescribeOptionLine(opt);
 

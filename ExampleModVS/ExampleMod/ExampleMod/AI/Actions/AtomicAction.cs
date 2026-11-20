@@ -1670,6 +1670,9 @@ namespace LivingWorldNpcs
             IsKnockout = isKnockout;
         }
 
+        /// <summary>击晕占位：等倒地动画播完后再切趴地循环（秒）；<0 = 不切。</summary>
+        private float _knockoutPoseDelay = -1f;
+
         public void OnStart(Agent agent)
         {
             // 刚开始时，强制停止移动，防止上一个 MoveAction 留下的惯性
@@ -1678,6 +1681,10 @@ namespace LivingWorldNpcs
 
             stayPos = agent.Position;
             AgentControlHelper.HoldInPlace(agent);
+
+            // 🔴 击晕不是"站住不动"：`act_death_fall_front` 是一次性动画，播完骨骼就回站姿
+            //（2026-11-20 实机：提示"击晕成功"但人还站着）。等倒地演完切趴地循环保持躺姿。
+            if (IsKnockout) _knockoutPoseDelay = 1.4f;
 
             if (_lookTarget == null) return;
             Vec3 dir = (_lookTarget.Position - agent.Position).NormalizedCopy();
@@ -1688,6 +1695,16 @@ namespace LivingWorldNpcs
 
         public void OnTick(Agent agent, float dt)
         {
+            if (_knockoutPoseDelay > 0f)
+            {
+                _knockoutPoseDelay -= dt;
+                if (_knockoutPoseDelay <= 0f)
+                {
+                    _knockoutPoseDelay = -1f;
+                    // act_executed_lie = 躺地循环（action_sets.xml 已注册，占位 clip binded_lay_loop）
+                    try { AgentControlHelper.SetPose(agent, "act_executed_lie"); } catch { }
+                }
+            }
             _timer += dt;
             if(_timer > 0.2f)
             {

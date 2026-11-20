@@ -60,7 +60,12 @@
       "lwn_grapple_hook"
     ],
     "FollowObjectiveKey": "LWN_story_practice_grapple_wall_FollowObjectiveKey",
-    "PracticeObjectiveKey": "LWN_story_practice_grapple_wall_PracticeObjectiveKey"
+    "PracticeObjectiveKey": "LWN_story_practice_grapple_wall_PracticeObjectiveKey",
+    "Aim": [
+      425.25,
+      397.34,
+      84.84
+    ]
   },
   {
     "Id": "grapple_demo",
@@ -90,6 +95,11 @@
     ],
     "FollowObjectiveKey": "LWN_story_practice_grapple_demo_FollowObjectiveKey",
     "PracticeObjectiveKey": "LWN_story_practice_grapple_demo_PracticeObjectiveKey",
-    "DemoDialogueTrigger": "grapple_demo_ready"
+    "DemoDialogueTrigger": "grapple_demo_ready",
+    "Aim": [
+      425.25,
+      397.34,
+      84.84
+    ]
   }
 ]

@@ -6000,11 +6000,18 @@
     <string id="LWN_story_son_opt_hook_give" text="从杜野手里拿回来的，还你。" />
     <string id="LWN_story_hint_son_opt_hook_give" text="把钩子交给小六；他随后到西南边墙根下演示怎么钩上去。" />
     <string id="LWN_story_son_hook_back" text="真是我那一把……" />
-    <string id="LWN_story_son_hook_demo_done" text="绳和钩都在我手上，你要自己上墙，得拿点东西来换。" />
+    <string id="LWN_story_son_hook_demo_back" text="想通了再来，东西我给你留着。" />
+    <string id="LWN_story_son_hook_demo_ask" text="你帮过我，这事好商量——你打算怎么拿？" />
+    <string id="LWN_story_son_opt_hook_ask" text="这钩爪和钩锁绳能给我吗？" />
+    <string id="LWN_story_hint_son_opt_hook_ask" text="向他开口，把钩爪和绳子要过来。" />
+    <string id="LWN_story_son_opt_hook_back" text="[算了] 当我没问。" />
+    <string id="LWN_story_hint_son_opt_hook_back" text="结束这个话题。" />
+    <string id="LWN_story_son_hook_demo_done_part1" text="守卫根本拦不住我，随便飞檐走壁。" />
+    <string id="LWN_story_son_hook_demo_done" text="我这招绝活怎么样？" />
     <string id="LWN_story_son_opt_hook_buy" text="[付钱] 五十第纳尔，我买回来。" />
-    <string id="LWN_story_hint_son_opt_hook_buy" text="花 50 第纳尔换回钩爪和绳子（人情不够时的兜底）。" />
+    <string id="LWN_story_hint_son_opt_hook_buy" text="付 50 第纳尔，换回钩爪和绳子。" />
     <string id="LWN_story_son_opt_hook_take" text="[人情] 这份人情我用了，钩爪给我。" />
-    <string id="LWN_story_hint_son_opt_hook_take" text="花掉 2 点人情换回钩爪和绳子。" />
+    <string id="LWN_story_hint_son_opt_hook_take" text="花掉 2 点人情，换回钩爪和绳子。" />
     <string id="LWN_story_son_opt_hook_later" text="先不拿，我再看看。" />
     <string id="LWN_story_hint_son_opt_hook_later" text="离开，之后可以再来找他。" />
     <string id="LWN_story_son_hook_demo_buy" text="钱我收了，东西拿去。" />

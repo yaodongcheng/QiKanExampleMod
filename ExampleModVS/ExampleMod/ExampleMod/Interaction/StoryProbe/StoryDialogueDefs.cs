@@ -231,6 +231,9 @@ namespace LivingWorldNpcs
         public string PlayerKey;
         public string HintKey;
         public List<string> Requires = new List<string>();
+        /// <summary>门槛条件：不满足时选项**仍然显示、但置灰不可选**（与 Requires 的"直接不显示"不同）。
+        /// 用于"人情不够时看得到但点不动"这类可预期缺口。</summary>
+        public List<string> DisabledRequires = new List<string>();
         public List<StoryDialogueEffect> Effects = new List<StoryDialogueEffect>();
         public StoryDialogueCheck Check;
         public string NextNode;
@@ -482,7 +485,7 @@ namespace LivingWorldNpcs
                     string opath = path + ".Options[" + oi + "]";
                     oi++;
                     if (!(o is JObject oo)) { errors.Add(new StoryDialogueIssue(opath, "wrong_type", "选项必须是对象")); continue; }
-                    Keys(oo, opath, new[] { "Id", "Speaker", "Listener", "PlayerKey", "PlayerKeyZh", "HintKey", "HintKeyZh", "Requires", "Effects", "Check", "NextNode" }, errors);
+                    Keys(oo, opath, new[] { "Id", "Speaker", "Listener", "PlayerKey", "PlayerKeyZh", "HintKey", "HintKeyZh", "Requires", "DisabledRequires", "Effects", "Check", "NextNode" }, errors);
                     var opt = new StoryDialogueOption
                     {
                         Id = Str(oo, "Id", opath, errors, true),
@@ -491,6 +494,7 @@ namespace LivingWorldNpcs
                         PlayerKey = Str(oo, "PlayerKey", opath, errors, true),
                         HintKey = Str(oo, "HintKey", opath, errors, false),
                         Requires = StrList(oo, "Requires", opath, errors, false),
+                        DisabledRequires = StrList(oo, "DisabledRequires", opath, errors, false),
                         Effects = ParseEffects(oo, "Effects", opath, errors),
                         Check = ParseCheck(oo, opath, errors),
                         NextNode = Str(oo, "NextNode", opath, errors, false)
@@ -632,6 +636,7 @@ namespace LivingWorldNpcs
                     if (!participants.Contains(opt.Listener ?? "") && !actors.Contains(opt.Listener ?? ""))
                         errors.Add(new StoryDialogueIssue(opath + ".Listener", "unknown_listener", "选项听话者未登记：" + opt.Listener));
                     CheckConditions(opt.Requires, opath, errors, formalMode);
+                    CheckConditions(opt.DisabledRequires, opath, errors, formalMode);
                     CheckEffects(opt.Effects, opath, errors, formalMode);
                     if (!string.IsNullOrEmpty(opt.NextNode) && !nodeIds.Contains(opt.NextNode))
                         errors.Add(new StoryDialogueIssue(opath + ".NextNode", "unknown_node", "节点 '" + opt.NextNode + "' 不存在"));

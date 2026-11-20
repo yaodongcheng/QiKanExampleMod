@@ -5895,9 +5895,16 @@
     <string id="LWN_story_son_opt_hook_give" text="I got it back from Du Ye. Here." />
     <string id="LWN_story_hint_son_opt_hook_give" text="Hand the hook to Xiaoliu; he will then show you how to grapple up the west wall." />
     <string id="LWN_story_son_hook_back" text="It really is mine…" />
-    <string id="LWN_story_son_hook_demo_done" text="The rope and hook are in my hands now; if you want to climb it yourself, you will have to pay me something for them." />
+    <string id="LWN_story_son_hook_demo_back" text="Think it over and come back; I will keep them for you." />
+    <string id="LWN_story_son_hook_demo_ask" text="You helped me, so this is negotiable — how do you want to take them?" />
+    <string id="LWN_story_son_opt_hook_ask" text="Can I have the hook and the rope?" />
+    <string id="LWN_story_hint_son_opt_hook_ask" text="Ask him for the hook and rope." />
+    <string id="LWN_story_son_opt_hook_back" text="[Never mind] Forget I asked." />
+    <string id="LWN_story_hint_son_opt_hook_back" text="Drop the topic." />
+    <string id="LWN_story_son_hook_demo_done_part1" text="The guards cannot stop me — I go over any wall I like." />
+    <string id="LWN_story_son_hook_demo_done" text="How about that trick of mine?" />
     <string id="LWN_story_son_opt_hook_buy" text="[Pay] Fifty denars, I'll buy them back." />
-    <string id="LWN_story_hint_son_opt_hook_buy" text="Pay 50 denars to get the hook and rope (fallback when favors are short)." />
+    <string id="LWN_story_hint_son_opt_hook_buy" text="Pay 50 denars to get the hook and rope." />
     <string id="LWN_story_son_opt_hook_take" text="[Favor] Take it out of what you owe me — hand me the hook." />
     <string id="LWN_story_hint_son_opt_hook_take" text="Spend 2 favors to get the hook and rope." />
     <string id="LWN_story_son_opt_hook_later" text="Not yet. Let me think about it." />

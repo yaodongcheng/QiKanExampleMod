@@ -3034,7 +3034,45 @@
       "Speaker": "npc",
       "Listener": "player",
       "TextKey": "LWN_story_son_hook_demo_done",
-      "TextKeyZh": "绳和钩都在我手上，你要自己上墙，得拿点东西来换。",
+      "TextKeyZh": "我这招绝活怎么样？",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "NextNode": "son_hook_demo_done_part1"
+    },
+    {
+      "Id": "son_hook_demo_handover",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_hook_demo_handover",
+      "TextKeyZh": "拿稳了，上去吧。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [],
+      "NextNode": ""
+    },
+    {
+      "Id": "son_hook_demo_buy",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_hook_demo_buy",
+      "TextKeyZh": "钱我收了，东西拿去。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [],
+      "NextNode": ""
+    },
+    {
+      "Id": "son_hook_demo_ask",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_hook_demo_ask",
+      "TextKeyZh": "你帮过我，这事好商量——你打算怎么拿？",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],
@@ -3045,10 +3083,7 @@
           "PlayerKey": "LWN_story_son_opt_hook_take",
           "PlayerKeyZh": "[人情] 这份人情我用了，钩爪给我。",
           "HintKey": "LWN_story_hint_son_opt_hook_take",
-          "HintKeyZh": "花掉 2 点人情换回钩爪和绳子。",
-          "Requires": [
-            "favor>=2"
-          ],
+          "HintKeyZh": "花掉 2 点人情，换回钩爪和绳子。",
           "Effects": [
             {
               "Id": "favor_spend",
@@ -3081,17 +3116,17 @@
           ],
           "NextNode": "son_hook_demo_handover",
           "Speaker": "player",
-          "Listener": "npc"
+          "Listener": "npc",
+          "DisabledRequires": [
+            "favor>=2"
+          ]
         },
         {
           "Id": "buy",
           "PlayerKey": "LWN_story_son_opt_hook_buy",
           "PlayerKeyZh": "[付钱] 五十第纳尔，我买回来。",
           "HintKey": "LWN_story_hint_son_opt_hook_buy",
-          "HintKeyZh": "花 50 第纳尔换回钩爪和绳子（人情不够时的兜底）。",
-          "Requires": [
-            "gold>=50"
-          ],
+          "HintKeyZh": "付 50 第纳尔，换回钩爪和绳子。",
           "Effects": [
             {
               "Id": "pay",
@@ -3122,6 +3157,46 @@
           ],
           "NextNode": "son_hook_demo_buy",
           "Speaker": "player",
+          "Listener": "npc",
+          "DisabledRequires": [
+            "gold>=50"
+          ]
+        },
+        {
+          "Id": "back",
+          "PlayerKey": "LWN_story_son_opt_hook_back",
+          "PlayerKeyZh": "[算了] 当我没问。",
+          "HintKey": "LWN_story_hint_son_opt_hook_back",
+          "HintKeyZh": "结束这个话题。",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hook_demo_back",
+          "Speaker": "player",
+          "Listener": "npc"
+        }
+      ]
+    },
+    {
+      "Id": "son_hook_demo_done_part1",
+      "Speaker": "npc",
+      "Listener": "player",
+      "TextKey": "LWN_story_son_hook_demo_done_part1",
+      "TextKeyZh": "守卫根本拦不住我，随便飞檐走壁。",
+      "LineActions": [
+        "act_conversation_confident_trivial"
+      ],
+      "OnEnter": [],
+      "Options": [
+        {
+          "Id": "ask",
+          "PlayerKey": "LWN_story_son_opt_hook_ask",
+          "PlayerKeyZh": "这钩爪和钩锁绳能给我吗？",
+          "HintKey": "LWN_story_hint_son_opt_hook_ask",
+          "HintKeyZh": "向他开口，把钩爪和绳子要过来。",
+          "Requires": [],
+          "Effects": [],
+          "NextNode": "son_hook_demo_ask",
+          "Speaker": "player",
           "Listener": "npc"
         },
         {
@@ -3139,24 +3214,11 @@
       ]
     },
     {
-      "Id": "son_hook_demo_handover",
+      "Id": "son_hook_demo_back",
       "Speaker": "npc",
       "Listener": "player",
-      "TextKey": "LWN_story_son_hook_demo_handover",
-      "TextKeyZh": "拿稳了，上去吧。",
-      "LineActions": [
-        "act_conversation_confident_trivial"
-      ],
-      "OnEnter": [],
-      "Options": [],
-      "NextNode": ""
-    },
-    {
-      "Id": "son_hook_demo_buy",
-      "Speaker": "npc",
-      "Listener": "player",
-      "TextKey": "LWN_story_son_hook_demo_buy",
-      "TextKeyZh": "钱我收了，东西拿去。",
+      "TextKey": "LWN_story_son_hook_demo_back",
+      "TextKeyZh": "想通了再来，东西我给你留着。",
       "LineActions": [
         "act_conversation_confident_trivial"
       ],

@@ -464,10 +464,14 @@ namespace LivingWorldNpcs
                     return;
                 }
                 if (_demo.WorldHitReceipt <= _demoReceipt) return;
-                if (_demo.LastWorldHit.Distance(_aim) > _def.AimTolerance)
+                // 判定"打没打中"要比的是**人会被拉到哪里**：钩头常常只是擦在平台侧面（z 差两三米），
+                // 落点解算已经算出正确站立点。有落点用落点，没有（真打空）才退回钩头命中点。
+                Vec3 judgedHit = _demo.Landing.Found ? _demo.Landing.Endpoint : _demo.LastWorldHit;
+                if (judgedHit.Distance(_aim) > _def.AimTolerance)
                 {
                     DebugLogger.Log("[StoryPractice] " + _def.Id + " demo missed target dist="
-                        + _demo.LastWorldHit.Distance(_aim).ToString("F1"));
+                        + judgedHit.Distance(_aim).ToString("F1") + " landing=" + _demo.Landing.Found
+                        + " judged=(" + judgedHit.x.ToString("F1") + "," + judgedHit.y.ToString("F1") + "," + judgedHit.z.ToString("F1") + ")");
                     _demo.Release("demo missed target"); _demo = null;
                     _phase = "lease"; _leaseRetryAt = _host.Clock + 2f;
                     if (_demoTries >= 2) Say(_def.RetryKey);
@@ -552,6 +556,8 @@ namespace LivingWorldNpcs
         /// <summary>老师先甩一遍：autoPull=true 时他自己拉上墙，玩家看完整演示；玩家课只要他甩中示范点。</summary>
         private void StartDemo(bool autoPull)
         {
+            // 老师"示范"不受技能散布影响：小六 Roguery=0 ⇒ 散布 7° ⇒ 钩子常飞过平台（2026-11-20 实机）。
+            try { var demoOwner = _teacher; GrappleLogic.SpreadOverride = a => a == demoOwner ? 0f : -1f; } catch { }
             _demo = GrappleLogic.EnsureFor(_teacher);
             if (_demo == null)
             {
@@ -664,7 +670,8 @@ namespace LivingWorldNpcs
         {
             if (string.IsNullOrEmpty(key)) return;
             _host.SayOnAgentText(_teacher, LWNTextHelper.ResolveCompound(key, "Practice",
-                ("CROUCH", KeyName(15)), ("ACTION", KeyName(13))), SpeechPriority.Chat, _player, unbound: true);
+                ("CROUCH", KeyName(15)), ("ACTION", KeyName(13))), SpeechPriority.Chat, _player,
+                unbound: true, interrupt: true);
         }
         public bool IsConsentingTeacher(Agent target) => Active && target == _teacher && _mission == Mission.Current
             && _token == StoryProbeState.RuntimeToken && _host.Active;
@@ -761,6 +768,9 @@ namespace LivingWorldNpcs
             // TickCompletion. Normal completion still waits for the modal to close.
             if (_phase == "taken") { completed = true; _quest?.Finish(_def.DoneKey); }
             var def = _def; _def = null; _serial++; // revoke permission before cleanup and any callbacks
+            try { GrappleLogic.SpreadOverride = null; } catch { }   // 演示散布覆盖随课程结束撤掉
+            // 清掉还没轮到的教学提示：玩家已经做完了，那些"按 F 出手"不该再排队念出来（2026-11-20 实机）。
+            try { SpeechChannel.ClearAgent(_teacher); } catch { }
             if (!completed) { _quest?.Cancel(); if (_mission == Mission.Current && _host.Active) Say(def.CancelKey); }
             _move?.RequestInterrupt(); _move = null;
             _lease?.Release("practice " + reason); _lease = null;
